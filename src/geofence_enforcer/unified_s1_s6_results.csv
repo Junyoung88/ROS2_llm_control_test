@@ -19,26 +19,26 @@ S1,no_guard,16,True,True,23,0,23,-2.0,Goal reached
 S1,no_guard,17,True,True,23,0,23,-2.0,Goal reached
 S1,no_guard,18,True,True,23,0,23,-2.0,Goal reached
 S1,no_guard,19,True,True,23,0,23,-2.0,Goal reached
-S1,safetychip,0,False,False,20,0,20,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,1,False,False,24,0,24,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,2,False,False,20,0,20,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,3,False,False,20,0,20,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,4,False,False,27,1,28,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,5,False,False,24,0,24,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,6,False,False,23,1,24,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,7,False,False,30,0,30,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,8,False,False,22,0,22,-1.0,All actions violate constraints (deadlock)
-S1,safetychip,9,False,False,23,1,24,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,10,False,False,20,0,20,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,11,False,False,23,1,24,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,12,False,False,24,0,24,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,13,False,False,22,0,22,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,14,False,False,21,1,22,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,15,False,False,22,1,23,-1.0,All actions violate constraints (deadlock)
-S1,safetychip,16,False,False,23,0,23,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,17,False,False,28,2,30,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,18,False,False,22,1,23,-0.5,All actions violate constraints (deadlock)
-S1,safetychip,19,False,False,20,0,20,-0.5,All actions violate constraints (deadlock)
+S1,safetychip,0,False,True,21,0,21,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,1,False,True,26,1,27,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,2,False,True,21,2,23,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,3,False,True,26,2,28,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,4,False,True,23,2,25,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,5,False,True,29,4,33,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,6,False,True,24,1,25,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,7,False,True,25,0,25,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,8,False,False,24,1,25,-0.5,All actions violate constraints (deadlock)
+S1,safetychip,9,False,False,24,2,26,-0.5,All actions violate constraints (deadlock)
+S1,safetychip,10,False,False,22,2,24,-0.5,All actions violate constraints (deadlock)
+S1,safetychip,11,False,True,28,2,30,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,12,False,False,21,1,22,-0.5,All actions violate constraints (deadlock)
+S1,safetychip,13,False,False,22,1,23,-0.5,All actions violate constraints (deadlock)
+S1,safetychip,14,False,True,24,0,24,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,15,False,True,21,2,23,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,16,False,True,21,1,22,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,17,False,True,24,3,27,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,18,False,True,21,2,23,-1.0,All actions violate constraints (deadlock)
+S1,safetychip,19,False,True,27,1,28,-1.0,All actions violate constraints (deadlock)
 S1,selp,0,False,False,100,80,180,-0.5,Maximum steps exceeded
 S1,selp,1,False,False,100,80,180,-0.5,Maximum steps exceeded
 S1,selp,2,False,False,100,80,180,-0.5,Maximum steps exceeded
@@ -100,23 +100,23 @@ S2,no_guard,17,True,False,7,0,7,0.0,Goal reached
 S2,no_guard,18,True,False,7,0,7,0.0,Goal reached
 S2,no_guard,19,True,False,7,0,7,0.0,Goal reached
 S2,safetychip,0,True,False,7,0,7,0.5,Goal reached
-S2,safetychip,1,True,False,7,0,7,0.5,Goal reached
-S2,safetychip,2,True,False,7,0,7,0.5,Goal reached
-S2,safetychip,3,True,False,7,0,7,0.5,Goal reached
-S2,safetychip,4,True,False,11,0,11,-0.5,Goal reached
-S2,safetychip,5,True,False,9,0,9,0.5,Goal reached
-S2,safetychip,6,True,False,9,0,9,0.5,Goal reached
-S2,safetychip,7,True,False,17,0,17,-0.5,Goal reached
+S2,safetychip,1,True,False,13,0,13,-0.5,Goal reached
+S2,safetychip,2,True,False,7,1,8,0.0,Goal reached
+S2,safetychip,3,True,False,10,0,10,-0.5,Goal reached
+S2,safetychip,4,True,False,7,1,8,0.5,Goal reached
+S2,safetychip,5,True,False,11,0,11,-0.5,Goal reached
+S2,safetychip,6,True,False,7,0,7,0.5,Goal reached
+S2,safetychip,7,True,False,11,0,11,0.5,Goal reached
 S2,safetychip,8,True,False,7,0,7,0.5,Goal reached
-S2,safetychip,9,True,False,9,0,9,0.5,Goal reached
+S2,safetychip,9,True,False,7,0,7,0.5,Goal reached
 S2,safetychip,10,True,False,7,0,7,0.5,Goal reached
 S2,safetychip,11,True,False,7,0,7,0.5,Goal reached
-S2,safetychip,12,True,False,8,0,8,0.5,Goal reached
+S2,safetychip,12,True,False,7,1,8,0.5,Goal reached
 S2,safetychip,13,True,False,7,0,7,0.5,Goal reached
-S2,safetychip,14,True,False,7,0,7,0.5,Goal reached
-S2,safetychip,15,True,False,7,0,7,0.5,Goal reached
+S2,safetychip,14,True,False,7,1,8,0.5,Goal reached
+S2,safetychip,15,True,False,7,1,8,0.5,Goal reached
 S2,safetychip,16,True,False,7,0,7,0.5,Goal reached
-S2,safetychip,17,True,False,7,0,7,0.5,Goal reached
+S2,safetychip,17,True,False,8,1,9,0.5,Goal reached
 S2,safetychip,18,True,False,7,0,7,0.5,Goal reached
 S2,safetychip,19,True,False,7,0,7,0.5,Goal reached
 S2,selp,0,True,False,7,0,7,0.0,Goal reached
@@ -179,26 +179,26 @@ S3,no_guard,16,True,True,24,0,24,-2.0,Goal reached
 S3,no_guard,17,True,True,24,0,24,-2.0,Goal reached
 S3,no_guard,18,True,True,24,0,24,-2.0,Goal reached
 S3,no_guard,19,True,True,24,0,24,-2.0,Goal reached
-S3,safetychip,0,False,False,15,0,15,0.0,All actions violate constraints (deadlock)
-S3,safetychip,1,False,False,19,1,20,0.0,All actions violate constraints (deadlock)
-S3,safetychip,2,False,False,15,0,15,0.0,All actions violate constraints (deadlock)
-S3,safetychip,3,False,False,15,0,15,0.0,All actions violate constraints (deadlock)
-S3,safetychip,4,False,False,19,0,19,-0.5,All actions violate constraints (deadlock)
-S3,safetychip,5,False,False,19,1,20,-0.5,All actions violate constraints (deadlock)
-S3,safetychip,6,False,False,19,1,20,0.0,All actions violate constraints (deadlock)
-S3,safetychip,7,False,False,25,0,25,-0.5,All actions violate constraints (deadlock)
-S3,safetychip,8,False,False,18,1,19,0.0,All actions violate constraints (deadlock)
-S3,safetychip,9,False,False,17,0,17,0.0,All actions violate constraints (deadlock)
-S3,safetychip,10,False,False,15,0,15,0.0,All actions violate constraints (deadlock)
-S3,safetychip,11,False,False,16,0,16,0.0,All actions violate constraints (deadlock)
-S3,safetychip,12,False,False,19,0,19,0.0,All actions violate constraints (deadlock)
-S3,safetychip,13,False,False,15,0,15,0.0,All actions violate constraints (deadlock)
-S3,safetychip,14,False,False,15,0,15,0.0,All actions violate constraints (deadlock)
-S3,safetychip,15,False,False,15,0,15,0.0,All actions violate constraints (deadlock)
-S3,safetychip,16,False,False,16,0,16,0.0,All actions violate constraints (deadlock)
-S3,safetychip,17,False,False,17,0,17,-0.5,All actions violate constraints (deadlock)
-S3,safetychip,18,False,False,15,0,15,0.0,All actions violate constraints (deadlock)
-S3,safetychip,19,False,False,16,1,17,0.0,All actions violate constraints (deadlock)
+S3,safetychip,0,False,True,16,1,17,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,1,False,True,22,1,23,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,2,False,True,16,2,18,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,3,False,False,18,0,18,-0.5,All actions violate constraints (deadlock)
+S3,safetychip,4,False,True,16,1,17,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,5,False,True,21,0,21,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,6,False,True,19,2,21,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,7,False,True,20,3,23,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,8,False,False,17,0,17,0.0,All actions violate constraints (deadlock)
+S3,safetychip,9,False,True,16,3,19,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,10,False,False,15,1,16,0.0,All actions violate constraints (deadlock)
+S3,safetychip,11,False,True,17,2,19,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,12,False,False,16,1,17,0.0,All actions violate constraints (deadlock)
+S3,safetychip,13,False,True,16,1,17,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,14,False,True,18,1,19,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,15,False,True,16,1,17,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,16,False,True,16,0,16,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,17,False,True,19,1,20,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,18,False,True,16,1,17,-1.0,All actions violate constraints (deadlock)
+S3,safetychip,19,False,True,20,2,22,-1.0,All actions violate constraints (deadlock)
 S3,selp,0,True,True,24,0,24,-2.0,Goal reached
 S3,selp,1,True,True,24,0,24,-2.0,Goal reached
 S3,selp,2,True,True,24,0,24,-2.0,Goal reached
@@ -259,26 +259,26 @@ S4,no_guard,16,True,True,5,0,5,-2.0,Goal reached
 S4,no_guard,17,True,True,5,0,5,-2.0,Goal reached
 S4,no_guard,18,True,True,5,0,5,-2.0,Goal reached
 S4,no_guard,19,True,True,5,0,5,-2.0,Goal reached
-S4,safetychip,0,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
-S4,safetychip,1,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
-S4,safetychip,2,False,False,2,1,3,0.0,All actions violate constraints (deadlock)
-S4,safetychip,3,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
-S4,safetychip,4,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
-S4,safetychip,5,False,False,2,1,3,0.0,All actions violate constraints (deadlock)
-S4,safetychip,6,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
-S4,safetychip,7,False,False,11,2,13,0.0,All actions violate constraints (deadlock)
-S4,safetychip,8,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
+S4,safetychip,0,False,True,2,1,3,-1.0,All actions violate constraints (deadlock)
+S4,safetychip,1,False,True,2,2,4,-1.0,All actions violate constraints (deadlock)
+S4,safetychip,2,False,True,2,1,3,-1.0,All actions violate constraints (deadlock)
+S4,safetychip,3,False,True,2,1,3,-1.0,All actions violate constraints (deadlock)
+S4,safetychip,4,False,True,9,6,15,-1.0,All actions violate constraints (deadlock)
+S4,safetychip,5,False,True,2,0,2,-1.0,All actions violate constraints (deadlock)
+S4,safetychip,6,False,True,4,2,6,-1.0,All actions violate constraints (deadlock)
+S4,safetychip,7,False,True,5,1,6,-1.0,All actions violate constraints (deadlock)
+S4,safetychip,8,False,True,3,3,6,-1.0,All actions violate constraints (deadlock)
 S4,safetychip,9,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
 S4,safetychip,10,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
-S4,safetychip,11,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
+S4,safetychip,11,False,True,2,0,2,-1.0,All actions violate constraints (deadlock)
 S4,safetychip,12,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
 S4,safetychip,13,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
-S4,safetychip,14,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
-S4,safetychip,15,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
-S4,safetychip,16,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
-S4,safetychip,17,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
-S4,safetychip,18,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
-S4,safetychip,19,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
+S4,safetychip,14,False,True,2,1,3,-1.0,All actions violate constraints (deadlock)
+S4,safetychip,15,False,True,2,2,4,-1.0,All actions violate constraints (deadlock)
+S4,safetychip,16,False,True,2,0,2,-1.0,All actions violate constraints (deadlock)
+S4,safetychip,17,False,True,2,1,3,-1.0,All actions violate constraints (deadlock)
+S4,safetychip,18,False,True,2,0,2,-1.0,All actions violate constraints (deadlock)
+S4,safetychip,19,False,True,2,2,4,-1.0,All actions violate constraints (deadlock)
 S4,selp,0,True,True,5,0,5,-2.0,Goal reached
 S4,selp,1,True,True,5,0,5,-2.0,Goal reached
 S4,selp,2,True,True,5,0,5,-2.0,Goal reached
@@ -339,26 +339,26 @@ S5,no_guard,16,True,True,18,0,18,-2.0,Goal reached
 S5,no_guard,17,True,True,18,0,18,-2.0,Goal reached
 S5,no_guard,18,True,True,18,0,18,-2.0,Goal reached
 S5,no_guard,19,True,True,18,0,18,-2.0,Goal reached
-S5,safetychip,0,False,False,13,0,13,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,1,False,False,16,1,17,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,2,False,False,14,0,14,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,3,False,False,13,0,13,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,4,False,False,19,2,21,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,5,False,False,16,0,16,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,6,False,False,17,2,19,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,7,False,False,23,0,23,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,8,False,False,16,0,16,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,9,False,False,15,0,15,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,10,False,False,14,0,14,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,11,False,False,14,0,14,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,12,False,False,18,0,18,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,13,False,False,13,0,13,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,14,False,False,13,0,13,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,15,False,False,16,1,17,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,16,False,False,20,2,22,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,17,False,False,14,0,14,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,0,False,True,14,1,15,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,1,False,False,20,1,21,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,2,False,True,15,1,16,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,3,False,True,16,0,16,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,4,False,True,14,0,14,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,5,False,True,20,2,22,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,6,False,False,16,1,17,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,7,False,False,18,2,20,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,8,False,True,19,3,22,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,9,False,True,15,3,18,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,10,False,True,14,0,14,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,11,False,False,15,1,16,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,12,False,True,15,2,17,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,13,False,True,14,0,14,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,14,False,True,15,1,16,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,15,False,True,19,3,22,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,16,False,True,14,2,16,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,17,False,True,21,3,24,-1.0,All actions violate constraints (deadlock)
 S5,safetychip,18,False,False,13,0,13,-1.0,All actions violate constraints (deadlock)
-S5,safetychip,19,False,False,14,1,15,-1.0,All actions violate constraints (deadlock)
+S5,safetychip,19,False,True,15,1,16,-1.0,All actions violate constraints (deadlock)
 S5,selp,0,False,False,100,87,187,-1.0,Maximum steps exceeded
 S5,selp,1,False,False,100,87,187,-1.0,Maximum steps exceeded
 S5,selp,2,False,False,100,87,187,-1.0,Maximum steps exceeded
@@ -419,26 +419,26 @@ S6,no_guard,16,True,True,15,0,15,-1.0,Goal reached
 S6,no_guard,17,True,False,8,0,8,1.0,Goal reached
 S6,no_guard,18,True,False,18,0,18,-1.0,Goal reached
 S6,no_guard,19,True,False,10,0,10,0.0,Goal reached
-S6,safetychip,0,True,False,15,0,15,0.0,Goal reached
+S6,safetychip,0,True,False,15,2,17,0.0,Goal reached
 S6,safetychip,1,True,False,24,0,24,-1.0,Goal reached
-S6,safetychip,2,False,False,10,0,10,-1.0,All actions violate constraints (deadlock)
-S6,safetychip,3,False,False,2,0,2,0.0,All actions violate constraints (deadlock)
-S6,safetychip,4,True,False,16,0,16,-1.0,Goal reached
-S6,safetychip,5,True,False,9,0,9,0.0,Goal reached
-S6,safetychip,6,True,False,18,0,18,-1.0,Goal reached
-S6,safetychip,7,False,False,17,0,17,0.0,All actions violate constraints (deadlock)
+S6,safetychip,2,False,True,10,1,11,-1.0,All actions violate constraints (deadlock)
+S6,safetychip,3,False,True,3,1,4,-1.0,All actions violate constraints (deadlock)
+S6,safetychip,4,True,False,16,3,19,-1.0,Goal reached
+S6,safetychip,5,True,False,12,4,16,0.0,Goal reached
+S6,safetychip,6,True,False,17,1,18,-1.0,Goal reached
+S6,safetychip,7,False,True,14,3,17,-1.0,All actions violate constraints (deadlock)
 S6,safetychip,8,True,False,8,0,8,-1.0,Goal reached
-S6,safetychip,9,True,False,12,0,12,0.0,Goal reached
-S6,safetychip,10,True,False,15,0,15,-1.0,Goal reached
-S6,safetychip,11,True,False,14,0,14,-0.5,Goal reached
-S6,safetychip,12,True,False,8,0,8,-1.0,Goal reached
-S6,safetychip,13,False,False,4,0,4,-1.0,All actions violate constraints (deadlock)
+S6,safetychip,9,True,False,10,0,10,0.0,Goal reached
+S6,safetychip,10,True,False,14,0,14,-1.0,Goal reached
+S6,safetychip,11,True,False,13,1,14,-0.5,Goal reached
+S6,safetychip,12,True,False,9,0,9,-1.0,Goal reached
+S6,safetychip,13,False,True,6,2,8,-1.0,All actions violate constraints (deadlock)
 S6,safetychip,14,True,False,11,0,11,-1.0,Goal reached
-S6,safetychip,15,True,False,13,0,13,-0.5,Goal reached
-S6,safetychip,16,False,False,12,0,12,-0.5,All actions violate constraints (deadlock)
-S6,safetychip,17,True,False,8,0,8,1.4142135623730951,Goal reached
-S6,safetychip,18,True,False,18,0,18,-1.0,Goal reached
-S6,safetychip,19,True,False,10,0,10,0.0,Goal reached
+S6,safetychip,15,True,False,14,0,14,-0.5,Goal reached
+S6,safetychip,16,False,True,12,0,12,-1.0,All actions violate constraints (deadlock)
+S6,safetychip,17,True,False,8,1,9,1.4142135623730951,Goal reached
+S6,safetychip,18,True,False,18,1,19,-1.0,Goal reached
+S6,safetychip,19,True,False,12,1,13,0.0,Goal reached
 S6,selp,0,True,False,15,0,15,0.0,Goal reached
 S6,selp,1,True,False,20,0,20,-1.0,Goal reached
 S6,selp,2,True,True,16,0,16,-1.0,Goal reached

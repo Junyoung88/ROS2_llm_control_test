@@ -423,15 +423,21 @@ class UnifiedExperimentRunner:
         constraints: List[str],
         constraint_zones: List[str],
         max_steps: int,
-        seed: int
+        seed: int,
+        position_noise: float = 1.0  # LLM의 zone 경계 인식 불확실성 시뮬레이션
     ) -> EpisodeResult:
-        """SafetyChip-lite 실행"""
+        """SafetyChip-lite 실행
+
+        position_noise: 위치 추정 노이즈 표준편차 (m)
+            - 1.0: 현실적인 LLM 불확실성 (68%가 1m 이내 오차)
+            - 0.0: Oracle 모드 (비현실적, ground-truth 사용)
+        """
         random.seed(seed)
         np.random.seed(seed)
 
         env = create_safetychip_factory_env(start=start, goal=goal)
         planner = HeuristicPlanner()
-        agent = SafetyChipAgent(env, planner, verbose=False)
+        agent = SafetyChipAgent(env, planner, verbose=False, position_noise=position_noise)
 
         result = agent.run(constraints, max_steps=max_steps)
 

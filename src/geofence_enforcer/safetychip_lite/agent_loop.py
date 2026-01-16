@@ -24,6 +24,7 @@ The loop structure:
 """
 
 import logging
+import random
 from typing import List, Dict, Tuple, Optional, Set
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -95,7 +96,10 @@ class SafetyChipAgent:
     3. Unsafe actions are pruned with explanations
     4. Planner is reprompted to find safe alternatives
 
-    Key guarantee: No unsafe actions are ever executed.
+    IMPORTANT: This implementation simulates realistic LLM behavior by adding
+    position noise when checking propositions. This models the fact that LLMs
+    don't have perfect knowledge of zone boundaries - they can only estimate
+    based on natural language understanding.
     """
 
     def __init__(
@@ -103,7 +107,8 @@ class SafetyChipAgent:
         env,  # GridWorld environment
         planner: Optional[BasePlanner] = None,
         max_reprompts: int = 5,
-        verbose: bool = True
+        verbose: bool = True,
+        position_noise: float = 1.0  # Standard deviation for position estimation noise
     ):
         """
         Args:
@@ -111,16 +116,45 @@ class SafetyChipAgent:
             planner: Action planner (default: HeuristicPlanner)
             max_reprompts: Maximum reprompts per step
             verbose: Enable verbose logging
+            position_noise: Std dev of Gaussian noise added to position estimation.
+                           This simulates LLM's imperfect knowledge of zone boundaries.
+                           Default 1.0m means ~68% of estimates within 1m of true position.
         """
         self.env = env
         self.base_planner = planner or HeuristicPlanner()
         self.planner = RepromptingPlanner(self.base_planner, max_reprompts)
         self.verbose = verbose
+        self.position_noise = position_noise
 
         # Components initialized during run
         self.translator: Optional[NL2LTLTranslator] = None
         self.monitor: Optional[ConstraintMonitor] = None
         self.translation_result: Optional[TranslationResult] = None
+
+    def _get_noisy_propositions(self, state) -> Dict[str, bool]:
+        """
+        Get propositions with noisy position estimation.
+
+        This simulates the LLM's imperfect knowledge of zone boundaries.
+        The LLM doesn't have access to exact geometric zone definitions,
+        so it can only estimate whether a position is in a forbidden zone.
+
+        Returns:
+            Dictionary of propositions based on noisy position estimate
+        """
+        if self.position_noise <= 0:
+            # No noise - use exact position (oracle mode, not realistic)
+            return self.env.get_propositions(state)
+
+        # Add Gaussian noise to position
+        noisy_x = state.position[0] + random.gauss(0, self.position_noise)
+        noisy_y = state.position[1] + random.gauss(0, self.position_noise)
+
+        # Create a temporary state with noisy position
+        noisy_state = copy.copy(state)
+        noisy_state.position = (noisy_x, noisy_y)
+
+        return self.env.get_propositions(noisy_state)
 
     def run(
         self,
@@ -321,9 +355,10 @@ class SafetyChipAgent:
             sim_state = self.env.simulate_action(
                 self.env.state, proposal.action
             )
-            sim_props = self.env.get_propositions(sim_state)
+            # Use noisy propositions to simulate LLM's imperfect zone knowledge
+            sim_props = self._get_noisy_propositions(sim_state)
 
-            # Check with monitor
+            # Check with monitor (using noisy/uncertain proposition estimates)
             would_violate, violations = self.monitor.would_violate(sim_props)
 
             if not would_violate:
@@ -384,7 +419,8 @@ def run_safetychip_agent(
     constraints: List[str],
     max_steps: int = 100,
     planner_type: str = "heuristic",
-    verbose: bool = False
+    verbose: bool = False,
+    position_noise: float = 1.0
 ) -> EpisodeResult:
     """
     Convenience function to run SafetyChip agent.
@@ -395,12 +431,14 @@ def run_safetychip_agent(
         max_steps: Maximum steps
         planner_type: "heuristic", "random", or "llm"
         verbose: Enable verbose logging
+        position_noise: Std dev of position noise (simulates LLM uncertainty).
+                       Default 1.0m. Set to 0 for oracle mode (not realistic).
 
     Returns:
         EpisodeResult
     """
     planner = create_planner(planner_type)
-    agent = SafetyChipAgent(env, planner, verbose=verbose)
+    agent = SafetyChipAgent(env, planner, verbose=verbose, position_noise=position_noise)
     return agent.run(constraints, max_steps)
 
 
