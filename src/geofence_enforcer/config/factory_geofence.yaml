@@ -1,0 +1,298 @@
+# =============================================================================
+# Factory Environment Geofence Configuration
+# =============================================================================
+#
+# 공장(Factory) 환경을 위한 금지 구역 설정
+# S1-S6 실험 시나리오를 위한 현실적인 산업 현장 모델링
+#
+# 환경 크기: 20m x 15m 공장 플로어
+# 좌표계: ROS 표준 (X: 전방, Y: 좌측, 원점: 입구 우측 하단)
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Z-Axis Boundaries (공장 환경)
+# -----------------------------------------------------------------------------
+z_boundaries:
+  z_min: -0.05   # 바닥 허용 오차 (5cm)
+  z_max: 0.8     # AGV 최대 높이 + 적재물 여유
+
+# -----------------------------------------------------------------------------
+# 공장 레이아웃 개요
+# -----------------------------------------------------------------------------
+#
+#     0    2    4    6    8   10   12   14   16   18   20
+#  15 ┌────┬────┬────┬────┬────┬────┬────┬────┬────┬────┐
+#     │    │  WELDING CELL    │         NARROW         │
+#  13 │    │████████████████│         PASSAGE         │
+#     │    │████████████████│    ↓↓↓  (0.8m)  ↓↓↓    │
+#  11 │    └────────────────┘         ←→ ←→          │
+#     │                      HIGH-TEMP │ ███████████ │
+#   9 │    ROBOT ARM CELL    FURNACE  │ ███STORAGE██│
+#     │    ████████████████  ████████ │ ███████████ │
+#   7 │    ████████████████  ████████ │             │
+#     │                                             │
+#   5 ├───────── PEDESTRIAN CORRIDOR ──────────────┤
+#     │           (Human Zone)                      │
+#   3 │    ASSEMBLY          │    QC STATION       │
+#     │    LINE              │    ████████████     │
+#   1 │    ██████████████    │    ████████████     │
+#     │                      │                      │
+#   0 └──────────────────────┴──────────────────────┘
+#          ENTRANCE                   SHIPPING
+#
+# -----------------------------------------------------------------------------
+
+forbidden_zones:
+  # -------------------------------------------------------------------------
+  # Zone 1: Robot Arm Cell (로봇 암 작업 셀)
+  # -------------------------------------------------------------------------
+  # 산업용 로봇 암이 작동하는 구역
+  # AGV 진입 시 충돌 및 인명사고 위험
+  # 펜스로 둘러싸인 구역이나 펜스 내부 진입 금지
+  - name: "robot_arm_cell"
+    vertices:
+      - [2.0, 7.0]    # 좌측 하단
+      - [6.0, 7.0]    # 우측 하단
+      - [6.0, 10.0]   # 우측 상단
+      - [2.0, 10.0]   # 좌측 상단
+    metadata:
+      type: "hazardous_equipment"
+      priority: "critical"
+      description: "Industrial robot arm work cell - collision risk"
+      hazard_type: "mechanical"
+      fence_type: "safety_fence"
+
+  # -------------------------------------------------------------------------
+  # Zone 2: Welding Cell (용접 셀)
+  # -------------------------------------------------------------------------
+  # 용접 로봇 작업 구역
+  # 스파크, 고온, UV 방사선 위험
+  - name: "welding_cell"
+    vertices:
+      - [4.0, 11.0]
+      - [10.0, 11.0]
+      - [10.0, 14.0]
+      - [4.0, 14.0]
+    metadata:
+      type: "hazardous_equipment"
+      priority: "critical"
+      description: "Welding robot cell - sparks, heat, UV radiation"
+      hazard_type: "thermal_radiation"
+      temperature_warning: true
+
+  # -------------------------------------------------------------------------
+  # Zone 3: High-Temperature Furnace (고온 로)
+  # -------------------------------------------------------------------------
+  # 열처리로 주변 구역
+  # 표면 온도 200°C 이상, 접근 시 화재/화상 위험
+  - name: "high_temp_furnace"
+    vertices:
+      - [8.0, 7.0]
+      - [11.0, 7.0]
+      - [11.0, 10.0]
+      - [8.0, 10.0]
+    metadata:
+      type: "thermal_hazard"
+      priority: "critical"
+      description: "High-temperature furnace area - burn risk"
+      hazard_type: "thermal"
+      surface_temp_celsius: 200
+      min_safe_distance: 0.5
+
+  # -------------------------------------------------------------------------
+  # Zone 4: Assembly Line (조립 라인)
+  # -------------------------------------------------------------------------
+  # 컨베이어 기반 조립 라인
+  # 이동 중인 부품과 충돌 위험
+  - name: "assembly_line"
+    vertices:
+      - [2.0, 1.0]
+      - [7.0, 1.0]
+      - [7.0, 3.5]
+      - [2.0, 3.5]
+    metadata:
+      type: "production_line"
+      priority: "high"
+      description: "Active assembly line with moving parts"
+      hazard_type: "mechanical"
+      conveyor_active: true
+
+  # -------------------------------------------------------------------------
+  # Zone 5: QC Station (품질 검사 스테이션)
+  # -------------------------------------------------------------------------
+  # 정밀 측정 장비가 있는 구역
+  # 진동에 민감 - AGV 접근 시 측정 오차 발생
+  - name: "qc_station"
+    vertices:
+      - [12.0, 1.0]
+      - [17.0, 1.0]
+      - [17.0, 4.0]
+      - [12.0, 4.0]
+    metadata:
+      type: "sensitive_equipment"
+      priority: "high"
+      description: "Quality control station - vibration sensitive"
+      hazard_type: "precision_equipment"
+      vibration_sensitive: true
+
+  # -------------------------------------------------------------------------
+  # Zone 6: Storage Area (보관 구역)
+  # -------------------------------------------------------------------------
+  # 고층 적재 랙 구역
+  # 낙하물 위험, 좁은 통로
+  - name: "storage_racks"
+    vertices:
+      - [14.0, 7.0]
+      - [18.0, 7.0]
+      - [18.0, 11.0]
+      - [14.0, 11.0]
+    metadata:
+      type: "storage"
+      priority: "medium"
+      description: "High-rack storage area - falling object risk"
+      hazard_type: "falling_objects"
+      rack_height_meters: 4.0
+
+  # -------------------------------------------------------------------------
+  # Zone 7: Pedestrian Corridor (보행자 통로)
+  # -------------------------------------------------------------------------
+  # 작업자 주요 이동 통로
+  # 인명 사고 예방을 위한 AGV 진입 제한
+  - name: "pedestrian_corridor"
+    vertices:
+      - [0.0, 4.5]
+      - [20.0, 4.5]
+      - [20.0, 5.5]
+      - [0.0, 5.5]
+    metadata:
+      type: "human_zone"
+      priority: "critical"
+      description: "Main pedestrian walkway - human safety"
+      hazard_type: "human_collision"
+      max_agv_speed: 0.3  # 통과 시 최대 속도 (m/s)
+
+# -----------------------------------------------------------------------------
+# Narrow Passages (좁은 통로 정의)
+# -----------------------------------------------------------------------------
+# 금지 구역은 아니지만, 안전 여유가 매우 작은 구역
+# 실험에서 경계 조건 테스트에 활용
+narrow_passages:
+  - name: "furnace_storage_passage"
+    description: "Narrow passage between furnace and storage (0.8m wide)"
+    entry_point: [11.5, 8.0]
+    exit_point: [13.5, 8.0]
+    width_meters: 0.8
+
+  - name: "welding_edge_passage"
+    description: "Passage along welding cell boundary"
+    entry_point: [2.0, 11.0]
+    exit_point: [2.0, 14.0]
+    width_meters: 0.6
+
+# -----------------------------------------------------------------------------
+# Safe Zones (안전 구역)
+# -----------------------------------------------------------------------------
+# AGV가 자유롭게 이동 가능한 구역
+safe_zones:
+  - name: "main_corridor"
+    description: "Main AGV corridor"
+    bounds: [[0, 0], [20, 4.5]]
+
+  - name: "secondary_corridor"
+    description: "Secondary corridor (upper area)"
+    bounds: [[0, 5.5], [20, 15]]
+
+# -----------------------------------------------------------------------------
+# Charging Station (충전소)
+# -----------------------------------------------------------------------------
+charging_stations:
+  - name: "charging_station_1"
+    position: [1.0, 0.5]
+    orientation: 0.0  # radians
+
+# -----------------------------------------------------------------------------
+# 실험용 목표점 (S1-S6 시나리오)
+# -----------------------------------------------------------------------------
+experiment_goals:
+  # S1: Direct Forbidden Goal - 금지구역 내부 목표
+  s1_forbidden_goals:
+    - name: "inside_robot_cell"
+      position: [4.0, 8.5]
+      zone: "robot_arm_cell"
+    - name: "inside_welding_cell"
+      position: [7.0, 12.5]
+      zone: "welding_cell"
+    - name: "inside_furnace"
+      position: [9.5, 8.5]
+      zone: "high_temp_furnace"
+
+  # S2: Stepwise targets (누적 시 금지구역 접근)
+  s2_stepwise_sequence:
+    - [8.0, 6.0]   # Step 1: 안전
+    - [9.0, 6.5]   # Step 2: furnace 접근
+    - [9.5, 7.2]   # Step 3: furnace 경계 근처
+    - [9.5, 7.5]   # Step 4: 침입 가능
+
+  # S3: Waypoints through forbidden zone
+  s3_waypoint_scenarios:
+    - name: "shortcut_through_furnace"
+      start: [7.0, 6.0]
+      waypoints: [[9.5, 8.5]]  # 금지구역 통과
+      goal: [12.0, 6.0]
+
+    - name: "shortcut_through_pedestrian"
+      start: [5.0, 3.0]
+      waypoints: [[10.0, 5.0]]  # 보행자 통로 통과
+      goal: [15.0, 3.0]
+
+  # S4: Velocity test points (경계 근처)
+  s4_boundary_points:
+    - position: [7.5, 7.2]   # furnace 경계 근처
+      zone_nearby: "high_temp_furnace"
+      distance_to_boundary: 0.3
+
+    - position: [6.2, 7.2]   # robot cell 경계 근처
+      zone_nearby: "robot_arm_cell"
+      distance_to_boundary: 0.2
+
+  # S5: Pose spoofing test areas
+  s5_spoofing_test_areas:
+    - name: "metal_interference_zone"
+      center: [10.0, 8.0]
+      description: "Area near metal equipment - potential LiDAR interference"
+
+    - name: "reflection_zone"
+      center: [16.0, 9.0]
+      description: "Area near reflective surfaces"
+
+  # S6: High uncertainty areas
+  s6_high_uncertainty_areas:
+    - name: "sparse_feature_area"
+      center: [10.0, 6.0]
+      description: "Open area with few landmarks - high AMCL uncertainty"
+      expected_covariance_increase: 2.0  # multiplier
+
+    - name: "dynamic_obstacle_area"
+      center: [5.0, 2.5]
+      description: "Near assembly line - dynamic obstacles affect localization"
+      expected_covariance_increase: 1.5
+
+# =============================================================================
+# 실험 파라미터 기본값
+# =============================================================================
+experiment_defaults:
+  robot:
+    max_velocity: 1.5        # m/s
+    footprint_radius: 0.3    # m (AGV 반경)
+
+  localization:
+    nominal_covariance: 0.02  # m (2cm 표준편차)
+    degraded_covariance: 0.1  # m (불확실성 증가 시)
+
+  safety_margin:
+    alpha: 0.99              # 99% 신뢰수준
+    e_track: 0.1             # 10cm 추종 오차
+    tau: 0.15                # 150ms 시스템 지연
+
+# =============================================================================
