@@ -44,6 +44,8 @@ setup(
         'console_scripts': [
             'policy_enforcer_node = geofence_enforcer.policy_enforcer_node:main',
             'dynamic_policy_enforcer = geofence_enforcer.dynamic_policy_enforcer_node:main',
+            'costmap_mask_publisher = geofence_enforcer.costmap_mask_publisher:main',
+            'runtime_monitor = geofence_enforcer.runtime_monitor:main',
         ],
     },
     python_requires='>=3.8',
