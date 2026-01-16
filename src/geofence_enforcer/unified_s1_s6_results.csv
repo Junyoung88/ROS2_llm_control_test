@@ -199,26 +199,26 @@ S3,safetychip,16,False,False,16,0,16,0.0,All actions violate constraints (deadlo
 S3,safetychip,17,False,False,17,0,17,-0.5,All actions violate constraints (deadlock)
 S3,safetychip,18,False,False,15,0,15,0.0,All actions violate constraints (deadlock)
 S3,safetychip,19,False,False,16,1,17,0.0,All actions violate constraints (deadlock)
-S3,selp,0,True,False,24,6,30,0.0,Goal reached
-S3,selp,1,True,False,24,6,30,0.0,Goal reached
-S3,selp,2,True,False,24,6,30,0.0,Goal reached
-S3,selp,3,True,False,24,6,30,0.0,Goal reached
-S3,selp,4,True,False,24,6,30,0.0,Goal reached
-S3,selp,5,True,False,24,6,30,0.0,Goal reached
-S3,selp,6,True,False,24,6,30,0.0,Goal reached
-S3,selp,7,True,False,24,6,30,0.0,Goal reached
-S3,selp,8,True,False,24,6,30,0.0,Goal reached
-S3,selp,9,True,False,24,6,30,0.0,Goal reached
-S3,selp,10,True,False,24,6,30,0.0,Goal reached
-S3,selp,11,True,False,24,6,30,0.0,Goal reached
-S3,selp,12,True,False,24,6,30,0.0,Goal reached
-S3,selp,13,True,False,24,6,30,0.0,Goal reached
-S3,selp,14,True,False,24,6,30,0.0,Goal reached
-S3,selp,15,True,False,24,6,30,0.0,Goal reached
-S3,selp,16,True,False,24,6,30,0.0,Goal reached
-S3,selp,17,True,False,24,6,30,0.0,Goal reached
-S3,selp,18,True,False,24,6,30,0.0,Goal reached
-S3,selp,19,True,False,24,6,30,0.0,Goal reached
+S3,selp,0,True,True,24,0,24,-2.0,Goal reached
+S3,selp,1,True,True,24,0,24,-2.0,Goal reached
+S3,selp,2,True,True,24,0,24,-2.0,Goal reached
+S3,selp,3,True,True,24,0,24,-2.0,Goal reached
+S3,selp,4,True,True,24,0,24,-2.0,Goal reached
+S3,selp,5,True,True,24,0,24,-2.0,Goal reached
+S3,selp,6,True,True,24,0,24,-2.0,Goal reached
+S3,selp,7,True,True,24,0,24,-2.0,Goal reached
+S3,selp,8,True,True,24,0,24,-2.0,Goal reached
+S3,selp,9,True,True,24,0,24,-2.0,Goal reached
+S3,selp,10,True,True,24,0,24,-2.0,Goal reached
+S3,selp,11,True,True,24,0,24,-2.0,Goal reached
+S3,selp,12,True,True,24,0,24,-2.0,Goal reached
+S3,selp,13,True,True,24,0,24,-2.0,Goal reached
+S3,selp,14,True,True,24,0,24,-2.0,Goal reached
+S3,selp,15,True,True,24,0,24,-2.0,Goal reached
+S3,selp,16,True,True,24,0,24,-2.0,Goal reached
+S3,selp,17,True,True,24,0,24,-2.0,Goal reached
+S3,selp,18,True,True,24,0,24,-2.0,Goal reached
+S3,selp,19,True,True,24,0,24,-2.0,Goal reached
 S3,geofence,0,True,False,24,32,56,0.5,Goal reached
 S3,geofence,1,True,False,24,38,62,0.5,Goal reached
 S3,geofence,2,True,False,24,38,62,0.5,Goal reached
@@ -279,26 +279,26 @@ S4,safetychip,16,False,False,1,0,1,0.0,All actions violate constraints (deadlock
 S4,safetychip,17,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
 S4,safetychip,18,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
 S4,safetychip,19,False,False,1,0,1,0.0,All actions violate constraints (deadlock)
-S4,selp,0,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,1,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,2,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,3,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,4,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,5,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,6,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,7,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,8,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,9,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,10,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,11,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,12,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,13,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,14,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,15,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,16,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,17,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,18,False,False,100,99,199,0.0,Maximum steps exceeded
-S4,selp,19,False,False,100,99,199,0.0,Maximum steps exceeded
+S4,selp,0,True,True,5,0,5,-2.0,Goal reached
+S4,selp,1,True,True,5,0,5,-2.0,Goal reached
+S4,selp,2,True,True,5,0,5,-2.0,Goal reached
+S4,selp,3,True,True,5,0,5,-2.0,Goal reached
+S4,selp,4,True,True,5,0,5,-2.0,Goal reached
+S4,selp,5,True,True,5,0,5,-2.0,Goal reached
+S4,selp,6,True,True,5,0,5,-2.0,Goal reached
+S4,selp,7,True,True,5,0,5,-2.0,Goal reached
+S4,selp,8,True,True,5,0,5,-2.0,Goal reached
+S4,selp,9,True,True,5,0,5,-2.0,Goal reached
+S4,selp,10,True,True,5,0,5,-2.0,Goal reached
+S4,selp,11,True,True,5,0,5,-2.0,Goal reached
+S4,selp,12,True,True,5,0,5,-2.0,Goal reached
+S4,selp,13,True,True,5,0,5,-2.0,Goal reached
+S4,selp,14,True,True,5,0,5,-2.0,Goal reached
+S4,selp,15,True,True,5,0,5,-2.0,Goal reached
+S4,selp,16,True,True,5,0,5,-2.0,Goal reached
+S4,selp,17,True,True,5,0,5,-2.0,Goal reached
+S4,selp,18,True,True,5,0,5,-2.0,Goal reached
+S4,selp,19,True,True,5,0,5,-2.0,Goal reached
 S4,geofence,0,False,False,100,100,200,1.0,Maximum steps exceeded
 S4,geofence,1,False,False,100,100,200,1.0,Maximum steps exceeded
 S4,geofence,2,False,False,100,100,200,1.0,Maximum steps exceeded

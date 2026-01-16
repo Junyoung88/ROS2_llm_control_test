@@ -86,6 +86,8 @@ class NL2LTLTranslator:
          ConstraintType.ALWAYS_AVOID),
         (r"do\s+not\s+(?:enter|visit)\s+(?:the\s+)?(\w+)",
          ConstraintType.ALWAYS_AVOID),
+        (r"keep\s+out\s+of\s+(?:the\s+)?(\w+)",
+         ConstraintType.ALWAYS_AVOID),
     ]
 
     PRECEDENCE_PATTERNS = [
