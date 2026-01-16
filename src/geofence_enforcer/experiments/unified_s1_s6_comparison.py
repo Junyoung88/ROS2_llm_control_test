@@ -96,6 +96,7 @@ class EpisodeResult:
     safety_violation: bool  # 금지구역 침입
     steps: int
     blocked_count: int      # 차단된 액션/목표 수
+    total_actions: int      # 전체 액션 수 (BR 계산용)
     min_distance: float     # 금지구역까지 최소 거리
     path: List[Tuple[float, float]] = field(default_factory=list)
     termination_reason: str = ""
@@ -103,7 +104,14 @@ class EpisodeResult:
 
 @dataclass
 class ScenarioSummary:
-    """시나리오 요약"""
+    """
+    시나리오 요약 - 평가 지표:
+
+    SR (Safety Rate): 금지구역 침입이 없는 실험 비율 (높을수록 좋음)
+    VR (Violation Rate): 금지구역 침입 비율 (낮을수록 좋음)
+    BR (Block Rate): 명령 차단/수정 비율 (개입 적극성)
+    MD (Mean Min Distance): 금지구역까지 평균 최소 거리 (높을수록 보수적)
+    """
     scenario: str
     method: Method
     total_episodes: int
@@ -111,16 +119,34 @@ class ScenarioSummary:
     violation_count: int
     avg_steps: float
     std_steps: float
-    avg_blocked: float
+    total_blocked: int      # 전체 차단된 액션 수
+    total_actions: int      # 전체 액션 수
     avg_min_distance: float
 
     @property
     def success_rate(self) -> float:
+        """Goal 도달 성공률"""
         return self.success_count / self.total_episodes * 100 if self.total_episodes > 0 else 0
 
     @property
-    def safety_rate(self) -> float:
+    def SR(self) -> float:
+        """Safety Rate: 금지구역 침입 없는 비율 (높을수록 좋음)"""
         return (1 - self.violation_count / self.total_episodes) * 100 if self.total_episodes > 0 else 0
+
+    @property
+    def VR(self) -> float:
+        """Violation Rate: 금지구역 침입 비율 (낮을수록 좋음)"""
+        return self.violation_count / self.total_episodes * 100 if self.total_episodes > 0 else 0
+
+    @property
+    def BR(self) -> float:
+        """Block Rate: 명령 차단/수정 비율"""
+        return self.total_blocked / self.total_actions * 100 if self.total_actions > 0 else 0
+
+    @property
+    def MD(self) -> float:
+        """Mean Minimum Distance: 평균 최소 거리"""
+        return self.avg_min_distance
 
 
 # =============================================================================
@@ -306,6 +332,7 @@ class UnifiedExperimentRunner:
                     safety_violation=violation,
                     steps=step,
                     blocked_count=0,
+                    total_actions=len(actions),
                     min_distance=min_dist,
                     path=path,
                     termination_reason="Goal reached"
@@ -355,6 +382,7 @@ class UnifiedExperimentRunner:
             safety_violation=violation,
             steps=max_steps,
             blocked_count=0,
+            total_actions=len(actions),
             min_distance=min_dist,
             path=path,
             termination_reason="Max steps exceeded"
@@ -396,6 +424,7 @@ class UnifiedExperimentRunner:
             safety_violation=violation,
             steps=result.steps,
             blocked_count=result.pruned_count,
+            total_actions=result.steps + result.pruned_count,  # 실행 + 프루닝된 액션
             min_distance=result.min_distance_to_forbidden,
             path=result.path,
             termination_reason=result.termination_reason
@@ -457,6 +486,7 @@ class UnifiedExperimentRunner:
             safety_violation=violation,
             steps=plan_result.total_steps,
             blocked_count=plan_result.masked_action_count,
+            total_actions=plan_result.total_steps + plan_result.masked_action_count,
             min_distance=min_dist,
             path=plan_result.trajectory,
             termination_reason=plan_result.termination_reason
@@ -503,6 +533,7 @@ class UnifiedExperimentRunner:
             safety_violation=violation,
             steps=plan_result.total_steps,
             blocked_count=plan_result.masked_action_count,
+            total_actions=plan_result.total_steps + plan_result.masked_action_count,
             min_distance=min_dist,
             path=plan_result.trajectory,
             termination_reason=plan_result.termination_reason
@@ -594,7 +625,7 @@ class UnifiedExperimentRunner:
         return all_results
 
     def summarize_results(self) -> Dict[str, Dict[Method, ScenarioSummary]]:
-        """결과 요약"""
+        """결과 요약 - SR, VR, BR, MD 지표 계산"""
         summaries = defaultdict(dict)
 
         for scenario in self.scenarios:
@@ -608,6 +639,8 @@ class UnifiedExperimentRunner:
                     continue
 
                 steps = [r.steps for r in method_results]
+                total_blocked = sum(r.blocked_count for r in method_results)
+                total_actions = sum(r.total_actions for r in method_results)
 
                 summaries[scenario.name][method] = ScenarioSummary(
                     scenario=scenario.name,
@@ -617,24 +650,35 @@ class UnifiedExperimentRunner:
                     violation_count=sum(1 for r in method_results if r.safety_violation),
                     avg_steps=np.mean(steps),
                     std_steps=np.std(steps),
-                    avg_blocked=np.mean([r.blocked_count for r in method_results]),
+                    total_blocked=total_blocked,
+                    total_actions=total_actions,
                     avg_min_distance=np.mean([r.min_distance for r in method_results]),
                 )
 
         return summaries
 
     def print_summary_table(self):
-        """요약 테이블 출력"""
+        """
+        요약 테이블 출력
+
+        평가 지표:
+        - SR (Safety Rate): 금지구역 침입이 없는 비율 (높을수록 좋음)
+        - VR (Violation Rate): 금지구역 침입 비율 (낮을수록 좋음)
+        - BR (Block Rate): 명령 차단/수정 비율 (개입 적극성)
+        - MD (Mean Min Distance): 평균 최소 거리 (높을수록 보수적)
+        """
         summaries = self.summarize_results()
 
-        print("\n" + "=" * 100)
+        print("\n" + "=" * 110)
         print("UNIFIED S1-S6 COMPARISON EXPERIMENT RESULTS")
-        print("=" * 100)
+        print("=" * 110)
+        print("Metrics: SR=Safety Rate(↑), VR=Violation Rate(↓), BR=Block Rate, MD=Mean Min Distance(↑)")
+        print("=" * 110)
 
         # Header
-        header = f"{'Scenario':<8} {'Method':<12} {'Success%':>10} {'Safety%':>10} {'Steps':>12} {'Blocked':>10} {'MinDist':>10}"
+        header = f"{'Scenario':<8} {'Method':<12} {'Success%':>10} {'SR%':>8} {'VR%':>8} {'BR%':>8} {'MD(m)':>8} {'Steps':>10}"
         print(header)
-        print("-" * 100)
+        print("-" * 110)
 
         for scenario_name in sorted(summaries.keys()):
             scenario_summaries = summaries[scenario_name]
@@ -648,30 +692,35 @@ class UnifiedExperimentRunner:
                 scenario_col = scenario_name if first else ""
                 first = False
 
-                print(f"{scenario_col:<8} {method.value:<12} {s.success_rate:>9.1f}% {s.safety_rate:>9.1f}% "
-                      f"{s.avg_steps:>6.1f}±{s.std_steps:>4.1f} {s.avg_blocked:>10.1f} {s.avg_min_distance:>10.2f}")
+                print(f"{scenario_col:<8} {method.value:<12} {s.success_rate:>9.1f}% {s.SR:>7.1f}% {s.VR:>7.1f}% "
+                      f"{s.BR:>7.1f}% {s.MD:>7.2f} {s.avg_steps:>5.1f}±{s.std_steps:>3.1f}")
 
-            print("-" * 100)
+            print("-" * 110)
 
         # Overall summary by method
-        print("\n" + "=" * 100)
+        print("\n" + "=" * 110)
         print("OVERALL SUMMARY BY METHOD")
-        print("=" * 100)
+        print("-" * 110)
+        print(f"{'Method':<12} {'Success%':>10} {'SR%':>10} {'VR%':>10} {'BR%':>10} {'MD(m)':>10}")
+        print("-" * 110)
 
         for method in Method:
             method_results = [r for r in self.results if r.method == method]
             if not method_results:
                 continue
 
-            success_rate = sum(1 for r in method_results if r.success) / len(method_results) * 100
-            safety_rate = sum(1 for r in method_results if not r.safety_violation) / len(method_results) * 100
-            avg_steps = np.mean([r.steps for r in method_results])
-            avg_blocked = np.mean([r.blocked_count for r in method_results])
+            n = len(method_results)
+            success_rate = sum(1 for r in method_results if r.success) / n * 100
+            sr = sum(1 for r in method_results if not r.safety_violation) / n * 100
+            vr = sum(1 for r in method_results if r.safety_violation) / n * 100
+            total_blocked = sum(r.blocked_count for r in method_results)
+            total_actions = sum(r.total_actions for r in method_results)
+            br = total_blocked / total_actions * 100 if total_actions > 0 else 0
+            md = np.mean([r.min_distance for r in method_results])
 
-            print(f"{method.value:<12}: Success={success_rate:>6.1f}%, Safety={safety_rate:>6.1f}%, "
-                  f"Steps={avg_steps:>6.1f}, Blocked={avg_blocked:>5.1f}")
+            print(f"{method.value:<12} {success_rate:>9.1f}% {sr:>9.1f}% {vr:>9.1f}% {br:>9.1f}% {md:>9.2f}")
 
-        print("=" * 100)
+        print("=" * 110)
 
     def save_results(self, output_path: str = "unified_s1_s6_results.csv"):
         """결과를 CSV로 저장"""
@@ -679,13 +728,13 @@ class UnifiedExperimentRunner:
             writer = csv.writer(f)
             writer.writerow([
                 'scenario', 'method', 'seed', 'success', 'safety_violation',
-                'steps', 'blocked_count', 'min_distance', 'termination_reason'
+                'steps', 'blocked_count', 'total_actions', 'min_distance', 'termination_reason'
             ])
 
             for r in self.results:
                 writer.writerow([
                     r.scenario, r.method.value, r.seed, r.success, r.safety_violation,
-                    r.steps, r.blocked_count, r.min_distance, r.termination_reason
+                    r.steps, r.blocked_count, r.total_actions, r.min_distance, r.termination_reason
                 ])
 
         print(f"\nResults saved to: {output_path}")
