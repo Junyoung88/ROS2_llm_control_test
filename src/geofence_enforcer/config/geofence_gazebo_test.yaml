@@ -1,0 +1,71 @@
+# =============================================================================
+# Geofence Configuration for Gazebo Integration Test
+# =============================================================================
+#
+# TurtleBot3 House World 기준 금지구역 설정
+# 테스트 목적: 금지구역 경계 근처에서 마진의 효과 검증
+#
+# =============================================================================
+
+# Z-axis boundaries for Gazebo 3D environment
+z_boundaries:
+  z_min: -0.1
+  z_max: 0.5
+
+# Forbidden zones for testing
+# Adapted for mobile_manip warehouse environment (origin: -8.21, -9.59)
+# Robot position approximately (-1.65, 6.88)
+#
+# 테스트 존 크기: 마진(~110cm)보다 충분히 커야 함
+# 3x3m 크기로 설정하여 마진의 효과를 제대로 테스트
+forbidden_zones:
+  # -------------------------------------------------------------------------
+  # Test Zone 1: Large test zone near robot
+  # -------------------------------------------------------------------------
+  # 금지구역 1: 로봇 근처 3x3m 영역
+  - name: "test_zone_1"
+    vertices:
+      - [-1.0, 3.0]
+      - [2.0, 3.0]
+      - [2.0, 6.0]
+      - [-1.0, 6.0]
+    metadata:
+      type: "forbidden"
+      priority: "high"
+      description: "Large test zone (3x3m) for ablation study"
+
+  # -------------------------------------------------------------------------
+  # Test Zone 2: Secondary large test zone
+  # -------------------------------------------------------------------------
+  # 금지구역 2: 추가 테스트 영역 3x3m
+  - name: "test_zone_2"
+    vertices:
+      - [-5.0, 1.0]
+      - [-2.0, 1.0]
+      - [-2.0, 4.0]
+      - [-5.0, 4.0]
+    metadata:
+      type: "forbidden"
+      priority: "medium"
+      description: "Secondary large test zone (3x3m)"
+
+# =============================================================================
+# Test Parameters Reference
+# =============================================================================
+#
+# Safety Margin Formula:
+#   margin = √(χ²₂(0.99) · λ_max) + e_track + v·τ
+#
+# Test configurations:
+#   Full:       all terms enabled (~38-51cm depending on AMCL covariance)
+#   No e_track: estimation + latency only
+#   No v·τ:     estimation + tracking only
+#   No both:    estimation only
+#   No margin:  no margin (baseline - should show violations)
+#
+# Expected results:
+#   - Full margin: ~0% violation rate
+#   - Reduced margins: increasing violation rates
+#   - No margin: highest violation rate (~5-10%)
+#
+# =============================================================================

@@ -69,12 +69,14 @@ class GeofenceCheckResult:
     Result of a geofence containment check.
 
     Attributes:
-        is_violated: True if point is inside a forbidden zone
+        is_violated: True if point is inside a forbidden zone or z-boundary violated
         violated_zones: List of zone names that contain the point
         distance_to_boundary: Signed distance (negative = inside)
         nearest_safe_point: Projected safe point if violated
         in_buffer_zones: List of buffer zone names (warning only)
         in_forbidden_zones: List of forbidden zone names (blocking)
+        z_violated: True if z-coordinate is outside allowed range
+        z_distance: Distance to nearest z-boundary (0 if within range)
     """
     is_violated: bool
     violated_zones: List[str]
@@ -82,6 +84,8 @@ class GeofenceCheckResult:
     nearest_safe_point: Optional[Tuple[float, float]] = None
     in_buffer_zones: List[str] = field(default_factory=list)
     in_forbidden_zones: List[str] = field(default_factory=list)
+    z_violated: bool = False
+    z_distance: float = 0.0
 
 
 class GeofenceGeometry:
@@ -93,6 +97,15 @@ class GeofenceGeometry:
     2. Inflating polygons by dynamic safety margins
     3. Point-in-polygon tests with margin consideration
     4. Projection of violated points to safe locations
+    5. Z-axis (height) boundary enforcement for 3D environments
+
+    The system uses a 2.5D approach:
+    - XY plane: Polygon-based forbidden zones with Minkowski sum inflation
+    - Z axis: Height boundary constraints for ground robot safety
+
+    This is appropriate for ground mobile robots operating in 3D simulation
+    environments (e.g., Gazebo) where the robot moves on a planar surface
+    but the environment is fully 3D.
 
     The inflation uses Shapely's buffer() which computes the
     Minkowski sum of the polygon with a disk of the specified radius.
@@ -100,20 +113,37 @@ class GeofenceGeometry:
     Parameters:
         resolution: Number of segments per quarter circle for buffer approximation
                    Higher values = smoother curves but more computation
+        z_min: Minimum allowed z-coordinate (default: -0.1m, slight ground tolerance)
+        z_max: Maximum allowed z-coordinate (default: 0.5m, robot height)
     """
 
     # Default buffer resolution (segments per quarter circle)
     DEFAULT_RESOLUTION = 16
 
-    def __init__(self, resolution: int = DEFAULT_RESOLUTION):
+    # Default z-axis boundaries for ground robots
+    DEFAULT_Z_MIN = -0.1  # Slight tolerance for uneven terrain
+    DEFAULT_Z_MAX = 0.5   # Maximum robot height from ground
+
+    def __init__(
+        self,
+        resolution: int = DEFAULT_RESOLUTION,
+        z_min: float = DEFAULT_Z_MIN,
+        z_max: float = DEFAULT_Z_MAX
+    ):
         """
         Initialize an empty geofence geometry manager.
 
         Args:
             resolution: Segments per quarter circle for polygon inflation
+            z_min: Minimum allowed z-coordinate (meters)
+            z_max: Maximum allowed z-coordinate (meters)
         """
         self._zones: Dict[str, ForbiddenZone] = {}
         self._resolution = resolution
+
+        # Z-axis boundaries for 3D environment support
+        self._z_min = z_min
+        self._z_max = z_max
 
         # Cache for inflated polygons (keyed by margin value)
         self._inflation_cache: Dict[float, Dict[str, Polygon]] = {}
@@ -126,6 +156,11 @@ class GeofenceGeometry:
 
         Expected YAML format:
         ```yaml
+        # Optional: Z-axis boundaries for 3D environments (Gazebo, etc.)
+        z_boundaries:
+          z_min: -0.1   # Minimum allowed height (pit detection)
+          z_max: 0.5    # Maximum allowed height (flip detection)
+
         forbidden_zones:
           - name: "zone_1"
             vertices:
@@ -159,7 +194,16 @@ class GeofenceGeometry:
         with open(path, 'r') as f:
             config = yaml.safe_load(f)
 
-        instance = cls(resolution=resolution)
+        # Load z-axis boundaries if specified
+        z_min = cls.DEFAULT_Z_MIN
+        z_max = cls.DEFAULT_Z_MAX
+
+        if 'z_boundaries' in config:
+            z_config = config['z_boundaries']
+            z_min = z_config.get('z_min', z_min)
+            z_max = z_config.get('z_max', z_max)
+
+        instance = cls(resolution=resolution, z_min=z_min, z_max=z_max)
         instance._load_zones_from_config(config)
 
         return instance
@@ -518,6 +562,90 @@ class GeofenceGeometry:
             in_forbidden_zones=in_forbidden_zones,
             nearest_safe_point=nearest_safe
         )
+
+    def check_point_3d(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        margin: float = 0.0
+    ) -> GeofenceCheckResult:
+        """
+        Comprehensive 3D check of a point against the geofence.
+
+        This method extends the 2D check with z-axis (height) validation,
+        making it suitable for 3D simulation environments like Gazebo.
+
+        For ground mobile robots, the z-axis constraint ensures:
+        - Robot hasn't fallen into a pit (z < z_min)
+        - Robot hasn't been lifted/flipped (z > z_max)
+        - Robot maintains ground contact within tolerance
+
+        The approach is "2.5D":
+        - XY plane: Full polygon-based forbidden zone checking
+        - Z axis: Simple boundary constraint checking
+
+        This is appropriate because ground robots have constrained
+        z-motion (they roll on surfaces), unlike drones which need
+        full 3D volumetric geofencing.
+
+        Args:
+            x: X coordinate (meters)
+            y: Y coordinate (meters)
+            z: Z coordinate (height, meters)
+            margin: Safety margin for XY zone inflation
+
+        Returns:
+            GeofenceCheckResult with both XY and Z violation information
+        """
+        # First, perform standard 2D check
+        result = self.check_point(x, y, margin)
+
+        # Then, check z-axis boundaries
+        z_violated = False
+        z_distance = 0.0
+
+        if z < self._z_min:
+            z_violated = True
+            z_distance = self._z_min - z
+            result.violated_zones.append(f"z_floor (z={z:.3f} < {self._z_min})")
+        elif z > self._z_max:
+            z_violated = True
+            z_distance = z - self._z_max
+            result.violated_zones.append(f"z_ceiling (z={z:.3f} > {self._z_max})")
+
+        # Update result with z-axis information
+        result.z_violated = z_violated
+        result.z_distance = z_distance
+
+        # Overall violation is XY OR Z
+        if z_violated:
+            result.is_violated = True
+
+        return result
+
+    def set_z_boundaries(self, z_min: float, z_max: float) -> None:
+        """
+        Update z-axis boundaries at runtime.
+
+        Useful for adapting to different robot heights or terrain.
+
+        Args:
+            z_min: Minimum allowed z-coordinate (meters)
+            z_max: Maximum allowed z-coordinate (meters)
+
+        Raises:
+            ValueError: If z_min >= z_max
+        """
+        if z_min >= z_max:
+            raise ValueError(f"z_min ({z_min}) must be less than z_max ({z_max})")
+
+        self._z_min = z_min
+        self._z_max = z_max
+
+    def get_z_boundaries(self) -> Tuple[float, float]:
+        """Get current z-axis boundaries (z_min, z_max)."""
+        return (self._z_min, self._z_max)
 
     def _project_to_boundary(
         self,

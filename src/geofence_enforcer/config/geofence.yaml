@@ -9,6 +9,7 @@
 #   1. Inflate each polygon by the computed safety margin
 #   2. Block/project goals that fall within inflated zones
 #   3. Trigger safety stops if robot enters inflated zones
+#   4. Monitor z-axis (height) boundaries for 3D environments
 #
 # Safety Margin Formula:
 #   margin_α = √(χ²₂(α) · λ_max(Σ_xy)) + e_track + v_max · τ
@@ -17,6 +18,23 @@
 #
 # =============================================================================
 
+# -----------------------------------------------------------------------------
+# Z-Axis Boundaries (for 3D simulation environments like Gazebo)
+# -----------------------------------------------------------------------------
+# Ground mobile robots operate on a planar surface, but 3D simulation
+# environments require z-axis monitoring for safety:
+#   - z_min: Detects if robot falls into a pit or through the ground
+#   - z_max: Detects if robot flips over or gets lifted abnormally
+#
+# This "2.5D" approach is appropriate for wheeled/tracked robots.
+# For drones or underwater robots, full 3D volumetric geofencing is needed.
+z_boundaries:
+  z_min: -0.1   # Allow slight terrain irregularity (meters)
+  z_max: 0.5    # Robot height + tolerance (meters)
+
+# -----------------------------------------------------------------------------
+# XY Plane Forbidden Zones (2D polygon-based)
+# -----------------------------------------------------------------------------
 forbidden_zones:
   # -------------------------------------------------------------------------
   # Zone 1: Charging Station Area
@@ -116,5 +134,29 @@ forbidden_zones:
 #   - priority: Importance level (critical, high, medium, low)
 #   - description: Human-readable description
 #   - dynamic_buffer: Additional zone-specific buffer (not yet implemented)
+#
+# =============================================================================
+
+# =============================================================================
+# 3D Environment Considerations (Gazebo, etc.)
+# =============================================================================
+#
+# This system uses a "2.5D" approach suitable for ground mobile robots:
+#
+#   XY Plane (2D):
+#     - Polygon-based forbidden zones
+#     - Minkowski sum inflation with safety margin
+#     - Full geometric operations (containment, projection, etc.)
+#
+#   Z Axis (Height):
+#     - Simple boundary constraints (z_min, z_max)
+#     - Detects abnormal height changes (falls, flips, lifts)
+#     - Appropriate for robots constrained to surfaces
+#
+# For robots with full 3D freedom (drones, AUVs), the system would need:
+#   - 3D covariance (3x3 instead of 2x2)
+#   - Chi-square df=3 (instead of df=2)
+#   - 3D volumetric zones (polyhedra instead of polygons)
+#   - Libraries: trimesh, pyvista instead of Shapely
 #
 # =============================================================================

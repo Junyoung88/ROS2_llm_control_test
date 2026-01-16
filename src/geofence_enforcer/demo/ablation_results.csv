@@ -1,0 +1,7 @@
+Config,Margin_cm,Blocked,Attempted,Violations,ViolationRate_pct,OverallSafety_pct
+Full (모든 항 포함),51.1,857,143,0,0.0,100.0
+Without e_track,39.1,619,381,1,0.26,99.9
+Without v·τ,21.1,322,678,12,1.77,98.8
+Without e_track & v·τ,9.1,93,907,42,4.63,95.8
+Only √(χ²·λ),9.1,125,875,34,3.89,96.6
+No margin (Baseline),0.0,0,1000,69,6.9,93.1
