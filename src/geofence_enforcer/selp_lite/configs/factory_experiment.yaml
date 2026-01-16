@@ -1,0 +1,51 @@
+# =============================================================================
+# SELP-lite vs Geofence Comparison Experiment Configuration
+# Factory Environment
+# =============================================================================
+
+name: factory_comparison
+
+# Environment settings
+environment: factory  # "factory" or "simple"
+
+# Start and goal positions (in continuous coordinates)
+start: [1.0, 1.0]
+goal: [18.0, 13.0]
+
+# Natural language constraints to convert to LTL
+# The NL2LTL module will generate K candidates and vote for the best
+constraints:
+  - "Always avoid the storage_racks area"
+  # Additional constraints can be added:
+  # - "Never enter the welding_cell"
+  # - "Reach the goal while avoiding pedestrian_corridor"
+  # - "Visit robot_arm_cell before going to the goal"
+
+# Planning parameters
+max_steps: 100
+safety_margin: 0.3  # meters
+
+# Experiment parameters
+num_seeds: 50  # Number of random seeds for statistical significance
+
+# =============================================================================
+# Constraint Examples (for reference)
+# =============================================================================
+#
+# Avoid patterns:
+#   - "Always avoid X"           -> G(!in_X)
+#   - "Never enter X"            -> G(!in_X)
+#   - "X is forbidden"           -> G(!in_X)
+#
+# Reach patterns:
+#   - "Eventually reach X"       -> F(in_X)
+#   - "Go to X"                  -> F(in_X)
+#
+# Order patterns:
+#   - "Visit A before B"         -> (!in_B) U in_A
+#   - "A then B"                 -> (!in_B) U in_A
+#
+# Combined patterns:
+#   - "Reach A while avoiding B" -> F(in_A) & G(!in_B)
+#
+# =============================================================================
