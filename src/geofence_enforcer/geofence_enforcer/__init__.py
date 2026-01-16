@@ -18,8 +18,19 @@ from .margin_calculator import MarginCalculator, MarginComponents
 from .geofence_geometry import GeofenceGeometry, GeofenceCheckResult
 from .latency_monitor import LatencyMonitor, LatencyStats
 from .tracking_error_monitor import TrackingErrorMonitor, TrackingErrorStats
+from .llm_safety_layer import (
+    LLMSafetyLayer,
+    InputSanitizer,
+    CommandExtractor,
+    GeofenceEnforcementLayer,
+    SafetyVerdict,
+    ThreatAnalysis,
+    ThreatLevel,
+    create_safety_layer
+)
 
 __all__ = [
+    # Core modules
     'MarginCalculator',
     'MarginComponents',
     'GeofenceGeometry',
@@ -28,4 +39,13 @@ __all__ = [
     'LatencyStats',
     'TrackingErrorMonitor',
     'TrackingErrorStats',
+    # LLM Safety Layer
+    'LLMSafetyLayer',
+    'InputSanitizer',
+    'CommandExtractor',
+    'GeofenceEnforcementLayer',
+    'SafetyVerdict',
+    'ThreatAnalysis',
+    'ThreatLevel',
+    'create_safety_layer',
 ]

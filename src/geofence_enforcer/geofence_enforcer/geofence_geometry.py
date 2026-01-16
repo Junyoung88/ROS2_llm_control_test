@@ -73,11 +73,15 @@ class GeofenceCheckResult:
         violated_zones: List of zone names that contain the point
         distance_to_boundary: Signed distance (negative = inside)
         nearest_safe_point: Projected safe point if violated
+        in_buffer_zones: List of buffer zone names (warning only)
+        in_forbidden_zones: List of forbidden zone names (blocking)
     """
     is_violated: bool
     violated_zones: List[str]
     distance_to_boundary: float
     nearest_safe_point: Optional[Tuple[float, float]] = None
+    in_buffer_zones: List[str] = field(default_factory=list)
+    in_forbidden_zones: List[str] = field(default_factory=list)
 
 
 class GeofenceGeometry:
@@ -164,18 +168,26 @@ class GeofenceGeometry:
         """
         Parse zone definitions from loaded YAML config.
 
+        Supports two formats:
+        1. Legacy format: 'forbidden_zones' with vertices as [x, y] lists
+        2. New format: 'zones' with type field and vertices as {x: ..., y: ...} dicts
+
         Args:
             config: Parsed YAML dictionary
 
         Raises:
             ValueError: If required fields are missing
         """
-        if 'forbidden_zones' not in config:
-            raise ValueError("YAML must contain 'forbidden_zones' key")
+        # Support both 'forbidden_zones' (legacy) and 'zones' (new) keys
+        if 'forbidden_zones' in config:
+            zones = config['forbidden_zones']
+        elif 'zones' in config:
+            zones = config['zones']
+        else:
+            raise ValueError("YAML must contain 'forbidden_zones' or 'zones' key")
 
-        zones = config['forbidden_zones']
         if not isinstance(zones, list):
-            raise ValueError("'forbidden_zones' must be a list")
+            raise ValueError("zones must be a list")
 
         for zone_def in zones:
             self._add_zone_from_dict(zone_def)
@@ -183,6 +195,10 @@ class GeofenceGeometry:
     def _add_zone_from_dict(self, zone_def: Dict) -> None:
         """
         Create and add a forbidden zone from dictionary definition.
+
+        Supports two vertex formats:
+        1. Legacy: [[x1, y1], [x2, y2], ...]
+        2. New: [{x: x1, y: y1}, {x: x2, y: y2}, ...]
 
         Args:
             zone_def: Dictionary with 'name' and 'vertices' keys
@@ -196,8 +212,26 @@ class GeofenceGeometry:
             raise ValueError(f"Zone '{zone_def['name']}' must have 'vertices' field")
 
         name = zone_def['name']
-        vertices = [tuple(v) for v in zone_def['vertices']]
+
+        # Parse vertices - support both formats
+        raw_vertices = zone_def['vertices']
+        vertices = []
+        for v in raw_vertices:
+            if isinstance(v, dict):
+                # New format: {x: ..., y: ...}
+                vertices.append((v['x'], v['y']))
+            else:
+                # Legacy format: [x, y]
+                vertices.append(tuple(v))
+
+        # Handle metadata - support both 'metadata' dict and top-level fields
         metadata = zone_def.get('metadata', {})
+
+        # Add type and priority to metadata if present at top level
+        if 'type' in zone_def:
+            metadata['type'] = zone_def['type']
+        if 'priority' in zone_def:
+            metadata['priority'] = zone_def['priority']
 
         # Validate polygon requirements
         if len(vertices) < 3:
@@ -263,12 +297,34 @@ class GeofenceGeometry:
         return False
 
     def get_zone_names(self) -> List[str]:
-        """Get list of all forbidden zone names."""
+        """Get list of all zone names."""
         return list(self._zones.keys())
 
     def get_zone(self, name: str) -> Optional[ForbiddenZone]:
         """Get a specific zone by name."""
         return self._zones.get(name)
+
+    def get_zone_type(self, name: str) -> str:
+        """Get zone type ('forbidden' or 'buffer'). Defaults to 'forbidden'."""
+        zone = self._zones.get(name)
+        if zone:
+            return zone.metadata.get('type', 'forbidden')
+        return 'forbidden'
+
+    def get_forbidden_zone_names(self) -> List[str]:
+        """Get list of zone names with type 'forbidden'."""
+        return [name for name in self._zones.keys()
+                if self.get_zone_type(name) == 'forbidden']
+
+    def get_buffer_zone_names(self) -> List[str]:
+        """Get list of zone names with type 'buffer'."""
+        return [name for name in self._zones.keys()
+                if self.get_zone_type(name) == 'buffer']
+
+    def get_zones_by_type(self, zone_type: str) -> Dict[str, ForbiddenZone]:
+        """Get all zones of a specific type."""
+        return {name: zone for name, zone in self._zones.items()
+                if zone.metadata.get('type', 'forbidden') == zone_type}
 
     def _inflate_polygon(self, polygon: Polygon, margin: float) -> Polygon:
         """
@@ -396,10 +452,11 @@ class GeofenceGeometry:
         Comprehensive check of a point against the geofence.
 
         Returns detailed information about:
-        - Whether the point violates the geofence
+        - Whether the point violates the geofence (forbidden zones only)
         - Which specific zones are violated
         - Distance to the nearest boundary
         - Nearest safe point if violated
+        - Separate tracking of buffer zones (warning only)
 
         Args:
             x: X coordinate
@@ -411,18 +468,34 @@ class GeofenceGeometry:
         """
         point = Point(x, y)
         violated_zones = []
+        in_forbidden_zones = []
+        in_buffer_zones = []
 
         # Check each inflated zone individually
         inflated_zones = self.get_inflated_zones(margin)
         for name, inflated in inflated_zones.items():
             if inflated.contains(point) or inflated.touches(point):
                 violated_zones.append(name)
+                zone_type = self.get_zone_type(name)
+                if zone_type == 'buffer':
+                    in_buffer_zones.append(name)
+                else:
+                    in_forbidden_zones.append(name)
 
-        is_violated = len(violated_zones) > 0
+        # Only forbidden zones count as violations
+        is_violated = len(in_forbidden_zones) > 0
 
-        # Compute signed distance to boundary
-        # Negative = inside, Positive = outside
-        union = self.get_inflated_union(margin)
+        # Compute signed distance to boundary (forbidden zones only)
+        forbidden_zones = self.get_zones_by_type('forbidden')
+        if forbidden_zones:
+            forbidden_polygons = [
+                self._inflate_polygon(z.polygon, margin)
+                for z in forbidden_zones.values()
+            ]
+            union = unary_union(forbidden_polygons) if len(forbidden_polygons) > 1 else forbidden_polygons[0]
+        else:
+            union = Polygon()
+
         if union.is_empty:
             distance = float('inf')
         else:
@@ -441,6 +514,8 @@ class GeofenceGeometry:
             is_violated=is_violated,
             violated_zones=violated_zones,
             distance_to_boundary=distance,
+            in_buffer_zones=in_buffer_zones,
+            in_forbidden_zones=in_forbidden_zones,
             nearest_safe_point=nearest_safe
         )
 
