@@ -607,15 +607,46 @@ class SensorIntegrityMonitor:
                 for v in list(self._temporal_checker._velocity_history)[-5:]
             ]
             avg_speed = np.mean(recent_speeds)
+            max_recent_speed = max(recent_speeds)
 
-            # 속도가 갑자기 매우 낮아졌는지 검사
-            if avg_speed > 0.5 and speed < avg_speed * 0.1:
+            # 1. 속도가 갑자기 매우 낮아졌는지 검사 (90% 이상 감소)
+            if avg_speed > 0.3 and speed < avg_speed * 0.1:
                 violations.append(
-                    f"SUSPICIOUS: Sudden velocity drop: "
+                    f"CRITICAL: Sudden velocity drop: "
                     f"{avg_speed:.2f} → {speed:.2f} m/s - possible odometry spoofing"
                 )
-                alert_level = AlertLevel.WARNING
+                alert_level = AlertLevel.CRITICAL
+                confidence *= 0.5
+
+            # 2. 속도가 급격히 감소했는지 검사 (50% 이상 감소)
+            elif avg_speed > 0.3 and speed < avg_speed * 0.5:
+                violations.append(
+                    f"WARNING: Significant velocity drop: "
+                    f"{avg_speed:.2f} → {speed:.2f} m/s"
+                )
+                alert_level = max(alert_level, AlertLevel.WARNING)
                 confidence *= 0.7
+
+            # 3. 가속도 검사 (급정지)
+            if len(self._temporal_checker._velocity_history) >= 2:
+                prev_vx, prev_vy, prev_t = self._temporal_checker._velocity_history[-1]
+                prev_speed = np.sqrt(prev_vx**2 + prev_vy**2)
+                dt = timestamp - prev_t if timestamp > prev_t else 0.1
+
+                if dt > 0:
+                    deceleration = (prev_speed - speed) / dt
+                    # 급정지 탐지 (3m/s² 이상 감속)
+                    if deceleration > 3.0 and prev_speed > 0.5:
+                        violations.append(
+                            f"WARNING: Sudden deceleration: {deceleration:.1f} m/s² "
+                            f"(speed: {prev_speed:.2f} → {speed:.2f} m/s)"
+                        )
+                        alert_level = max(alert_level, AlertLevel.WARNING)
+                        confidence *= 0.8
+
+        # 속도 히스토리 업데이트 (다음 검사를 위해)
+        if self._temporal_checker:
+            self._temporal_checker._velocity_history.append((vx, vy, timestamp))
 
         # 교차 검증용 데이터 업데이트
         if self._cross_validator:
