@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>geofence_enforcer</name>
+  <version>1.0.0</version>
+  <description>
+    Probabilistic Geofence Policy Enforcer for ROS2
+
+    Implements dynamic safety margins based on:
+    - State estimation uncertainty (AMCL/SLAM covariance)
+    - Execution/tracking error buffer
+    - System latency compensation
+
+    Safety Margin Formula:
+      margin_α = √(χ²₂(α) · λ_max(Σ_xy)) + e_track + v_max · τ
+
+    Designed for research-grade mobile robot navigation safety.
+  </description>
+
+  <maintainer email="research@example.com">Research Team</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <author email="research@example.com">Research Team</author>
+
+  <!-- Build tool -->
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <!-- Runtime dependencies -->
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>builtin_interfaces</exec_depend>
+
+  <!-- Python dependencies -->
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>python3-shapely</exec_depend>
+
+  <!-- Test dependencies -->
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

@@ -1,0 +1,120 @@
+# =============================================================================
+# Probabilistic Geofence Configuration
+# =============================================================================
+#
+# This file defines forbidden zones for the probabilistic geofence enforcer.
+# Each zone is specified as a polygon with named vertices.
+#
+# The enforcer will:
+#   1. Inflate each polygon by the computed safety margin
+#   2. Block/project goals that fall within inflated zones
+#   3. Trigger safety stops if robot enters inflated zones
+#
+# Safety Margin Formula:
+#   margin_α = √(χ²₂(α) · λ_max(Σ_xy)) + e_track + v_max · τ
+#
+# Where the margin dynamically adapts to localization uncertainty.
+#
+# =============================================================================
+
+forbidden_zones:
+  # -------------------------------------------------------------------------
+  # Zone 1: Charging Station Area
+  # -------------------------------------------------------------------------
+  # Protects the charging station from accidental collisions.
+  # Rectangular zone with safety buffer built into vertices.
+  - name: "charging_station"
+    vertices:
+      - [2.0, 3.0]    # Bottom-left corner
+      - [3.5, 3.0]    # Bottom-right corner
+      - [3.5, 4.5]    # Top-right corner
+      - [2.0, 4.5]    # Top-left corner
+    metadata:
+      type: "equipment"
+      priority: "high"
+      description: "Robot charging station - no entry allowed"
+
+  # -------------------------------------------------------------------------
+  # Zone 2: Fragile Equipment Area
+  # -------------------------------------------------------------------------
+  # L-shaped zone protecting laboratory equipment.
+  - name: "lab_equipment"
+    vertices:
+      - [5.0, 1.0]
+      - [7.0, 1.0]
+      - [7.0, 2.5]
+      - [6.0, 2.5]
+      - [6.0, 3.5]
+      - [5.0, 3.5]
+    metadata:
+      type: "equipment"
+      priority: "critical"
+      description: "Sensitive laboratory equipment"
+
+  # -------------------------------------------------------------------------
+  # Zone 3: Pedestrian Walkway
+  # -------------------------------------------------------------------------
+  # Corridor where humans frequently walk.
+  - name: "pedestrian_corridor"
+    vertices:
+      - [0.0, 5.0]
+      - [10.0, 5.0]
+      - [10.0, 6.0]
+      - [0.0, 6.0]
+    metadata:
+      type: "human_zone"
+      priority: "high"
+      description: "High-traffic pedestrian area"
+
+  # -------------------------------------------------------------------------
+  # Zone 4: Obstacle (Pillar)
+  # -------------------------------------------------------------------------
+  # Circular approximation using octagon for structural pillar.
+  - name: "pillar_1"
+    vertices:
+      - [8.0, 8.0]
+      - [8.3, 7.7]
+      - [8.7, 7.7]
+      - [9.0, 8.0]
+      - [9.0, 8.5]
+      - [8.7, 8.8]
+      - [8.3, 8.8]
+      - [8.0, 8.5]
+    metadata:
+      type: "obstacle"
+      priority: "medium"
+      description: "Structural pillar"
+
+  # -------------------------------------------------------------------------
+  # Zone 5: Storage Area
+  # -------------------------------------------------------------------------
+  # Temporary storage with moving inventory - larger buffer needed.
+  - name: "storage_area"
+    vertices:
+      - [0.5, 0.5]
+      - [1.5, 0.5]
+      - [1.5, 2.0]
+      - [0.5, 2.0]
+    metadata:
+      type: "storage"
+      priority: "medium"
+      description: "Dynamic storage area with changing inventory"
+      dynamic_buffer: 0.2  # Additional buffer for this zone
+
+# =============================================================================
+# Notes on Zone Definition
+# =============================================================================
+#
+# 1. Vertices are specified in meters (map frame coordinates)
+# 2. Vertices should be ordered counter-clockwise for exterior boundaries
+# 3. The polygon is automatically closed (first/last vertex connected)
+# 4. Complex shapes (L-shapes, etc.) are supported
+# 5. Overlapping zones are handled correctly (union computed)
+#
+# Metadata fields are optional and can include:
+#   - type: Classification of the zone (equipment, human_zone, obstacle, etc.)
+#   - priority: Importance level (critical, high, medium, low)
+#   - description: Human-readable description
+#   - dynamic_buffer: Additional zone-specific buffer (not yet implemented)
+#
+# =============================================================================

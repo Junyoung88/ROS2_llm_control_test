@@ -1,0 +1,63 @@
+# Geofence Policy Configuration
+# Defines forbidden zones, buffer zones, and uncertainty parameters
+
+# Uncertainty-aware margin computation parameters
+# margin = k_sigma * localization_sigma + tracking_error + v_max * latency
+uncertainty:
+  k_sigma: 3.0              # Confidence multiplier (3-sigma = 99.7%)
+  localization_sigma: 0.1   # Localization uncertainty in meters
+  tracking_error: 0.05      # Path tracking error in meters
+  v_max: 1.0                # Maximum robot velocity in m/s
+  latency: 0.1              # System latency in seconds
+  # Computed margin: 3.0 * 0.1 + 0.05 + 1.0 * 0.1 = 0.45m
+
+# Geofence zones
+# Each zone has:
+#   name: Unique identifier
+#   type: "forbidden" (hard no-go), "buffer" (soft warning), "safe" (explicitly allowed)
+#   vertices: List of {x, y} points defining the polygon (in map frame)
+#   priority: Higher priority zones are evaluated first (optional, default 0)
+zones:
+  # Forbidden zone: Pick Station area
+  - name: "pick_station_zone"
+    type: "forbidden"
+    priority: 10
+    vertices:
+      - {x: -5.7, y: 4.6}
+      - {x: -3.7, y: 4.6}
+      - {x: -3.7, y: 6.6}
+      - {x: -5.7, y: 6.6}
+
+  # Forbidden zone: South area (center: 0, -8, radius: 2)
+  - name: "south_forbidden_zone"
+    type: "forbidden"
+    priority: 10
+    vertices:
+      - {x: 2.0, y: -8.0}
+      - {x: 1.41, y: -6.59}
+      - {x: 0.0, y: -6.0}
+      - {x: -1.41, y: -6.59}
+      - {x: -2.0, y: -8.0}
+      - {x: -1.41, y: -9.41}
+      - {x: 0.0, y: -10.0}
+      - {x: 1.41, y: -9.41}
+
+  # Buffer zone around hazard_zone_1 (warning area)
+  - name: "hazard_buffer_1"
+    type: "buffer"
+    priority: 5
+    vertices:
+      - {x: 1.5, y: 1.5}
+      - {x: 5.0, y: 1.5}
+      - {x: 5.0, y: 5.0}
+      - {x: 1.5, y: 5.0}
+
+  # Safe zone: Designated robot operating area
+  - name: "main_operating_area"
+    type: "safe"
+    priority: 0
+    vertices:
+      - {x: -8.0, y: -8.0}
+      - {x: 8.0, y: -8.0}
+      - {x: 8.0, y: 8.0}
+      - {x: -8.0, y: 8.0}

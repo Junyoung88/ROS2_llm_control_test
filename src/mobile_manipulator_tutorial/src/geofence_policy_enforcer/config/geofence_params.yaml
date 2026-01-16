@@ -1,0 +1,63 @@
+# Geofence Policy Enforcer Node Parameters
+
+# Goal Gate Node - Action proxy for NavigateToPose/FollowWaypoints
+goal_gate:
+  ros__parameters:
+    geofence_config: ""  # Set via launch file
+    enable_projection: true
+    audit_log_file: "/tmp/geofence_audit.jsonl"
+    nav2_action_name: "navigate_to_pose"
+    waypoints_action_name: "follow_waypoints"
+
+# Cmd Vel Guard Node - Velocity command filter
+cmd_vel_guard:
+  ros__parameters:
+    geofence_config: ""  # Set via launch file
+    input_topic: "/cmd_vel_raw"
+    output_topic: "/cmd_vel"
+    odom_topic: "/odom"
+    simulation_horizon: 2.0  # seconds
+    simulation_steps: 20
+    override_strategy: "stop"  # stop, scale, or redirect
+    min_distance_threshold: 0.3  # meters
+    scale_factor_decay: 0.8
+
+# Path Watchdog Node - Monitors planned paths
+path_watchdog:
+  ros__parameters:
+    geofence_config: ""  # Set via launch file
+    path_topic: "/plan"
+    local_path_topic: "/local_plan"
+    cancel_on_violation: true
+    stop_on_violation: true
+    check_interval: 0.5  # seconds
+    cmd_vel_topic: "/cmd_vel"
+
+# Metrics Logger Node - Aggregates and logs metrics
+metrics_logger:
+  ros__parameters:
+    geofence_config: ""  # Set via launch file
+    csv_output_file: "/tmp/geofence_metrics.csv"
+    odom_topic: "/odom"
+    sample_rate: 10.0  # Hz
+    episode_timeout: 60.0  # seconds
+
+# Attack Stepwise Goals Node - Test attack
+attack_stepwise_goals:
+  ros__parameters:
+    target_x: 3.0
+    target_y: 3.0
+    step_size: 0.5
+    num_steps: 20
+    use_safe_action: true
+    delay_between_steps: 1.0
+
+# Attack Cmd Vel Node - Test attack
+attack_cmd_vel:
+  ros__parameters:
+    target_x: 3.0
+    target_y: 3.0
+    attack_velocity: 0.3
+    attack_duration: 30.0
+    publish_rate: 10.0
+    use_guarded_topic: true

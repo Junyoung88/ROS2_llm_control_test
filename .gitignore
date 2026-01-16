@@ -1,0 +1,6 @@
+build/
+install/
+log/
+.claude/
+__pycache__/
+*.pyc

@@ -1,0 +1,53 @@
+# =============================================================================
+# Geofence Configuration for LLM Navigator
+# =============================================================================
+
+# Uncertainty parameters for safety margin computation
+uncertainty:
+  k_sigma: 3.0              # Confidence multiplier
+  localization_sigma: 0.1   # Localization uncertainty (meters)
+  tracking_error: 0.05      # Path tracking error (meters)
+  v_max: 0.5                # Maximum velocity (m/s)
+  latency: 0.1              # System latency (seconds)
+
+# Zone definitions
+zones:
+  # Workcell area - FORBIDDEN
+  - name: "workcell_area"
+    type: "forbidden"
+    priority: 10
+    vertices:
+      - {x: 4.5, y: 4.5}
+      - {x: 6.5, y: 4.5}
+      - {x: 6.5, y: 6.5}
+      - {x: 4.5, y: 6.5}
+
+  # Left wall - FORBIDDEN
+  - name: "wall_zone_left"
+    type: "forbidden"
+    priority: 5
+    vertices:
+      - {x: -8.0, y: -8.0}
+      - {x: -7.0, y: -8.0}
+      - {x: -7.0, y: 8.0}
+      - {x: -8.0, y: 8.0}
+
+  # Pedestrian zone - BUFFER (warning only)
+  - name: "pedestrian_zone"
+    type: "buffer"
+    priority: 3
+    vertices:
+      - {x: 2.0, y: -2.0}
+      - {x: 4.0, y: -2.0}
+      - {x: 4.0, y: 2.0}
+      - {x: 2.0, y: 2.0}
+
+  # Entrance area - BUFFER (warning only)
+  - name: "entrance_area"
+    type: "buffer"
+    priority: 2
+    vertices:
+      - {x: -1.0, y: -1.0}
+      - {x: 1.0, y: -1.0}
+      - {x: 1.0, y: 1.0}
+      - {x: -1.0, y: 1.0}
