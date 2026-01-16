@@ -1,0 +1,53 @@
+# =============================================================================
+# SafetyChip-lite vs Geofence Comparison Experiment Configuration
+# Factory Environment
+# =============================================================================
+
+name: factory_safetychip_comparison
+
+# Environment settings
+environment: factory  # "factory" or "simple"
+
+# Start and goal positions
+start: [1.0, 1.0]
+goal: [18.0, 13.0]
+
+# Natural language constraints
+# SafetyChip-lite translates these to LTL formulas
+constraints:
+  - "Never enter the storage_racks"
+  # Additional constraints can be added:
+  # - "Visit checkpoint before goal"  # Precedence: (!in_goal) U in_checkpoint
+  # - "If enter warning_zone then must reach exit"  # Trigger-response
+
+# Planning parameters
+max_steps: 100
+safety_margin: 0.3  # meters (for Geofence comparison)
+
+# Experiment parameters
+num_seeds: 50
+planner_type: heuristic  # "heuristic", "random", or "llm"
+
+# =============================================================================
+# Supported Constraint Patterns
+# =============================================================================
+#
+# 1. Always Avoid (G(!p)):
+#    - "Never enter X"
+#    - "Avoid X"
+#    - "X is forbidden"
+#    - "Stay out of X"
+#    -> G(!in_X)
+#
+# 2. Precedence ((!q) U p):
+#    - "Visit A before B"
+#    - "A then B"
+#    - "First A, then B"
+#    -> (!in_B) U in_A
+#
+# 3. Trigger-Response (G(p -> F(q))):
+#    - "If enter A, must eventually visit B"
+#    - "Whenever in A, must reach B"
+#    -> G(in_A -> F(in_B))
+#
+# =============================================================================
