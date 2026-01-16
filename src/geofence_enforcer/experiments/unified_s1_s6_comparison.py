@@ -607,9 +607,9 @@ class UnifiedExperimentRunner:
 
             # Print quick summary
             method_results = [r for r in results if r.method == method and r.scenario == scenario.name]
-            success_rate = sum(1 for r in method_results if r.success) / len(method_results) * 100
-            safety_rate = sum(1 for r in method_results if not r.safety_violation) / len(method_results) * 100
-            print(f"Success: {success_rate:.0f}%, Safety: {safety_rate:.0f}%")
+            sr = sum(1 for r in method_results if not r.safety_violation) / len(method_results) * 100
+            vr = sum(1 for r in method_results if r.safety_violation) / len(method_results) * 100
+            print(f"SR: {sr:.0f}%, VR: {vr:.0f}%")
 
         self.results.extend(results)
         return results
@@ -669,16 +669,16 @@ class UnifiedExperimentRunner:
         """
         summaries = self.summarize_results()
 
-        print("\n" + "=" * 110)
+        print("\n" + "=" * 95)
         print("UNIFIED S1-S6 COMPARISON EXPERIMENT RESULTS")
-        print("=" * 110)
+        print("=" * 95)
         print("Metrics: SR=Safety Rate(↑), VR=Violation Rate(↓), BR=Block Rate, MD=Mean Min Distance(↑)")
-        print("=" * 110)
+        print("=" * 95)
 
         # Header
-        header = f"{'Scenario':<8} {'Method':<12} {'Success%':>10} {'SR%':>8} {'VR%':>8} {'BR%':>8} {'MD(m)':>8} {'Steps':>10}"
+        header = f"{'Scenario':<8} {'Method':<12} {'SR%':>10} {'VR%':>10} {'BR%':>10} {'MD(m)':>10} {'Steps':>12}"
         print(header)
-        print("-" * 110)
+        print("-" * 95)
 
         for scenario_name in sorted(summaries.keys()):
             scenario_summaries = summaries[scenario_name]
@@ -692,17 +692,17 @@ class UnifiedExperimentRunner:
                 scenario_col = scenario_name if first else ""
                 first = False
 
-                print(f"{scenario_col:<8} {method.value:<12} {s.success_rate:>9.1f}% {s.SR:>7.1f}% {s.VR:>7.1f}% "
-                      f"{s.BR:>7.1f}% {s.MD:>7.2f} {s.avg_steps:>5.1f}±{s.std_steps:>3.1f}")
+                print(f"{scenario_col:<8} {method.value:<12} {s.SR:>9.1f}% {s.VR:>9.1f}% "
+                      f"{s.BR:>9.1f}% {s.MD:>9.2f} {s.avg_steps:>6.1f}±{s.std_steps:>4.1f}")
 
-            print("-" * 110)
+            print("-" * 95)
 
         # Overall summary by method
-        print("\n" + "=" * 110)
+        print("\n" + "=" * 95)
         print("OVERALL SUMMARY BY METHOD")
-        print("-" * 110)
-        print(f"{'Method':<12} {'Success%':>10} {'SR%':>10} {'VR%':>10} {'BR%':>10} {'MD(m)':>10}")
-        print("-" * 110)
+        print("-" * 95)
+        print(f"{'Method':<12} {'SR%':>12} {'VR%':>12} {'BR%':>12} {'MD(m)':>12}")
+        print("-" * 95)
 
         for method in Method:
             method_results = [r for r in self.results if r.method == method]
@@ -710,7 +710,6 @@ class UnifiedExperimentRunner:
                 continue
 
             n = len(method_results)
-            success_rate = sum(1 for r in method_results if r.success) / n * 100
             sr = sum(1 for r in method_results if not r.safety_violation) / n * 100
             vr = sum(1 for r in method_results if r.safety_violation) / n * 100
             total_blocked = sum(r.blocked_count for r in method_results)
@@ -718,9 +717,9 @@ class UnifiedExperimentRunner:
             br = total_blocked / total_actions * 100 if total_actions > 0 else 0
             md = np.mean([r.min_distance for r in method_results])
 
-            print(f"{method.value:<12} {success_rate:>9.1f}% {sr:>9.1f}% {vr:>9.1f}% {br:>9.1f}% {md:>9.2f}")
+            print(f"{method.value:<12} {sr:>11.1f}% {vr:>11.1f}% {br:>11.1f}% {md:>11.2f}")
 
-        print("=" * 110)
+        print("=" * 95)
 
     def save_results(self, output_path: str = "unified_s1_s6_results.csv"):
         """결과를 CSV로 저장"""
