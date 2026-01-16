@@ -1,0 +1,13 @@
+============================================================
+SafetyChip-lite NL->LTL Translation Log
+============================================================
+Translating 1 constraints...
+
+Input: Never enter the storage_racks
+  -> LTL: G(!in_storage_racks)
+  -> Type: ALWAYS_AVOID
+  -> Props: {'in_storage_racks'}
+
+Combined LTL: G(!in_storage_racks)
+All propositions: {'in_storage_racks'}
+============================================================
