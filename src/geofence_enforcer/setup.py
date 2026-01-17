@@ -47,6 +47,7 @@ setup(
             'costmap_mask_publisher = geofence_enforcer.costmap_mask_publisher:main',
             'runtime_monitor = geofence_enforcer.runtime_monitor:main',
             'gazebo_integration_test = geofence_enforcer.gazebo_integration_test:main',
+            'unified_gazebo_experiment = geofence_enforcer.unified_gazebo_experiment:main',
         ],
     },
     python_requires='>=3.8',
