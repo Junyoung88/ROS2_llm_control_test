@@ -10,7 +10,7 @@ Uses shapely if available, otherwise falls back to manual implementations.
 import math
 import yaml
 from dataclasses import dataclass, field
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 from enum import Enum
 
 # Try to import shapely; fall back to manual implementation
@@ -76,6 +76,7 @@ class PolicyDecision:
     projected_point: Optional[Tuple[float, float]] = None
     min_distance_to_forbidden: float = float('inf')
     violated_zone: Optional[str] = None
+    extra_info: Optional[Dict] = None  # For SafetyChip reprompt_text, SELP automaton state, etc.
 
 
 class GeofencePolicy:
@@ -258,6 +259,10 @@ class GeofencePolicy:
                     min_dist = dist
 
         return min_dist
+
+    def get_distance_to_zone(self, point: Tuple[float, float], zone: 'GeofenceZone') -> float:
+        """Get distance from point to a specific zone's boundary."""
+        return self._distance_to_polygon(point, zone.vertices)
 
     # ==================== Geometry Operations ====================
 
