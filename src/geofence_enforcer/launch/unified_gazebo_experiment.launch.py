@@ -79,13 +79,15 @@ def generate_launch_description():
         '=' * 70, '\n',
     ])
 
-    # Nav2 TurtleBot3 Simulation (includes Gazebo + Nav2 + AMCL)
+    # Nav2 TurtleBot3 Simulation (includes Gazebo + Nav2 + SLAM)
+    # SLAM 모드 사용 - 초기 위치 설정 불필요
     tb3_simulation = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_nav2_bringup, 'launch', 'tb3_simulation_launch.py')
         ),
         launch_arguments={
             'headless': LaunchConfiguration('headless'),
+            'slam': 'True',  # SLAM 모드로 실행 (AMCL 대신)
         }.items()
     )
 
