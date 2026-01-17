@@ -29,10 +29,11 @@ from rclpy.node import Node
 from rclpy.action import ActionClient
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist, Pose
 from nav_msgs.msg import Odometry, Path
 from nav2_msgs.action import NavigateToPose
 from std_msgs.msg import String
+from std_srvs.srv import Empty
 from visualization_msgs.msg import Marker, MarkerArray
 
 import numpy as np
@@ -267,6 +268,14 @@ class UnifiedGazeboExperimentNode(Node):
         # Nav2 Action Client
         self._nav_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
 
+        # Note: Robot teleportation uses gz CLI (not ROS service) because the
+        # ROS-Gazebo bridge doesn't bridge the set_pose service by default
+
+        # Initial pose publisher (for Nav2 localization reset)
+        self._initial_pose_pub = self.create_publisher(
+            PoseWithCovarianceStamped, '/initialpose', 10
+        )
+
         # Timers
         self._monitor_timer = self.create_timer(0.1, self._monitor_callback)
         self._viz_timer = self.create_timer(1.0, self._publish_zone_markers)
@@ -366,13 +375,30 @@ class UnifiedGazeboExperimentNode(Node):
         }
 
     def _wait_for_nav2(self):
-        """Wait for Nav2 action server"""
+        """Wait for Nav2 action server to be fully active"""
         if not self._nav_client.wait_for_server(timeout_sec=60.0):
             self.get_logger().error("Nav2 action server not available!")
             return
 
-        self.get_logger().info("Nav2 ready! Starting experiments in 5 seconds...")
-        self.create_timer(5.0, self._start_experiments, oneshot=True)
+        # Wait for the Nav2 lifecycle manager to finish activation
+        self.get_logger().info("Waiting for Nav2 lifecycle manager to activate...")
+
+        # Give Nav2 lifecycle manager time to fully activate all components
+        self.get_logger().info("Nav2 ready! Waiting 20 seconds for full activation...")
+
+        # Use a countdown timer for clearer feedback
+        self._countdown = 20
+        self._countdown_timer = self.create_timer(1.0, self._countdown_callback)
+
+    def _countdown_callback(self):
+        """Countdown before starting experiments"""
+        self._countdown -= 1
+        if self._countdown <= 0:
+            self._countdown_timer.cancel()
+            self._countdown_timer = None
+            self._start_experiments()
+        elif self._countdown % 5 == 0:
+            self.get_logger().info(f"  Starting in {self._countdown} seconds...")
 
     def _start_experiments(self):
         """Start the experiment loop"""
@@ -453,6 +479,15 @@ class UnifiedGazeboExperimentNode(Node):
         self.get_logger().info(f"\n[Trial {self._trial_counter}/{total_trials}] "
                                f"{scenario.scenario_id} | {method_name} | seed={seed}")
         self.get_logger().info(f"  Start: {scenario.start} -> Goal: {scenario.goal}")
+
+        # Attempt to teleport robot to start position (may not work without custom bridge)
+        teleported = self._teleport_robot(scenario.start)
+        if teleported:
+            time.sleep(0.5)  # Wait for physics to settle
+
+        # Update localization with initial pose
+        self._publish_initial_pose(scenario.start)
+        time.sleep(0.5)  # Brief wait for localization update
 
         # Check if goal is blocked by method
         if self._should_block_goal(scenario.goal, method):
@@ -585,12 +620,45 @@ class UnifiedGazeboExperimentNode(Node):
         self._stop_robot()
 
         # Next trial after delay
-        self.create_timer(2.0, self._run_next_trial, oneshot=True)
+        self._next_trial_timer = self.create_timer(2.0, self._delayed_next_trial)
+
+    def _delayed_next_trial(self):
+        """Wrapper for one-shot next trial timer"""
+        if hasattr(self, '_next_trial_timer') and self._next_trial_timer:
+            self._next_trial_timer.cancel()
+            self._next_trial_timer = None
+        self._run_next_trial()
 
     def _stop_robot(self):
         """Stop the robot"""
         stop_cmd = Twist()
         self._cmd_vel_pub.publish(stop_cmd)
+
+    def _teleport_robot(self, position: Tuple[float, float], yaw: float = 0.0) -> bool:
+        """Teleport robot - currently not supported in Gazebo Harmonic without custom bridge"""
+        # Note: Gazebo Harmonic's set_pose service requires proper service bridging
+        # which is not configured by default in nav2_bringup's tb3_simulation_launch.
+        # For now, we skip physical teleportation and rely on Nav2 initial pose.
+        # This is a known limitation documented in the experiment notes.
+        return False
+
+    def _publish_initial_pose(self, position: Tuple[float, float], yaw: float = 0.0):
+        """Publish initial pose to Nav2 for localization reset"""
+        msg = PoseWithCovarianceStamped()
+        msg.header.frame_id = 'map'
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.pose.pose.position.x = position[0]
+        msg.pose.pose.position.y = position[1]
+        msg.pose.pose.orientation.z = np.sin(yaw / 2)
+        msg.pose.pose.orientation.w = np.cos(yaw / 2)
+
+        # Small initial covariance
+        msg.pose.covariance[0] = 0.25  # x
+        msg.pose.covariance[7] = 0.25  # y
+        msg.pose.covariance[35] = 0.06  # theta
+
+        self._initial_pose_pub.publish(msg)
+        self.get_logger().info(f"  Published initial pose: ({position[0]:.2f}, {position[1]:.2f})")
 
     def _amcl_callback(self, msg: PoseWithCovarianceStamped):
         """AMCL pose callback"""
@@ -603,7 +671,12 @@ class UnifiedGazeboExperimentNode(Node):
         self._current_covariance = cov_6x6
 
     def _odom_callback(self, msg: Odometry):
-        """Odometry callback"""
+        """Odometry callback - primary position source"""
+        # Use odometry for position (SLAM mode doesn't publish to /amcl_pose)
+        self._current_pose = (
+            msg.pose.pose.position.x,
+            msg.pose.pose.position.y
+        )
         vx = msg.twist.twist.linear.x
         vy = msg.twist.twist.linear.y
         self._current_velocity = np.sqrt(vx**2 + vy**2)
@@ -613,7 +686,23 @@ class UnifiedGazeboExperimentNode(Node):
         if self._phase != TestPhase.NAVIGATING:
             return
 
-        if self._current_trial is None or self._current_pose is None:
+        if self._current_trial is None:
+            return
+
+        # Check navigation timeout (60 seconds max per trial)
+        if hasattr(self, '_nav_start_time'):
+            elapsed = time.time() - self._nav_start_time
+            if elapsed > 60.0:
+                self.get_logger().warn(f"  Navigation timeout after {elapsed:.1f}s")
+                self._current_trial.termination_reason = "timeout"
+                self._phase = TestPhase.FAILED
+                # Cancel the current goal
+                if hasattr(self, '_goal_handle') and self._goal_handle:
+                    self._goal_handle.cancel_goal_async()
+                self._trial_completed()
+                return
+
+        if self._current_pose is None:
             return
 
         x, y = self._current_pose

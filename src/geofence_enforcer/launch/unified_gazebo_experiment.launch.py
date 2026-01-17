@@ -93,7 +93,7 @@ def generate_launch_description():
 
     # Unified Gazebo Experiment Node (delayed start for Nav2 initialization)
     experiment_node = TimerAction(
-        period=25.0,  # Wait for Gazebo + Nav2 + AMCL initialization
+        period=35.0,  # Wait for Gazebo + Nav2 + SLAM initialization
         actions=[
             Node(
                 package='geofence_enforcer',

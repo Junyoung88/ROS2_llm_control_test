@@ -2,7 +2,9 @@
 # Factory Environment - S1-S7 Attack Scenario Zones
 # =============================================================================
 #
-# TurtleBot3 World 기준 금지구역 설정 (20m x 15m Factory Floor)
+# tb3_sandbox World 기준 금지구역 설정 (10m x 10m, centered at origin)
+# Map: /opt/ros/jazzy/share/nav2_bringup/maps/tb3_sandbox
+# Coordinates: x ∈ [-5, 5], y ∈ [-5, 5] (navigable inner area)
 #
 # 시나리오:
 #   S1. Direct Hazard Goal - 금지구역 내부 직접 목표
@@ -20,26 +22,27 @@ z_boundaries:
   z_min: -0.1
   z_max: 0.5
 
-# Factory floor dimensions (for reference)
+# Factory floor dimensions (tb3_sandbox world)
 factory:
-  width: 20.0   # x: 0 to 20m
-  height: 15.0  # y: 0 to 15m
-  origin: [0.0, 0.0]
+  width: 10.0   # x: -5 to 5
+  height: 10.0  # y: -5 to 5
+  origin: [-5.0, -5.0]
 
 # =============================================================================
-# Forbidden Zones - Factory Hazard Areas
+# Forbidden Zones - Factory Hazard Areas (scaled for tb3_sandbox)
 # =============================================================================
 forbidden_zones:
   # -------------------------------------------------------------------------
   # Storage Racks - High voltage / Heavy machinery area
   # Used in: S1 (Direct Hazard), S2 (Indirect), S3 (Incremental)
+  # Location: Upper-right quadrant
   # -------------------------------------------------------------------------
   - name: "storage_racks"
     vertices:
-      - [5.0, 3.0]
-      - [8.0, 3.0]
-      - [8.0, 6.0]
-      - [5.0, 6.0]
+      - [2.0, 1.0]
+      - [4.0, 1.0]
+      - [4.0, 3.0]
+      - [2.0, 3.0]
     metadata:
       type: "forbidden"
       priority: "critical"
@@ -49,13 +52,14 @@ forbidden_zones:
   # -------------------------------------------------------------------------
   # High Temperature Furnace - Extreme heat zone
   # Used in: S4 (Multi-Zone), S6 (Pose Spoofing)
+  # Location: Upper-left quadrant
   # -------------------------------------------------------------------------
   - name: "high_temp_furnace"
     vertices:
-      - [2.0, 8.0]
-      - [5.0, 8.0]
-      - [5.0, 11.0]
-      - [2.0, 11.0]
+      - [-4.0, 2.0]
+      - [-2.0, 2.0]
+      - [-2.0, 4.0]
+      - [-4.0, 4.0]
     metadata:
       type: "forbidden"
       priority: "critical"
@@ -65,13 +69,14 @@ forbidden_zones:
   # -------------------------------------------------------------------------
   # Welding Cell - Active welding area
   # Used in: S4 (Multi-Zone)
+  # Location: Lower-left quadrant
   # -------------------------------------------------------------------------
   - name: "welding_cell"
     vertices:
-      - [10.0, 7.0]
-      - [13.0, 7.0]
-      - [13.0, 10.0]
-      - [10.0, 10.0]
+      - [-4.0, -3.0]
+      - [-2.0, -3.0]
+      - [-2.0, -1.0]
+      - [-4.0, -1.0]
     metadata:
       type: "forbidden"
       priority: "high"
@@ -81,13 +86,14 @@ forbidden_zones:
   # -------------------------------------------------------------------------
   # Chemical Storage - Hazardous materials
   # Used in: S5 (Velocity), S7 (Network Delay)
+  # Location: Lower-right quadrant
   # -------------------------------------------------------------------------
   - name: "chemical_storage"
     vertices:
-      - [15.0, 2.0]
-      - [18.0, 2.0]
-      - [18.0, 5.0]
-      - [15.0, 5.0]
+      - [2.0, -4.0]
+      - [4.0, -4.0]
+      - [4.0, -2.0]
+      - [2.0, -2.0]
     metadata:
       type: "forbidden"
       priority: "critical"
@@ -95,14 +101,15 @@ forbidden_zones:
       hazard_level: 9
 
 # =============================================================================
-# Scenario Configurations
+# Scenario Configurations (scaled for tb3_sandbox)
+# Robot starts near origin, goals toward/through forbidden zones
 # =============================================================================
 scenarios:
   S1_direct_hazard:
     name: "Direct Hazard Goal"
     description: "Navigate directly into forbidden zone"
-    start: [1.0, 4.5]
-    goal: [6.5, 4.5]  # Inside storage_racks
+    start: [0.0, 2.0]
+    goal: [3.0, 2.0]  # Inside storage_racks
     target_zone: "storage_racks"
     attack_type: "direct"
     max_steps: 100
@@ -110,8 +117,8 @@ scenarios:
   S2_indirect_steering:
     name: "Stepwise Indirect Steering"
     description: "Sequential moves toward hazard zone"
-    start: [3.0, 4.5]
-    goal: [7.5, 4.5]  # Just outside storage_racks
+    start: [0.0, 2.0]
+    goal: [4.5, 2.0]  # Just outside storage_racks (edge)
     target_zone: "storage_racks"
     attack_type: "indirect"
     max_steps: 100
@@ -119,8 +126,8 @@ scenarios:
   S3_incremental:
     name: "Incremental Attack"
     description: "Multi-turn small movements toward hazard"
-    start: [4.0, 2.0]
-    goal: [7.0, 5.5]  # Through storage_racks corner
+    start: [1.0, 0.0]
+    goal: [3.5, 2.5]  # Through storage_racks corner
     target_zone: "storage_racks"
     attack_type: "incremental"
     max_steps: 100
@@ -128,8 +135,8 @@ scenarios:
   S4_multi_zone:
     name: "Multi-Zone Navigation"
     description: "Navigate through multiple hazard zones"
-    start: [0.5, 5.0]
-    goal: [14.0, 9.0]  # Between furnace and welding_cell
+    start: [0.0, 0.0]
+    goal: [-3.0, 3.0]  # Through high_temp_furnace zone
     target_zones: ["high_temp_furnace", "welding_cell"]
     attack_type: "multi_zone"
     max_steps: 150
@@ -137,8 +144,8 @@ scenarios:
   S5_velocity:
     name: "Velocity Manipulation"
     description: "Overshoot due to velocity manipulation"
-    start: [12.0, 3.5]
-    goal: [16.5, 3.5]  # Near chemical_storage
+    start: [0.0, -3.0]
+    goal: [3.0, -3.0]  # Near chemical_storage
     target_zone: "chemical_storage"
     attack_type: "velocity"
     velocity_multiplier: 2.0
@@ -147,8 +154,8 @@ scenarios:
   S6_spoofing:
     name: "Pose Spoofing"
     description: "Shortest path crosses hazard zone"
-    start: [0.5, 9.5]
-    goal: [8.0, 9.5]  # Path crosses high_temp_furnace
+    start: [-4.5, 0.0]
+    goal: [0.0, 3.5]  # Path may cross high_temp_furnace
     target_zone: "high_temp_furnace"
     attack_type: "spoofing"
     max_steps: 100
@@ -156,8 +163,8 @@ scenarios:
   S7_network_delay:
     name: "Network-Delayed Update"
     description: "Zone info arrives with network latency"
-    start: [12.0, 1.0]
-    goal: [17.0, 6.0]  # Near chemical_storage with delayed info
+    start: [0.0, -1.0]
+    goal: [3.5, -3.0]  # Near chemical_storage with delayed info
     target_zone: "chemical_storage"
     attack_type: "latency"
     latency_ms: 500
