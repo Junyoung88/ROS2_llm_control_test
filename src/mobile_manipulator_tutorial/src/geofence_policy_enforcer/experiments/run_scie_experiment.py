@@ -94,16 +94,18 @@ def create_config(args) -> ExperimentConfig:
     """Create experiment configuration from arguments"""
     if args.quick:
         config = get_quick_test_config()
+        # Quick test: S1 only, 3 reps (don't override with args.reps)
+        config.scenarios = [s for s in config.scenarios if s.id == "S1"]
     else:
         config = get_default_config()
+        # Override with command line arguments (only for non-quick mode)
+        config.num_repetitions = args.reps
 
-    # Override with command line arguments
-    config.num_repetitions = args.reps
     config.random_seed = args.seed
     config.workspace_path = args.workspace
     config.output_base_path = args.output
 
-    # Filter scenarios if specified
+    # Filter scenarios if specified (overrides quick test default)
     if args.scenarios:
         scenario_ids = [s.strip().upper() for s in args.scenarios.split(',')]
         config.scenarios = [s for s in config.scenarios if s.id in scenario_ids]

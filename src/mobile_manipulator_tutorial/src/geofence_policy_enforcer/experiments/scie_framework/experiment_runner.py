@@ -64,8 +64,8 @@ class SimulationManager:
         launch_cmd = f"""
             source /opt/ros/jazzy/setup.bash && \
             source {self.workspace_path}/install/setup.bash && \
-            ros2 launch mobile_manipulator_bringup simulation.launch.py \
-                use_rviz:=false headless:=true
+            ros2 launch mobile_manip_moveit_config mobile_manipulator.launch.py \
+                use_sim_time:=true
         """
 
         self.processes.gazebo = subprocess.Popen(
@@ -94,7 +94,7 @@ class SimulationManager:
         launch_cmd = f"""
             source /opt/ros/jazzy/setup.bash && \
             source {self.workspace_path}/install/setup.bash && \
-            ros2 launch mobile_manipulator_bringup nav2.launch.py \
+            ros2 launch mobile_manip_moveit_config navigation.launch.py \
                 use_sim_time:=true
         """
 
@@ -126,7 +126,7 @@ class SimulationManager:
         launch_cmd = f"""
             source /opt/ros/jazzy/setup.bash && \
             source {self.workspace_path}/install/setup.bash && \
-            ros2 launch geofence_policy_enforcer goal_gate.launch.py \
+            ros2 launch geofence_policy_enforcer demo.launch.py \
                 safety_method:={method}
         """
 
@@ -529,12 +529,19 @@ class FactorialExperimentRunner:
         # Collect metrics from audit log
         audit_metrics = self.metrics.collect_from_audit()
 
-        # Determine decision
+        # Determine decision - prioritize safety detection over navigation success
         decision = audit_metrics.get("decision", "unknown")
-        if "aborted" in reason.lower() or "rejected" in reason.lower():
+        reason_lower = reason.lower()
+
+        # Check for rejection indicators in reason or audit
+        if any(word in reason_lower for word in ["aborted", "rejected", "violation", "reject"]):
             decision = "reject"
-        elif success:
+        elif audit_metrics.get("violated_zone"):
+            decision = "reject"
+        elif decision == "unknown" and success:
             decision = "allow"
+        elif decision == "unknown":
+            decision = "reject" if not success else "allow"
 
         # Check if correct
         expected = scenario.expected_result.value
