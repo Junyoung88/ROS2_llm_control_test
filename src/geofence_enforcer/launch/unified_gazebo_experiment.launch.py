@@ -67,6 +67,38 @@ def generate_launch_description():
         description='List of methods to test'
     )
 
+    # Ablation study arguments
+    ablation_arg = DeclareLaunchArgument(
+        'ablation_condition',
+        default_value='full',
+        description='Ablation condition: full, no_estimation, no_tracking, no_latency'
+    )
+
+    use_dynamic_margin_arg = DeclareLaunchArgument(
+        'use_dynamic_margin',
+        default_value='True',
+        description='Use dynamic margin from policy enforcer node'
+    )
+
+    # Individual ablation term enable/disable arguments
+    enable_estimation_arg = DeclareLaunchArgument(
+        'enable_estimation_term',
+        default_value='True',
+        description='Enable estimation uncertainty term in margin calculation'
+    )
+
+    enable_tracking_arg = DeclareLaunchArgument(
+        'enable_tracking_term',
+        default_value='True',
+        description='Enable tracking error term in margin calculation'
+    )
+
+    enable_latency_arg = DeclareLaunchArgument(
+        'enable_latency_term',
+        default_value='True',
+        description='Enable latency compensation term in margin calculation'
+    )
+
     # Log experiment info
     log_info = LogInfo(msg=[
         '\n',
@@ -76,19 +108,55 @@ def generate_launch_description():
         'Seeds: ', LaunchConfiguration('seeds'), '\n',
         'Headless: ', LaunchConfiguration('headless'), '\n',
         'Output: ', LaunchConfiguration('output_dir'), '\n',
+        'Ablation: ', LaunchConfiguration('ablation_condition'), '\n',
+        'Dynamic Margin: ', LaunchConfiguration('use_dynamic_margin'), '\n',
         '=' * 70, '\n',
     ])
 
-    # Nav2 TurtleBot3 Simulation (includes Gazebo + Nav2 + SLAM)
-    # SLAM 모드 사용 - 초기 위치 설정 불필요
+    # Nav2 TurtleBot3 Simulation (includes Gazebo + Nav2 + AMCL)
+    # AMCL 모드 사용 - 사전 제작된 맵으로 정확한 위치 추정 가능
     tb3_simulation = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_nav2_bringup, 'launch', 'tb3_simulation_launch.py')
         ),
         launch_arguments={
             'headless': LaunchConfiguration('headless'),
-            'slam': 'True',  # SLAM 모드로 실행 (AMCL 대신)
+            'slam': 'False',  # AMCL 모드 - 텔레포트 후 재위치 추정 지원
         }.items()
+    )
+
+    # Convert ablation_condition to enable_* parameters
+    # full: all enabled
+    # no_estimation: disable estimation term
+    # no_tracking: disable tracking term
+    # no_latency: disable latency term
+
+    # Dynamic Policy Enforcer Node (delayed start for Nav2 initialization)
+    geofence_config_path = os.path.join(pkg_geofence, 'config', 'factory_s1_s7_zones.yaml')
+
+    dynamic_enforcer_node = TimerAction(
+        period=30.0,  # Start before experiment node
+        actions=[
+            Node(
+                package='geofence_enforcer',
+                executable='dynamic_policy_enforcer',
+                name='dynamic_policy_enforcer',
+                output='screen',
+                parameters=[{
+                    'use_sim_time': True,
+                    'alpha': 0.95,
+                    'v_max': 0.22,  # TurtleBot3 Waffle max speed
+                    'use_dynamic_v_max': True,
+                    'default_e_track': 0.05,
+                    'default_tau': 0.1,
+                    # Ablation parameters from launch arguments
+                    'enable_estimation_term': LaunchConfiguration('enable_estimation_term'),
+                    'enable_tracking_term': LaunchConfiguration('enable_tracking_term'),
+                    'enable_latency_term': LaunchConfiguration('enable_latency_term'),
+                    'geofence_config': geofence_config_path,
+                }],
+            )
+        ]
     )
 
     # Unified Gazebo Experiment Node (delayed start for Nav2 initialization)
@@ -102,13 +170,13 @@ def generate_launch_description():
                 output='screen',
                 parameters=[{
                     'use_sim_time': True,
-                    'config_file': os.path.join(
-                        pkg_geofence, 'config', 'factory_s1_s7_zones.yaml'
-                    ),
+                    'config_file': geofence_config_path,
                     'output_dir': LaunchConfiguration('output_dir'),
                     'seeds': LaunchConfiguration('seeds'),
                     'scenarios': LaunchConfiguration('scenarios'),
                     'methods': LaunchConfiguration('methods'),
+                    'use_dynamic_margin_node': LaunchConfiguration('use_dynamic_margin'),
+                    'ablation_condition': LaunchConfiguration('ablation_condition'),
                 }],
             )
         ]
@@ -121,12 +189,20 @@ def generate_launch_description():
         output_dir_arg,
         scenarios_arg,
         methods_arg,
+        ablation_arg,
+        use_dynamic_margin_arg,
+        enable_estimation_arg,
+        enable_tracking_arg,
+        enable_latency_arg,
 
         # Info
         log_info,
 
         # TurtleBot3 Simulation (Gazebo + Nav2)
         tb3_simulation,
+
+        # Dynamic Policy Enforcer Node (delayed start)
+        dynamic_enforcer_node,
 
         # Experiment Node (delayed start)
         experiment_node,

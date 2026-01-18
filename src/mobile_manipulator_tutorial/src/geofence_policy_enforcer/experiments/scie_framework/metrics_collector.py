@@ -172,6 +172,27 @@ class MetricsCollector:
             metrics["noisy_perception"] = extra_info.get("noisy_perception", False)
             metrics["proposition_changes"] = extra_info.get("proposition_changes", {})
 
+        # Extract ablation study data (margin breakdown, ablation state, measured params)
+        metrics["ablation_condition"] = entry.get("ablation_condition", "full")
+
+        margin_breakdown = entry.get("margin_breakdown", {})
+        metrics["margin_total"] = margin_breakdown.get("total", 0.0)
+        metrics["margin_estimation"] = margin_breakdown.get("estimation", 0.0)
+        metrics["margin_tracking"] = margin_breakdown.get("tracking", 0.0)
+        metrics["margin_latency"] = margin_breakdown.get("latency", 0.0)
+
+        ablation_state = entry.get("ablation_state", {})
+        metrics["estimation_enabled"] = ablation_state.get("estimation_enabled", True)
+        metrics["tracking_enabled"] = ablation_state.get("tracking_enabled", True)
+        metrics["latency_enabled"] = ablation_state.get("latency_enabled", True)
+
+        measured_params = entry.get("measured_params", {})
+        metrics["e_track_measured"] = measured_params.get("e_track", 0.0)
+        metrics["tau_measured"] = measured_params.get("tau", 0.0)
+        metrics["v_max_measured"] = measured_params.get("v_max", 0.0)
+        metrics["k_sigma"] = measured_params.get("k_sigma", 3.0)
+        metrics["localization_sigma"] = measured_params.get("localization_sigma", 0.15)
+
         # Record all metrics
         for key, value in metrics.items():
             if value is not None:

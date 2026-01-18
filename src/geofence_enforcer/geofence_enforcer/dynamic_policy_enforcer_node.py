@@ -33,6 +33,7 @@ Services:
 import numpy as np
 from typing import Optional, Tuple
 from threading import Lock
+from collections import deque
 import json
 
 import rclpy
@@ -66,11 +67,20 @@ class DynamicMarginData:
         self.tau: float = 0.1
         self.current_velocity: float = 0.0
 
+        # Dynamic v_max
+        self.v_max_observed: float = 0.5
+        self.velocity_samples: int = 0
+
         # Computed margin
         self.estimation_term: float = 0.0
         self.tracking_term: float = 0.0
         self.latency_term: float = 0.0
         self.total_margin: float = 0.0
+
+        # Ablation flags
+        self.estimation_enabled: bool = True
+        self.tracking_enabled: bool = True
+        self.latency_enabled: bool = True
 
         # Statistics
         self.e_track_samples: int = 0
@@ -88,7 +98,8 @@ class DynamicMarginData:
             'parameters': {
                 'e_track': self.e_track,
                 'tau': self.tau,
-                'velocity': self.current_velocity
+                'velocity': self.current_velocity,
+                'v_max_observed': self.v_max_observed,
             },
             'margin_breakdown': {
                 'estimation': self.estimation_term,
@@ -96,12 +107,53 @@ class DynamicMarginData:
                 'latency': self.latency_term,
                 'total': self.total_margin
             },
+            'ablation': {
+                'estimation_enabled': self.estimation_enabled,
+                'tracking_enabled': self.tracking_enabled,
+                'latency_enabled': self.latency_enabled,
+            },
             'sample_counts': {
                 'e_track': self.e_track_samples,
                 'tau': self.tau_samples,
-                'covariance': self.covariance_updates
+                'covariance': self.covariance_updates,
+                'velocity': self.velocity_samples,
             }
         }
+
+
+class VelocityMonitor:
+    """Compute velocity statistics from observed odometry."""
+
+    def __init__(self, window_size: int = 100, percentile: int = 95):
+        self._velocities: deque = deque(maxlen=window_size)
+        self._percentile = percentile
+        self._lock = Lock()
+
+    def record_velocity(self, velocity: float) -> None:
+        """Record observed velocity (filters out near-zero values)."""
+        with self._lock:
+            if velocity >= 0.001:  # Filter out stationary state
+                self._velocities.append(velocity)
+
+    def get_v_max_estimate(self, default: float = 0.5) -> float:
+        """Get the estimated v_max based on percentile of observed velocities."""
+        with self._lock:
+            if len(self._velocities) < 20:
+                return default
+            return float(np.percentile(np.array(self._velocities), self._percentile))
+
+    def get_stats(self) -> dict:
+        """Get velocity statistics."""
+        with self._lock:
+            if len(self._velocities) < 5:
+                return {'sample_count': 0}
+            arr = np.array(self._velocities)
+            return {
+                'sample_count': len(arr),
+                'v_max_95': float(np.percentile(arr, 95)),
+                'mean': float(np.mean(arr)),
+                'max_observed': float(np.max(arr))
+            }
 
 
 class DynamicPolicyEnforcerNode(Node):
@@ -137,6 +189,15 @@ class DynamicPolicyEnforcerNode(Node):
         self.declare_parameter('min_samples_e_track', 20)
         self.declare_parameter('min_samples_tau', 10)
 
+        # Dynamic v_max parameters
+        self.declare_parameter('use_dynamic_v_max', True)
+        self.declare_parameter('v_max_window_size', 100)
+
+        # Ablation study parameters
+        self.declare_parameter('enable_estimation_term', True)
+        self.declare_parameter('enable_tracking_term', True)
+        self.declare_parameter('enable_latency_term', True)
+
         self._alpha = self.get_parameter('alpha').value
         self._v_max = self.get_parameter('v_max').value
         self._config_path = self.get_parameter('geofence_config').value
@@ -150,6 +211,15 @@ class DynamicPolicyEnforcerNode(Node):
         self._min_samples_e_track = self.get_parameter('min_samples_e_track').value
         self._min_samples_tau = self.get_parameter('min_samples_tau').value
 
+        # Dynamic v_max parameters
+        self._use_dynamic_v_max = self.get_parameter('use_dynamic_v_max').value
+        self._v_max_window_size = self.get_parameter('v_max_window_size').value
+
+        # Ablation study parameters
+        self._enable_estimation = self.get_parameter('enable_estimation_term').value
+        self._enable_tracking = self.get_parameter('enable_tracking_term').value
+        self._enable_latency = self.get_parameter('enable_latency_term').value
+
         # =====================================================================
         # STATE
         # =====================================================================
@@ -160,6 +230,10 @@ class DynamicPolicyEnforcerNode(Node):
         # Latest pose and covariance
         self._current_pose: Optional[PoseWithCovarianceStamped] = None
         self._current_covariance: Optional[np.ndarray] = None
+
+        # Dynamic v_max tracking
+        self._velocity_monitor = VelocityMonitor(window_size=self._v_max_window_size)
+        self._observed_v_max: float = self._v_max
 
         # =====================================================================
         # COMPONENTS
@@ -329,7 +403,13 @@ class DynamicPolicyEnforcerNode(Node):
         self.get_logger().info(f"  v_max:              {self._v_max} m/s")
         self.get_logger().info(f"  Default e_track:    {self._default_e_track} m")
         self.get_logger().info(f"  Default τ:          {self._default_tau} s")
+        self.get_logger().info(f"  Dynamic v_max:      {self._use_dynamic_v_max}")
         self.get_logger().info("  Parameters: DYNAMIC (measured in real-time)")
+        self.get_logger().info("-" * 60)
+        self.get_logger().info("  Ablation Study Configuration:")
+        self.get_logger().info(f"    Estimation term:  {'ENABLED' if self._enable_estimation else 'DISABLED'}")
+        self.get_logger().info(f"    Tracking term:    {'ENABLED' if self._enable_tracking else 'DISABLED'}")
+        self.get_logger().info(f"    Latency term:     {'ENABLED' if self._enable_latency else 'DISABLED'}")
         self.get_logger().info("=" * 60)
 
     # =========================================================================
@@ -367,6 +447,9 @@ class DynamicPolicyEnforcerNode(Node):
         with self._lock:
             self._margin_data.current_velocity = velocity
 
+        # Record velocity for dynamic v_max estimation
+        self._velocity_monitor.record_velocity(velocity)
+
         # Check for command response (latency measurement)
         self._latency_monitor.complete_command_measurement(vx)
 
@@ -402,6 +485,7 @@ class DynamicPolicyEnforcerNode(Node):
             # Get measured values
             tau_stats = self._latency_monitor.get_stats()
             e_track_stats = self._tracking_monitor.get_stats()
+            v_stats = self._velocity_monitor.get_stats()
 
             # Use measured tau if enough samples
             if tau_stats.sample_count >= self._min_samples_tau:
@@ -419,6 +503,17 @@ class DynamicPolicyEnforcerNode(Node):
             else:
                 self._margin_data.e_track = self._default_e_track
 
+            # Use dynamic v_max if enabled and enough samples
+            if self._use_dynamic_v_max and v_stats.get('sample_count', 0) >= 20:
+                self._observed_v_max = v_stats['v_max_95']
+                self._margin_data.v_max_observed = self._observed_v_max
+                self._margin_data.velocity_samples = v_stats['sample_count']
+                # Update margin calculator with dynamic v_max
+                self._margin_calc.update_parameters(v_max=self._observed_v_max)
+            else:
+                self._margin_data.v_max_observed = self._v_max
+                self._margin_data.velocity_samples = v_stats.get('sample_count', 0)
+
             # Update margin calculator with dynamic values
             self._margin_calc.update_parameters(
                 e_track=self._margin_data.e_track,
@@ -433,17 +528,41 @@ class DynamicPolicyEnforcerNode(Node):
                 )
 
                 self._margin_data.lambda_max = result.lambda_max
-                self._margin_data.estimation_term = result.estimation_term
-                self._margin_data.tracking_term = result.tracking_error
-                self._margin_data.latency_term = result.latency_term
-                self._margin_data.total_margin = result.total_margin
+
+                # Apply ablation: disable terms based on parameters
+                self._margin_data.estimation_term = (
+                    result.estimation_term if self._enable_estimation else 0.0
+                )
+                self._margin_data.tracking_term = (
+                    result.tracking_error if self._enable_tracking else 0.0
+                )
+                self._margin_data.latency_term = (
+                    result.latency_term if self._enable_latency else 0.0
+                )
+
+                # Compute total margin with ablation
+                self._margin_data.total_margin = (
+                    self._margin_data.estimation_term +
+                    self._margin_data.tracking_term +
+                    self._margin_data.latency_term
+                )
             else:
                 # Use default covariance
                 default_cov = np.zeros(36)
                 default_cov[0] = self._default_sigma ** 2
                 default_cov[7] = self._default_sigma ** 2
                 result = self._margin_calc.compute_margin(default_cov)
-                self._margin_data.total_margin = result.total_margin
+
+                # Apply ablation for default case too
+                est_term = result.estimation_term if self._enable_estimation else 0.0
+                track_term = result.tracking_error if self._enable_tracking else 0.0
+                lat_term = result.latency_term if self._enable_latency else 0.0
+                self._margin_data.total_margin = est_term + track_term + lat_term
+
+            # Store ablation state in margin data
+            self._margin_data.estimation_enabled = self._enable_estimation
+            self._margin_data.tracking_enabled = self._enable_tracking
+            self._margin_data.latency_enabled = self._enable_latency
 
         # Publish margin
         margin_msg = Float64()

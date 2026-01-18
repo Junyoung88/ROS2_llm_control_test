@@ -72,6 +72,38 @@ class MethodSpecificMetrics:
 
 
 @dataclass
+class AblationData:
+    """Ablation study data for margin breakdown analysis."""
+    ablation_condition: str = "full"
+    margin_total: float = 0.0
+    margin_estimation: float = 0.0
+    margin_tracking: float = 0.0
+    margin_latency: float = 0.0
+    estimation_enabled: bool = True
+    tracking_enabled: bool = True
+    latency_enabled: bool = True
+    # Measured parameters
+    e_track_measured: float = 0.0
+    tau_measured: float = 0.0
+    v_max_measured: float = 0.0
+    k_sigma: float = 3.0
+    localization_sigma: float = 0.1
+
+
+@dataclass
+class PromptInjectionData:
+    """Data for S8 Prompt Injection attack scenarios."""
+    injection_type: str = ""        # "ignore_previous", "role_play", "encoding", "context_overflow"
+    injection_payload: str = ""     # The actual malicious prompt
+    benign_goal_x: float = 0.0      # Apparent safe goal in the prompt
+    benign_goal_y: float = 0.0
+    hidden_goal_x: float = 0.0      # Actual malicious goal hidden in injection
+    hidden_goal_y: float = 0.0
+    injection_detected: bool = False  # Whether safety system detected injection
+    goal_extracted: str = ""        # What goal the system extracted from prompt
+
+
+@dataclass
 class TrialConditions:
     """Experimental conditions for a single trial"""
     method: str
@@ -80,6 +112,7 @@ class TrialConditions:
     noise_sigma: float
     repetition: int
     random_seed: int
+    ablation_condition: str = "full"  # Ablation condition for this trial
 
 
 @dataclass
@@ -110,6 +143,8 @@ class TrialResult:
     safety: SafetyMetrics = None
     performance: PerformanceMetrics = None
     method_specific: MethodSpecificMetrics = None
+    ablation: AblationData = None
+    prompt_injection: PromptInjectionData = None  # S8-specific data
 
     # Raw data
     reason: str = ""                       # Decision reason from system
@@ -128,6 +163,10 @@ class TrialResult:
             self.performance = PerformanceMetrics()
         if self.method_specific is None:
             self.method_specific = MethodSpecificMetrics()
+        if self.ablation is None:
+            self.ablation = AblationData()
+        if self.prompt_injection is None:
+            self.prompt_injection = PromptInjectionData()
 
     def _generate_trial_id(self) -> str:
         """Generate unique trial ID"""
@@ -156,6 +195,7 @@ class TrialResult:
             "safety": asdict(self.safety) if self.safety else None,
             "performance": asdict(self.performance) if self.performance else None,
             "method_specific": asdict(self.method_specific) if self.method_specific else None,
+            "ablation": asdict(self.ablation) if self.ablation else None,
             "reason": self.reason,
             "extra_info": self.extra_info,
             "success": self.success,
@@ -211,6 +251,22 @@ class TrialResult:
             flat["noisy_perception_applied"] = self.method_specific.noisy_perception_applied
             flat["safety_margin_m"] = self.method_specific.safety_margin_m
             flat["projection_distance_m"] = self.method_specific.projection_distance_m
+
+        # Ablation study data
+        if self.ablation:
+            flat["ablation_condition"] = self.ablation.ablation_condition
+            flat["margin_total"] = self.ablation.margin_total
+            flat["margin_estimation"] = self.ablation.margin_estimation
+            flat["margin_tracking"] = self.ablation.margin_tracking
+            flat["margin_latency"] = self.ablation.margin_latency
+            flat["estimation_enabled"] = self.ablation.estimation_enabled
+            flat["tracking_enabled"] = self.ablation.tracking_enabled
+            flat["latency_enabled"] = self.ablation.latency_enabled
+            flat["e_track_measured"] = self.ablation.e_track_measured
+            flat["tau_measured"] = self.ablation.tau_measured
+            flat["v_max_measured"] = self.ablation.v_max_measured
+            flat["k_sigma"] = self.ablation.k_sigma
+            flat["localization_sigma"] = self.ablation.localization_sigma
 
         flat["reason"] = self.reason
         flat["success"] = self.success
@@ -362,13 +418,34 @@ class ExperimentLogger:
             by_scenario[scenario].append(trial)
             by_method_scenario[key].append(trial)
 
-        # Compute statistics
+        # Compute statistics - USENIX level metrics
         def compute_stats(trials: List[TrialResult]) -> Dict:
             if not trials:
                 return {}
 
+            # Basic counts
             correct = sum(1 for t in trials if t.safety and t.safety.is_correct)
-            violated = sum(1 for t in trials if t.safety and t.safety.violated)
+
+            # 1. VR (Violation Rate) - actual physical zone intrusion
+            actual_violations = sum(1 for t in trials if t.safety and t.safety.actual_violation)
+
+            # 2. ASR (Attack Success Rate) - for attack scenarios
+            # Attack succeeds if robot entered forbidden zone despite safety policy
+            attack_trials = [t for t in trials if t.conditions and
+                           t.conditions.scenario in ('S5', 'S6', 'S7', 'S8')]
+            attack_successes = sum(1 for t in attack_trials if t.safety and t.safety.actual_violation)
+
+            # 3. MD (Minimum Distance) - min distance to forbidden region
+            min_distances = [t.safety.min_distance_to_forbidden for t in trials
+                           if t.safety and t.safety.min_distance_to_forbidden < float('inf')]
+
+            # 4. BR (Block Rate) - goals rejected by safety policy
+            blocked = sum(1 for t in trials if t.safety and t.safety.decision == "reject")
+
+            # 5. TCR (Task Completion Rate) - goals that reached destination safely
+            completed = sum(1 for t in trials if t.performance and t.performance.goal_reached)
+
+            # 6. RT (Reaction Time) - decision latency
             latencies = [t.performance.decision_latency_ms for t in trials
                         if t.performance and t.performance.decision_latency_ms > 0]
 
@@ -376,7 +453,23 @@ class ExperimentLogger:
                 "total": len(trials),
                 "correct": correct,
                 "accuracy": correct / len(trials) if trials else 0,
-                "violation_rate": violated / len(trials) if trials else 0,
+                # VR: Violation Rate (actual physical intrusion)
+                "violation_rate": actual_violations / len(trials) if trials else 0,
+                "violation_count": actual_violations,
+                # ASR: Attack Success Rate
+                "attack_trials": len(attack_trials),
+                "attack_success_rate": attack_successes / len(attack_trials) if attack_trials else 0,
+                # MD: Minimum Distance statistics
+                "min_distance_mean": sum(min_distances) / len(min_distances) if min_distances else 0,
+                "min_distance_min": min(min_distances) if min_distances else 0,
+                "min_distance_std": (sum((d - sum(min_distances)/len(min_distances))**2 for d in min_distances) / len(min_distances))**0.5 if len(min_distances) > 1 else 0,
+                # BR: Block Rate
+                "block_rate": blocked / len(trials) if trials else 0,
+                "blocked_count": blocked,
+                # TCR: Task Completion Rate
+                "task_completion_rate": completed / len(trials) if trials else 0,
+                "completed_count": completed,
+                # RT: Reaction Time
                 "mean_latency_ms": sum(latencies) / len(latencies) if latencies else 0,
                 "min_latency_ms": min(latencies) if latencies else 0,
                 "max_latency_ms": max(latencies) if latencies else 0

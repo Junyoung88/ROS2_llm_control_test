@@ -35,15 +35,19 @@ from rclpy.action import ActionServer, ActionClient, GoalResponse, CancelRespons
 from rclpy.action.server import ServerGoalHandle
 from rclpy.callback_groups import ReentrantCallbackGroup
 
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Twist
 from std_msgs.msg import String
+from nav_msgs.msg import Odometry, Path
 from nav2_msgs.action import NavigateToPose, FollowWaypoints
 from std_srvs.srv import Trigger, SetBool
 from visualization_msgs.msg import MarkerArray
 
 from tf_transformations import euler_from_quaternion, quaternion_from_euler
 
-from .geofence_core import GeofencePolicy, PolicyAction, PolicyDecision, ZoneType
+from .geofence_core import (
+    GeofencePolicy, PolicyAction, PolicyDecision, ZoneType,
+    VelocityMonitor, LatencyMonitor, TrackingErrorMonitor
+)
 
 
 # ============================================================================
@@ -546,9 +550,69 @@ class GoalGateNode(Node):
         self.declare_parameter('waypoints_action_name', 'follow_waypoints')
         self.declare_parameter('safety_method', 'geofence')  # no_guard, geofence, safetychip, selp
 
+        # Ablation study parameters
+        self.declare_parameter('enable_estimation_term', True)
+        self.declare_parameter('enable_tracking_term', True)
+        self.declare_parameter('enable_latency_term', True)
+        self.declare_parameter('ablation_condition', 'full')
+
+        # Dynamic v_max parameters
+        self.declare_parameter('use_dynamic_v_max', True)
+        self.declare_parameter('v_max_window_size', 100)
+
+        # Dynamic latency (τ) parameters
+        self.declare_parameter('use_dynamic_tau', True)
+        self.declare_parameter('tau_window_size', 50)
+
+        # Dynamic tracking error (e_track) parameters
+        self.declare_parameter('use_dynamic_e_track', True)
+        self.declare_parameter('e_track_window_size', 200)
+
+        # Uncertainty/margin parameters (can be overridden for method-specific configs)
+        self.declare_parameter('k_sigma', 3.0)
+        self.declare_parameter('localization_sigma', 0.15)
+        self.declare_parameter('tracking_error', 0.05)
+        self.declare_parameter('v_max', 0.5)
+        self.declare_parameter('latency', 0.1)
+
         # Load geofence policy
         config_path = self.get_parameter('geofence_config').get_parameter_value().string_value
         self.policy = GeofencePolicy(config_path if config_path else None)
+
+        # Apply uncertainty/margin parameters to policy
+        self.policy.uncertainty.k_sigma = self.get_parameter('k_sigma').value
+        self.policy.uncertainty.localization_sigma = self.get_parameter('localization_sigma').value
+        self.policy.uncertainty.tracking_error = self.get_parameter('tracking_error').value
+        self.policy.uncertainty.v_max = self.get_parameter('v_max').value
+        self.policy.uncertainty.latency = self.get_parameter('latency').value
+
+        # Apply ablation settings to policy
+        self.policy.uncertainty.enable_estimation_term = self.get_parameter('enable_estimation_term').value
+        self.policy.uncertainty.enable_tracking_term = self.get_parameter('enable_tracking_term').value
+        self.policy.uncertainty.enable_latency_term = self.get_parameter('enable_latency_term').value
+        self.policy.uncertainty.use_dynamic_v_max = self.get_parameter('use_dynamic_v_max').value
+        self.policy.uncertainty.use_dynamic_tau = self.get_parameter('use_dynamic_tau').value
+        self.policy.uncertainty.use_dynamic_e_track = self.get_parameter('use_dynamic_e_track').value
+        self._ablation_condition = self.get_parameter('ablation_condition').value
+
+        # Initialize velocity monitor for dynamic v_max
+        self._velocity_monitor = VelocityMonitor(
+            window_size=self.get_parameter('v_max_window_size').value
+        )
+
+        # Initialize latency monitor for dynamic τ
+        self._latency_monitor = LatencyMonitor(
+            window_size=self.get_parameter('tau_window_size').value
+        )
+
+        # Initialize tracking error monitor for dynamic e_track
+        self._tracking_error_monitor = TrackingErrorMonitor(
+            window_size=self.get_parameter('e_track_window_size').value
+        )
+
+        # Current robot position for tracking error measurement
+        self._current_x: float = 0.0
+        self._current_y: float = 0.0
 
         self.enable_projection = self.get_parameter('enable_projection').get_parameter_value().bool_value
         self.audit_log_file = self.get_parameter('audit_log_file').get_parameter_value().string_value
@@ -595,6 +659,22 @@ class GoalGateNode(Node):
         self.metrics_pub = self.create_publisher(String, '/geofence/goal_events', 10)
         self.viz_pub = self.create_publisher(MarkerArray, '/geofence/zones_viz', 10)
         self.status_pub = self.create_publisher(String, '/geofence/status', 10)
+        self.margin_pub = self.create_publisher(String, '/geofence/margin_breakdown', 10)
+
+        # Subscriber for velocity monitoring (dynamic v_max) and latency measurement
+        self._odom_sub = self.create_subscription(
+            Odometry, '/odom', self._odom_callback, 10
+        )
+
+        # Subscriber for cmd_vel (latency measurement)
+        self._cmd_vel_sub = self.create_subscription(
+            Twist, '/cmd_vel', self._cmd_vel_callback, 10
+        )
+
+        # Subscriber for planned path (tracking error measurement)
+        self._plan_sub = self.create_subscription(
+            Path, '/plan', self._plan_callback, 10
+        )
 
         # Service for reloading geofence config
         self.reload_srv = self.create_service(
@@ -617,7 +697,9 @@ class GoalGateNode(Node):
             'projected': 0,
         }
 
+        self.get_logger().info('=' * 60)
         self.get_logger().info('Goal Gate node initialized')
+        self.get_logger().info('=' * 60)
         self.get_logger().info(f'Safety method: {self.safety_method}')
         self.get_logger().info(f'Listening on: navigate_to_pose_safe, follow_waypoints_safe')
         self.get_logger().info(f'Forwarding to: {nav2_action}, {waypoints_action}')
@@ -629,6 +711,18 @@ class GoalGateNode(Node):
                 self.get_logger().info(f'SafetyChip constraints: {len(self.safetychip_monitor.constraints)}')
             if self.selp_automaton:
                 self.get_logger().info(f'SELP automaton constraints: {len(self.selp_automaton.constraints)}')
+        self.get_logger().info('-' * 60)
+        self.get_logger().info('Ablation Study Configuration:')
+        self.get_logger().info(f'  Condition:        {self._ablation_condition}')
+        self.get_logger().info(f'  Estimation term:  {"ENABLED" if self.policy.uncertainty.enable_estimation_term else "DISABLED"}')
+        self.get_logger().info(f'  Tracking term:    {"ENABLED" if self.policy.uncertainty.enable_tracking_term else "DISABLED"}')
+        self.get_logger().info(f'  Latency term:     {"ENABLED" if self.policy.uncertainty.enable_latency_term else "DISABLED"}')
+        self.get_logger().info('-' * 60)
+        self.get_logger().info('Dynamic Parameter Measurement:')
+        self.get_logger().info(f'  Dynamic v_max:    {self.policy.uncertainty.use_dynamic_v_max}')
+        self.get_logger().info(f'  Dynamic tau:      {self.policy.uncertainty.use_dynamic_tau}')
+        self.get_logger().info(f'  Dynamic e_track:  {self.policy.uncertainty.use_dynamic_e_track}')
+        self.get_logger().info('=' * 60)
 
     def _init_ltl_monitors(self):
         """Initialize SafetyChip and SELP from geofence zones."""
@@ -651,15 +745,14 @@ class GoalGateNode(Node):
             # SafetyChip Proper: LTL Monitor with Reprompting
             self.safetychip_monitor = SafetyChipMonitor(constraints)
 
-            # SELP Proper: LTL Automaton with Noisy Perception
-            # perception_noise_sigma matches the localization uncertainty
-            perception_sigma = self.policy.uncertainty.localization_sigma
+            # SELP Proper: LTL Automaton (original paper - no noisy perception)
+            # Noisy perception disabled for fair comparison with original SELP paper
             self.selp_automaton = SELPAutomaton(
                 constraints,
-                perception_noise_sigma=perception_sigma
+                perception_noise_sigma=0.0  # Disabled - matches original SELP
             )
             self.get_logger().info(f'Created {len(constraints)} LTL constraints from forbidden zones')
-            self.get_logger().info(f'SELP perception noise sigma: {perception_sigma:.3f}m')
+            self.get_logger().info('SELP: Noisy perception disabled (original paper)')
 
     def _get_propositions_for_point(self, x: float, y: float,
                                      include_near_boundary: bool = False) -> Dict[str, bool]:
@@ -714,8 +807,9 @@ class GoalGateNode(Node):
                 min_distance_to_forbidden=self.policy.get_min_distance_to_forbidden(x, y)
             )
 
-        # geofence: Use geometric checking with safety margin
-        if self.safety_method == 'geofence':
+        # geofence (and geofence_no_margin): Use geometric checking with safety margin
+        # geofence_no_margin uses the same code but with k_sigma=0, localization_sigma=0, etc.
+        if self.safety_method in ('geofence', 'geofence_no_margin'):
             return self.policy.evaluate_point(x, y)
 
         # safetychip: Use LTL monitor with Reprompting
@@ -789,7 +883,7 @@ class GoalGateNode(Node):
                         extra_info={
                             "automaton_state": mask_info.automaton_status_before.name,
                             "proposition_changes": {k: str(v) for k, v in mask_info.proposition_changes.items()},
-                            "noisy_perception": True
+                            "noisy_perception": self.selp_automaton.perception_noise_sigma > 0  # Only True if actually enabled
                         }
                     )
 
@@ -975,7 +1069,7 @@ class GoalGateNode(Node):
         return wp_result.result
 
     def audit_log(self, decision: PolicyDecision, action_type: str, pose: PoseStamped):
-        """Write audit log entry with enhanced Proper version info."""
+        """Write audit log entry with enhanced Proper version info and ablation data."""
         entry = {
             'timestamp': datetime.now().isoformat(),
             'safety_method': self.safety_method,
@@ -988,6 +1082,11 @@ class GoalGateNode(Node):
             'projected_y': decision.projected_point[1] if decision.projected_point else None,
             'min_distance_to_forbidden': decision.min_distance_to_forbidden,
             'violated_zone': decision.violated_zone,
+            # Ablation study data
+            'ablation_condition': self._ablation_condition,
+            'margin_breakdown': self.policy.uncertainty.get_margin_breakdown(),
+            'ablation_state': self.policy.uncertainty.get_ablation_state(),
+            'measured_params': self.policy.uncertainty.get_measured_params(),
         }
 
         # Include Proper version extra info (reprompt_text, automaton_state, etc.)
@@ -1011,6 +1110,67 @@ class GoalGateNode(Node):
         })
         self.metrics_pub.publish(msg)
 
+    def _odom_callback(self, msg: Odometry):
+        """Process odometry for dynamic v_max, latency, and tracking error estimation."""
+        import math
+
+        # Extract velocity
+        vx = msg.twist.twist.linear.x
+        vy = msg.twist.twist.linear.y
+        velocity = math.sqrt(vx*vx + vy*vy)
+
+        # Extract position
+        self._current_x = msg.pose.pose.position.x
+        self._current_y = msg.pose.pose.position.y
+
+        # Get timestamp for latency measurement
+        timestamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+
+        # Record velocity for dynamic v_max
+        self._velocity_monitor.record_velocity(velocity)
+
+        # Record velocity for latency measurement
+        self._latency_monitor.record_odom_velocity(timestamp, velocity)
+
+        # Record position for tracking error measurement
+        self._tracking_error_monitor.record_position(self._current_x, self._current_y)
+
+        # Update policy with dynamic v_max if enabled
+        if self.policy.uncertainty.use_dynamic_v_max:
+            v_stats = self._velocity_monitor.get_stats()
+            if v_stats.get('sample_count', 0) >= 20:
+                self.policy.uncertainty.v_max_observed = v_stats['v_max_95']
+                self.policy.uncertainty.velocity_samples = v_stats['sample_count']
+
+        # Update policy with dynamic tau if enabled
+        if self.policy.uncertainty.use_dynamic_tau:
+            tau_stats = self._latency_monitor.get_stats()
+            if tau_stats.get('sample_count', 0) >= 10:
+                self.policy.uncertainty.tau_observed = tau_stats['tau_95']
+                self.policy.uncertainty.tau_samples = tau_stats['sample_count']
+
+        # Update policy with dynamic e_track if enabled
+        if self.policy.uncertainty.use_dynamic_e_track:
+            e_track_stats = self._tracking_error_monitor.get_stats()
+            if e_track_stats.get('sample_count', 0) >= 20:
+                self.policy.uncertainty.e_track_observed = e_track_stats['e_track_95']
+                self.policy.uncertainty.e_track_samples = e_track_stats['sample_count']
+
+    def _cmd_vel_callback(self, msg: Twist):
+        """Record cmd_vel for latency measurement."""
+        # Get current time
+        timestamp = self.get_clock().now().nanoseconds * 1e-9
+        self._latency_monitor.record_cmd_vel(timestamp, msg.linear.x, msg.linear.y)
+
+    def _plan_callback(self, msg: Path):
+        """Update tracking error monitor with new planned path."""
+        # Extract path points as (x, y) tuples
+        path_points = [
+            (pose.pose.position.x, pose.pose.position.y)
+            for pose in msg.poses
+        ]
+        self._tracking_error_monitor.update_path(path_points)
+
     def publish_visualization(self):
         """Publish geofence visualization markers."""
         if self.policy.zones:
@@ -1029,6 +1189,16 @@ class GoalGateNode(Node):
             'stats': self.stats
         })
         self.status_pub.publish(status_msg)
+
+        # Publish margin breakdown for experiment data collection
+        margin_msg = String()
+        margin_msg.data = json.dumps({
+            'margin_breakdown': self.policy.uncertainty.get_margin_breakdown(),
+            'ablation': self.policy.uncertainty.get_ablation_state(),
+            'ablation_condition': self._ablation_condition,
+            'measured_params': self.policy.uncertainty.get_measured_params(),
+        })
+        self.margin_pub.publish(margin_msg)
 
     def reload_callback(self, request, response):
         """Handle geofence reload service request."""

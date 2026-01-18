@@ -29,12 +29,13 @@ from rclpy.node import Node
 from rclpy.action import ActionClient
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist, Pose
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist, Pose, TransformStamped
 from nav_msgs.msg import Odometry, Path
 from nav2_msgs.action import NavigateToPose
-from std_msgs.msg import String
+from std_msgs.msg import String, Float64
 from std_srvs.srv import Empty
 from visualization_msgs.msg import Marker, MarkerArray
+from tf2_ros import Buffer, TransformListener, TransformException
 
 import numpy as np
 from dataclasses import dataclass, field, asdict
@@ -124,6 +125,10 @@ class TrialResult:
     steps: int = 0
     blocked_count: int = 0
     termination_reason: str = ""
+    # Ablation study data
+    ablation_condition: str = "full"
+    margin_breakdown: Dict = field(default_factory=dict)
+    measured_params: Dict = field(default_factory=dict)
 
 
 @dataclass
@@ -215,6 +220,12 @@ class UnifiedGazeboExperimentNode(Node):
         self.declare_parameter('scenarios', ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'])
         self.declare_parameter('methods', ['no_guard', 'safetychip', 'selp', 'geofence'])
 
+        # Dynamic margin node integration
+        self.declare_parameter('use_dynamic_margin_node', True)
+        self.declare_parameter('dynamic_margin_topic', '/dynamic_policy_enforcer/dynamic_margin')
+        self.declare_parameter('margin_breakdown_topic', '/dynamic_policy_enforcer/margin_breakdown')
+        self.declare_parameter('ablation_condition', 'full')
+
         self._config_file = self.get_parameter('config_file').value
         self._output_dir = FilePath(self.get_parameter('output_dir').value)
         self._total_seeds = self.get_parameter('seeds').value
@@ -245,6 +256,12 @@ class UnifiedGazeboExperimentNode(Node):
         self._noisy_perception: Optional[NoisyZonePerception] = None
         self._safety_margin: float = 0.5
 
+        # Dynamic margin node state
+        self._use_external_margin: bool = self.get_parameter('use_dynamic_margin_node').value
+        self._ablation_condition: str = self.get_parameter('ablation_condition').value
+        self._external_margin: float = 0.0
+        self._external_margin_breakdown: dict = {}
+
         # QoS
         qos = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
@@ -260,6 +277,21 @@ class UnifiedGazeboExperimentNode(Node):
             Odometry, '/odom', self._odom_callback, qos
         )
 
+        # Dynamic margin subscribers
+        if self._use_external_margin:
+            self._dynamic_margin_sub = self.create_subscription(
+                Float64,
+                self.get_parameter('dynamic_margin_topic').value,
+                self._dynamic_margin_callback,
+                qos
+            )
+            self._margin_breakdown_sub = self.create_subscription(
+                String,
+                self.get_parameter('margin_breakdown_topic').value,
+                self._margin_breakdown_callback,
+                qos
+            )
+
         # Publishers
         self._status_pub = self.create_publisher(String, '/experiment/status', 10)
         self._marker_pub = self.create_publisher(MarkerArray, '/experiment/zones', 10)
@@ -270,6 +302,10 @@ class UnifiedGazeboExperimentNode(Node):
 
         # Note: Robot teleportation uses gz CLI (not ROS service) because the
         # ROS-Gazebo bridge doesn't bridge the set_pose service by default
+
+        # TF2 for getting robot pose (more reliable than odometry after teleport)
+        self._tf_buffer = Buffer()
+        self._tf_listener = TransformListener(self._tf_buffer, self)
 
         # Initial pose publisher (for Nav2 localization reset)
         self._initial_pose_pub = self.create_publisher(
@@ -287,6 +323,8 @@ class UnifiedGazeboExperimentNode(Node):
         self.get_logger().info(f"  Scenarios: {self._scenario_filter}")
         self.get_logger().info(f"  Methods: {self._method_filter}")
         self.get_logger().info(f"  Output: {self._output_dir}")
+        self.get_logger().info(f"  Dynamic Margin Node: {self._use_external_margin}")
+        self.get_logger().info(f"  Ablation Condition: {self._ablation_condition}")
         self.get_logger().info("=" * 70)
         self.get_logger().info("Waiting for Nav2...")
 
@@ -316,7 +354,8 @@ class UnifiedGazeboExperimentNode(Node):
         scenarios_config = config.get('scenarios', {})
         for key, data in scenarios_config.items():
             scenario_id = key.split('_')[0].upper()  # e.g., "S1_direct_hazard" -> "S1"
-            if scenario_id in self._scenario_filter:
+            # Match by scenario_id (S1) or full key (S1_direct_hazard)
+            if scenario_id in self._scenario_filter or key in self._scenario_filter:
                 target_zones = data.get('target_zones', [data.get('target_zone', '')])
                 self._scenarios.append(ScenarioConfig(
                     name=data['name'],
@@ -402,13 +441,31 @@ class UnifiedGazeboExperimentNode(Node):
 
     def _start_experiments(self):
         """Start the experiment loop"""
+        # Initialize AMCL with robot's spawn position (0, 0)
+        self.get_logger().info("Initializing AMCL localization...")
+        self._publish_initial_pose((0.0, 0.0))
+        # Wait for AMCL to initialize and publish transforms
+        if not self._wait_for_amcl_ready():
+            self.get_logger().error("AMCL failed to initialize!")
+            return
+
         self.get_logger().info("\n" + "=" * 70)
         self.get_logger().info("STARTING UNIFIED S1-S7 EXPERIMENTS")
         self.get_logger().info("=" * 70)
         self._run_next_trial()
 
     def _compute_safety_margin(self) -> float:
-        """Compute dynamic safety margin based on current state"""
+        """Compute dynamic safety margin based on current state.
+
+        If use_dynamic_margin_node is enabled and external margin is available,
+        use the margin from the dynamic policy enforcer node. Otherwise,
+        fall back to local computation.
+        """
+        # Use external margin from dynamic policy enforcer node if available
+        if self._use_external_margin and self._external_margin > 0:
+            return self._external_margin
+
+        # Fallback: local computation
         margin = 0.0
         params = self._safety_params
 
@@ -474,20 +531,25 @@ class UnifiedGazeboExperimentNode(Node):
             seed=seed,
             start=scenario.start,
             goal=scenario.goal,
+            ablation_condition=self._ablation_condition,
         )
 
         self.get_logger().info(f"\n[Trial {self._trial_counter}/{total_trials}] "
                                f"{scenario.scenario_id} | {method_name} | seed={seed}")
         self.get_logger().info(f"  Start: {scenario.start} -> Goal: {scenario.goal}")
 
-        # Attempt to teleport robot to start position (may not work without custom bridge)
+        # Teleport robot to start position
         teleported = self._teleport_robot(scenario.start)
         if teleported:
             time.sleep(0.5)  # Wait for physics to settle
-
-        # Update localization with initial pose
-        self._publish_initial_pose(scenario.start)
-        time.sleep(0.5)  # Brief wait for localization update
+            # Update localization with actual start position
+            self._publish_initial_pose(scenario.start)
+            # Wait for SLAM/localization to converge
+            self._wait_for_localization(scenario.start, timeout=5.0)
+        else:
+            # Fallback: just update localization belief
+            self._publish_initial_pose(scenario.start)
+            time.sleep(1.0)
 
         # Check if goal is blocked by method
         if self._should_block_goal(scenario.goal, method):
@@ -604,6 +666,19 @@ class UnifiedGazeboExperimentNode(Node):
         """Handle trial completion"""
         if self._current_trial:
             self._current_trial.steps = len(self._current_trial.trajectory)
+
+            # Capture margin breakdown and measured params from external margin node
+            if self._use_external_margin and self._external_margin_breakdown:
+                breakdown = self._external_margin_breakdown
+                self._current_trial.margin_breakdown = breakdown.get('margin_breakdown', {})
+                self._current_trial.measured_params = {
+                    'e_track': breakdown.get('parameters', {}).get('e_track', 0.0),
+                    'tau': breakdown.get('parameters', {}).get('tau', 0.0),
+                    'v_max_observed': breakdown.get('parameters', {}).get('v_max_observed', 0.0),
+                    'sigma_xx': breakdown.get('covariance', {}).get('sigma_xx', 0.0),
+                    'sigma_yy': breakdown.get('covariance', {}).get('sigma_yy', 0.0),
+                }
+
             self._all_trials.append(self._current_trial)
 
             status = "VIOLATED" if self._current_trial.violated else "SAFE"
@@ -635,11 +710,46 @@ class UnifiedGazeboExperimentNode(Node):
         self._cmd_vel_pub.publish(stop_cmd)
 
     def _teleport_robot(self, position: Tuple[float, float], yaw: float = 0.0) -> bool:
-        """Teleport robot - currently not supported in Gazebo Harmonic without custom bridge"""
-        # Note: Gazebo Harmonic's set_pose service requires proper service bridging
-        # which is not configured by default in nav2_bringup's tb3_simulation_launch.
-        # For now, we skip physical teleportation and rely on Nav2 initial pose.
-        # This is a known limitation documented in the experiment notes.
+        """Teleport robot to specified position using gz service CLI"""
+        import subprocess
+
+        # Convert yaw to quaternion
+        qz = np.sin(yaw / 2)
+        qw = np.cos(yaw / 2)
+
+        # Construct the gz.msgs.Pose request with correct format
+        # The Pose message has: name, position, orientation fields
+        request_data = (
+            f'name: "turtlebot3_waffle", '
+            f'position: {{x: {position[0]}, y: {position[1]}, z: 0.05}}, '
+            f'orientation: {{x: 0, y: 0, z: {qz}, w: {qw}}}'
+        )
+
+        cmd = [
+            'gz', 'service',
+            '-s', '/world/default/set_pose',
+            '--reqtype', 'gz.msgs.Pose',
+            '--reptype', 'gz.msgs.Boolean',
+            '--timeout', '2000',
+            '--req', request_data
+        ]
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5.0)
+            if result.returncode == 0 and 'data: true' in result.stdout.lower():
+                self.get_logger().info(f"  Teleported robot to ({position[0]:.2f}, {position[1]:.2f})")
+                return True
+            else:
+                # Log error details for debugging
+                error_msg = result.stderr[:200] if result.stderr else result.stdout[:200]
+                self.get_logger().warn(f"  Teleport failed: {error_msg}")
+        except subprocess.TimeoutExpired:
+            self.get_logger().warn("  Teleport timed out")
+        except FileNotFoundError:
+            self.get_logger().warn("  gz command not found")
+        except Exception as e:
+            self.get_logger().warn(f"  Teleport error: {e}")
+
         return False
 
     def _publish_initial_pose(self, position: Tuple[float, float], yaw: float = 0.0):
@@ -660,6 +770,53 @@ class UnifiedGazeboExperimentNode(Node):
         self._initial_pose_pub.publish(msg)
         self.get_logger().info(f"  Published initial pose: ({position[0]:.2f}, {position[1]:.2f})")
 
+    def _wait_for_localization(self, expected_pos: Tuple[float, float], timeout: float = 10.0):
+        """Wait for localization to converge to expected position after teleportation"""
+        start_time = time.time()
+        tolerance = 1.5  # Accept 1.5m error (may not be perfect)
+        last_publish_time = 0
+
+        while time.time() - start_time < timeout:
+            # Re-publish initial pose every 2 seconds to help AMCL
+            if time.time() - last_publish_time > 2.0:
+                self._publish_initial_pose(expected_pos)
+                last_publish_time = time.time()
+
+            pose = self._get_robot_pose_from_tf()
+            if pose is not None:
+                dx = pose[0] - expected_pos[0]
+                dy = pose[1] - expected_pos[1]
+                dist = np.sqrt(dx**2 + dy**2)
+                if dist < tolerance:
+                    self.get_logger().info(f"  Localization converged: ({pose[0]:.2f}, {pose[1]:.2f}), error={dist:.2f}m")
+                    return
+            time.sleep(0.3)
+
+        # Timeout - log warning but continue
+        pose = self._get_robot_pose_from_tf()
+        if pose:
+            self.get_logger().warn(f"  Localization timeout: at ({pose[0]:.2f}, {pose[1]:.2f}), expected ({expected_pos[0]:.2f}, {expected_pos[1]:.2f})")
+        else:
+            self.get_logger().warn(f"  Localization timeout: no TF available")
+
+    def _wait_for_amcl_ready(self, timeout: float = 15.0) -> bool:
+        """Wait for AMCL to start publishing transforms"""
+        start_time = time.time()
+        self.get_logger().info("  Waiting for AMCL transforms...")
+
+        while time.time() - start_time < timeout:
+            pose = self._get_robot_pose_from_tf()
+            if pose is not None:
+                self.get_logger().info(f"  AMCL ready: robot at ({pose[0]:.2f}, {pose[1]:.2f})")
+                return True
+            # Re-publish initial pose periodically to help AMCL
+            if int((time.time() - start_time) * 2) % 2 == 0:
+                self._publish_initial_pose((0.0, 0.0))
+            time.sleep(0.5)
+
+        self.get_logger().warn("  AMCL initialization timeout")
+        return False
+
     def _amcl_callback(self, msg: PoseWithCovarianceStamped):
         """AMCL pose callback"""
         self._current_pose = (
@@ -671,15 +828,51 @@ class UnifiedGazeboExperimentNode(Node):
         self._current_covariance = cov_6x6
 
     def _odom_callback(self, msg: Odometry):
-        """Odometry callback - primary position source"""
-        # Use odometry for position (SLAM mode doesn't publish to /amcl_pose)
-        self._current_pose = (
-            msg.pose.pose.position.x,
-            msg.pose.pose.position.y
-        )
+        """Odometry callback - for velocity only"""
         vx = msg.twist.twist.linear.x
         vy = msg.twist.twist.linear.y
         self._current_velocity = np.sqrt(vx**2 + vy**2)
+
+    def _dynamic_margin_callback(self, msg: Float64):
+        """Callback for dynamic margin from policy enforcer node."""
+        self._external_margin = msg.data
+
+    def _margin_breakdown_callback(self, msg: String):
+        """Callback for margin breakdown JSON from policy enforcer node."""
+        try:
+            self._external_margin_breakdown = json.loads(msg.data)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    def _get_robot_pose_from_tf(self) -> Optional[Tuple[float, float]]:
+        """Get robot pose from TF (map -> base_link)"""
+        try:
+            # Try to get transform from map to base_link
+            transform = self._tf_buffer.lookup_transform(
+                'map', 'base_link',
+                rclpy.time.Time(),
+                timeout=rclpy.duration.Duration(seconds=0.1)
+            )
+            return (
+                transform.transform.translation.x,
+                transform.transform.translation.y
+            )
+        except TransformException:
+            pass
+
+        # Fallback: try odom -> base_link
+        try:
+            transform = self._tf_buffer.lookup_transform(
+                'odom', 'base_link',
+                rclpy.time.Time(),
+                timeout=rclpy.duration.Duration(seconds=0.1)
+            )
+            return (
+                transform.transform.translation.x,
+                transform.transform.translation.y
+            )
+        except TransformException:
+            return None
 
     def _monitor_callback(self):
         """Periodic monitoring during navigation"""
@@ -702,10 +895,12 @@ class UnifiedGazeboExperimentNode(Node):
                 self._trial_completed()
                 return
 
-        if self._current_pose is None:
+        # Get robot pose from TF (more reliable after teleportation)
+        pose = self._get_robot_pose_from_tf()
+        if pose is None:
             return
 
-        x, y = self._current_pose
+        x, y = pose
 
         # Record trajectory
         self._current_trial.trajectory.append((x, y))
@@ -854,16 +1049,32 @@ class UnifiedGazeboExperimentNode(Node):
             json.dump(results.to_dict(), f, indent=2, default=str)
         self.get_logger().info(f"Results saved to: {json_file}")
 
-        # Save CSV
+        # Save CSV with ablation data
         csv_file = self._output_dir / f"gazebo_s1_s7_{timestamp}.csv"
         with open(csv_file, 'w') as f:
+            # Extended header with ablation and margin breakdown
             f.write("trial_id,scenario,method,seed,violated,blocked,reached_goal,"
-                    "min_distance,duration,steps,blocked_count\n")
+                    "min_distance,duration,steps,blocked_count,"
+                    "ablation_condition,margin_total,margin_estimation,margin_tracking,margin_latency,"
+                    "e_track_measured,tau_measured,v_max_measured,sigma_xx,sigma_yy\n")
             for trial in self._all_trials:
+                # Get margin breakdown values (default to 0 if not available)
+                mb = trial.margin_breakdown
+                mp = trial.measured_params
                 f.write(f"{trial.trial_id},{trial.scenario},{trial.method},{trial.seed},"
                         f"{trial.violated},{trial.blocked},{trial.reached_goal},"
                         f"{trial.min_distance_to_boundary:.4f},{trial.duration:.2f},"
-                        f"{trial.steps},{trial.blocked_count}\n")
+                        f"{trial.steps},{trial.blocked_count},"
+                        f"{trial.ablation_condition},"
+                        f"{mb.get('total', 0.0):.4f},"
+                        f"{mb.get('estimation', 0.0):.4f},"
+                        f"{mb.get('tracking', 0.0):.4f},"
+                        f"{mb.get('latency', 0.0):.4f},"
+                        f"{mp.get('e_track', 0.0):.4f},"
+                        f"{mp.get('tau', 0.0):.4f},"
+                        f"{mp.get('v_max_observed', 0.0):.4f},"
+                        f"{mp.get('sigma_xx', 0.0):.6f},"
+                        f"{mp.get('sigma_yy', 0.0):.6f}\n")
         self.get_logger().info(f"CSV saved to: {csv_file}")
 
         # Save summary

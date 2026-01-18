@@ -35,7 +35,10 @@ from datetime import datetime
 # Add framework to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from scie_framework.config import ExperimentConfig, get_default_config, get_quick_test_config
+from scie_framework.config import (
+    ExperimentConfig, get_default_config, get_quick_test_config,
+    get_fast_test_config, get_benchmark_config
+)
 from scie_framework.experiment_runner import FactorialExperimentRunner
 
 
@@ -77,22 +80,46 @@ Examples:
     parser.add_argument('--resume', type=str, default=None,
                        help='Path to checkpoint file for resumption')
 
+    parser.add_argument('--auto-resume', action='store_true',
+                       help='Automatically find and resume from latest checkpoint')
+
     parser.add_argument('--seed', type=int, default=42,
                        help='Random seed for reproducibility (default: 42)')
 
     parser.add_argument('--no-randomize', action='store_true',
                        help='Run trials in order (no randomization)')
 
+    parser.add_argument('--yes', '-y', action='store_true',
+                       help='Skip confirmation prompt (for batch/background runs)')
+
     parser.add_argument('--workspace', type=str,
                        default='/home/jim/ros2_motion_planning_tutorials/src/mobile_manipulator_tutorial',
                        help='ROS2 workspace path')
+
+    # Simulation speed options
+    parser.add_argument('--speed', type=float, default=1.0,
+                       help='Simulation speed multiplier (default: 1.0, max recommended: 3.0)')
+
+    parser.add_argument('--headless', action='store_true',
+                       help='Run simulation without GUI (faster)')
+
+    parser.add_argument('--fast', action='store_true',
+                       help='Fast mode: 2x speed + headless')
+
+    parser.add_argument('--benchmark', action='store_true',
+                       help='Benchmark mode: 3x speed + headless + full factorial')
 
     return parser.parse_args()
 
 
 def create_config(args) -> ExperimentConfig:
     """Create experiment configuration from arguments"""
-    if args.quick:
+    # Select base configuration
+    if args.benchmark:
+        config = get_benchmark_config()
+    elif args.fast:
+        config = get_fast_test_config()
+    elif args.quick:
         config = get_quick_test_config()
         # Quick test: S1 only, 3 reps (don't override with args.reps)
         config.scenarios = [s for s in config.scenarios if s.id == "S1"]
@@ -104,6 +131,12 @@ def create_config(args) -> ExperimentConfig:
     config.random_seed = args.seed
     config.workspace_path = args.workspace
     config.output_base_path = args.output
+
+    # Apply speed settings (command line overrides preset)
+    if args.speed != 1.0:
+        config.real_time_factor = args.speed
+    if args.headless:
+        config.headless = True
 
     # Filter scenarios if specified (overrides quick test default)
     if args.scenarios:
@@ -122,6 +155,72 @@ def create_config(args) -> ExperimentConfig:
             sys.exit(1)
 
     return config
+
+
+def find_latest_checkpoint(output_dir: str) -> str:
+    """Find the latest checkpoint file (checks persistent dir first, then output dir)"""
+    import json
+
+    # First check persistent directory (survives reboot)
+    persistent_dir = Path(os.path.expanduser("~/.scie_experiments"))
+    if persistent_dir.exists():
+        # Check for latest checkpoint
+        latest = persistent_dir / "checkpoint_latest.json"
+        if latest.exists():
+            try:
+                with open(latest) as f:
+                    data = json.load(f)
+                completed = data.get("trials_completed", 0)
+                total = data.get("total_trials", 0)
+                if completed > 0 and completed < total:
+                    print(f"Found persistent checkpoint: {latest}")
+                    print(f"  Completed: {completed}/{total} trials")
+                    print(f"  Original dir: {data.get('experiment_dir', 'unknown')}")
+                    return str(latest)
+            except Exception as e:
+                print(f"Warning: Could not read persistent checkpoint: {e}")
+
+        # Check individual experiment checkpoints
+        checkpoint_files = sorted(persistent_dir.glob("checkpoint_*.json"), reverse=True)
+        for cp in checkpoint_files:
+            if cp.name == "checkpoint_latest.json":
+                continue
+            try:
+                with open(cp) as f:
+                    data = json.load(f)
+                completed = data.get("trials_completed", 0)
+                total = data.get("total_trials", 0)
+                if completed > 0 and (total == 0 or completed < total):
+                    print(f"Found persistent checkpoint: {cp}")
+                    print(f"  Completed: {completed} trials")
+                    return str(cp)
+            except Exception:
+                continue
+
+    # Fall back to output directory
+    output_path = Path(output_dir)
+    if not output_path.exists():
+        return None
+
+    # Find all experiment directories
+    exp_dirs = sorted(output_path.glob("experiment_*"), reverse=True)
+
+    for exp_dir in exp_dirs:
+        checkpoint = exp_dir / "checkpoint.json"
+        if checkpoint.exists():
+            try:
+                with open(checkpoint) as f:
+                    data = json.load(f)
+                completed = data.get("trials_completed", 0)
+                total = data.get("total_trials", 0)
+                if completed > 0 and (total == 0 or completed < total):
+                    print(f"Found checkpoint: {checkpoint}")
+                    print(f"  Completed trials: {completed}")
+                    return str(checkpoint)
+            except Exception:
+                continue
+
+    return None
 
 
 def print_experiment_info(config: ExperimentConfig, args):
@@ -146,17 +245,34 @@ def print_experiment_info(config: ExperimentConfig, args):
     print(f"  Noise:         {args.noise}")
     print(f"\nTotal trials:    {total}")
 
-    # Estimate time
-    time_per_trial_min = 1.5  # ~1.5 minutes per trial (conservative)
+    # Show simulation speed settings
+    print(f"\nSimulation:")
+    print(f"  Speed:         {config.real_time_factor}x real-time")
+    print(f"  Headless:      {config.headless}")
+
+    # Estimate time (adjusted for simulation speed)
+    base_time_per_trial_min = 1.5  # ~1.5 minutes per trial at 1x speed
+    time_per_trial_min = base_time_per_trial_min / config.real_time_factor
+    if config.headless:
+        time_per_trial_min *= 0.8  # 20% faster without GUI
     total_time_min = total * time_per_trial_min
     total_time_hours = total_time_min / 60
 
-    print(f"Estimated time:  {total_time_min:.0f} min ({total_time_hours:.1f} hours)")
+    print(f"\nEstimated time:  {total_time_min:.0f} min ({total_time_hours:.1f} hours)")
     print("=" * 70)
 
 
 def main():
     args = parse_args()
+
+    # Handle auto-resume
+    resume_from = args.resume
+    if args.auto_resume and not resume_from:
+        resume_from = find_latest_checkpoint(args.output)
+        if resume_from:
+            print(f"\nAuto-resuming from: {resume_from}")
+        else:
+            print("\nNo checkpoint found, starting fresh experiment.")
 
     # Create configuration
     config = create_config(args)
@@ -164,8 +280,8 @@ def main():
     # Print experiment info
     print_experiment_info(config, args)
 
-    # Confirm before running full experiment
-    if not args.quick and config.num_repetitions >= 10:
+    # Confirm before running full experiment (skip if resuming or --yes flag)
+    if not args.quick and config.num_repetitions >= 10 and not resume_from and not args.yes:
         print("\nThis will run a large experiment.")
         response = input("Continue? [y/N]: ").strip().lower()
         if response != 'y':
@@ -184,7 +300,7 @@ def main():
             include_intensity=args.intensity,
             include_noise=args.noise,
             randomize=not args.no_randomize,
-            resume_from=args.resume
+            resume_from=resume_from
         )
 
         # Print summary
