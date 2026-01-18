@@ -32,6 +32,11 @@ class SafetyMetrics:
     violated_zone: Optional[str] = None    # Name of violated zone
     entered_forbidden: bool = False        # Whether robot entered forbidden zone
 
+    # Actual runtime violation tracking (from ViolationMonitor)
+    actual_violation: bool = False         # Whether robot actually entered forbidden zone
+    actual_violation_count: int = 0        # Number of actual violations during navigation
+    actual_max_penetration: float = 0.0    # Maximum depth robot penetrated into zone (meters)
+
 
 @dataclass
 class PerformanceMetrics:

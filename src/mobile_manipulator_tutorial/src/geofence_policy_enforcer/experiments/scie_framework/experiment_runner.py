@@ -21,12 +21,13 @@ from pathlib import Path
 from dataclasses import dataclass
 import threading
 
-from .config import ExperimentConfig, ScenarioConfig, MethodConfig, ExpectedResult
+from .config import ExperimentConfig, ScenarioConfig, MethodConfig, ExpectedResult, AttackType
 from .data_logger import (
     ExperimentLogger, TrialResult, TrialConditions,
     SafetyMetrics, PerformanceMetrics, MethodSpecificMetrics
 )
 from .metrics_collector import MetricsCollector, TimingContext
+from .violation_monitor import ViolationMonitor, SimpleViolationTracker, ForbiddenZone
 
 
 @dataclass
@@ -35,6 +36,7 @@ class ProcessHandles:
     gazebo: Optional[subprocess.Popen] = None
     nav2: Optional[subprocess.Popen] = None
     geofence: Optional[subprocess.Popen] = None
+    attack: Optional[subprocess.Popen] = None  # S5/S6 attack nodes
 
 
 class SimulationManager:
@@ -153,6 +155,9 @@ class SimulationManager:
         """Stop all simulation processes"""
         print("[INFO] Cleaning up processes...")
 
+        # Stop attack node first if running
+        self.stop_attack_node()
+
         # Stop in reverse order
         for name, proc in [
             ("geofence", self.processes.geofence),
@@ -170,6 +175,8 @@ class SimulationManager:
         self._kill_process("ros2 launch")
         self._kill_process("goal_gate_node")
         self._kill_process("nav2")
+        self._kill_process("attack_velocity_amplify")
+        self._kill_process("attack_pose_spoofing")
 
         print(f"[INFO] Waiting for processes to terminate ({self.config.cleanup_timeout}s)...")
         time.sleep(self.config.cleanup_timeout)
@@ -184,6 +191,74 @@ class SimulationManager:
             shell=True,
             capture_output=True
         )
+
+    def start_attack_node(self, attack_type: str, params: Dict = None) -> bool:
+        """Start attack node for S5/S6 scenarios"""
+        params = params or {}
+
+        if attack_type == "velocity":
+            # S5: Velocity manipulation attack
+            amp_factor = params.get("amplification_factor", 2.0)
+            target_x = params.get("target_x", -4.7)
+            target_y = params.get("target_y", 5.6)
+
+            launch_cmd = f"""
+                source /opt/ros/jazzy/setup.bash && \
+                source {self.workspace_path}/install/setup.bash && \
+                ros2 run geofence_policy_enforcer attack_velocity_amplify \
+                    --ros-args \
+                    -p amplification_factor:={amp_factor} \
+                    -p target_zone_x:={target_x} \
+                    -p target_zone_y:={target_y}
+            """
+            print(f"[ATTACK] Starting velocity amplification attack (factor: {amp_factor}x)")
+
+        elif attack_type == "spoofing":
+            # S6: Pose spoofing attack
+            spoof_x = params.get("spoof_offset_x", 3.0)
+            spoof_y = params.get("spoof_offset_y", 0.0)
+
+            launch_cmd = f"""
+                source /opt/ros/jazzy/setup.bash && \
+                source {self.workspace_path}/install/setup.bash && \
+                ros2 run geofence_policy_enforcer attack_pose_spoofing \
+                    --ros-args \
+                    -p spoof_offset_x:={spoof_x} \
+                    -p spoof_offset_y:={spoof_y}
+            """
+            print(f"[ATTACK] Starting pose spoofing attack (offset: {spoof_x}, {spoof_y})")
+
+        else:
+            print(f"[ATTACK] Unknown attack type: {attack_type}")
+            return False
+
+        self.processes.attack = subprocess.Popen(
+            launch_cmd,
+            shell=True,
+            executable='/bin/bash',
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            preexec_fn=os.setsid
+        )
+
+        time.sleep(2)  # Wait for attack node to start
+
+        if self.processes.attack.poll() is None:
+            print(f"[ATTACK] Attack node started successfully")
+            return True
+        else:
+            print(f"[ATTACK] Attack node failed to start")
+            return False
+
+    def stop_attack_node(self):
+        """Stop attack node if running"""
+        if self.processes.attack and self.processes.attack.poll() is None:
+            try:
+                os.killpg(os.getpgid(self.processes.attack.pid), signal.SIGTERM)
+                print("[ATTACK] Attack node stopped")
+            except ProcessLookupError:
+                pass
+            self.processes.attack = None
 
     def restart_with_method(self, method: str) -> bool:
         """Restart all processes with new safety method"""
@@ -345,6 +420,10 @@ class FactorialExperimentRunner:
         self.sim_manager = SimulationManager(config.workspace_path, config)
         self.goal_sender = GoalSender(config.workspace_path)
         self.metrics = MetricsCollector()
+
+        # Initialize violation monitor for tracking actual zone intrusions
+        self.violation_monitor = ViolationMonitor(config.workspace_path)
+        self.violation_tracker = SimpleViolationTracker()
 
         # Trial tracking
         self.completed_trials: List[str] = []
@@ -512,6 +591,28 @@ class FactorialExperimentRunner:
         self.metrics.start_trial()
         self.metrics.start_decision_timer()
 
+        # Start attack nodes for S5/S6 scenarios
+        attack_launched = False
+        if scenario.attack_type == AttackType.VELOCITY_MANIPULATION:
+            # S5: Launch velocity amplification attack
+            attack_params = {
+                "amplification_factor": scenario.approach_velocity / 0.5,  # Based on intensity
+                "target_x": goal_x,
+                "target_y": goal_y,
+            }
+            attack_launched = self.sim_manager.start_attack_node("velocity", attack_params)
+        elif scenario.attack_type == AttackType.POSE_SPOOFING:
+            # S6: Launch pose spoofing attack
+            attack_params = {
+                "spoof_offset_x": 3.0,  # Make robot think it's 3m farther from zone
+                "spoof_offset_y": 0.0,
+            }
+            attack_launched = self.sim_manager.start_attack_node("spoofing", attack_params)
+
+        # Start violation monitoring
+        trial_id = f"{method}_{scenario_id}_{rep}"
+        self.violation_monitor.start_monitoring(trial_id, method, scenario_id)
+
         # Send goal
         if waypoints and scenario.attack_type.value == "indirect":
             success, reason, completed = self.goal_sender.send_waypoints(
@@ -521,6 +622,13 @@ class FactorialExperimentRunner:
             success, reason = self.goal_sender.send_goal(
                 goal_x, goal_y, timeout=self.config.goal_timeout
             )
+
+        # Stop violation monitoring and collect results
+        violation_result = self.violation_monitor.stop_monitoring()
+
+        # Stop attack node if launched
+        if attack_launched:
+            self.sim_manager.stop_attack_node()
 
         # End timing
         decision_latency = self.metrics.end_decision_timer()
@@ -552,13 +660,30 @@ class FactorialExperimentRunner:
 
         is_correct = (decision == expected)
 
-        # Populate safety metrics
+        # Get actual violation data from monitor
+        actual_violation = False
+        actual_violated_zone = None
+        min_distance_actual = float('inf')
+
+        if violation_result:
+            actual_violation = violation_result.violated
+            if violation_result.violated_zones:
+                actual_violated_zone = violation_result.violated_zones[0]
+            min_distance_actual = violation_result.min_distance_to_any_zone
+
+        # Populate safety metrics with both predicted and actual violations
         result.safety = SafetyMetrics(
             decision=decision,
             expected_decision=expected,
             is_correct=is_correct,
-            min_distance_to_forbidden=audit_metrics.get("min_distance_to_forbidden", float('inf')),
-            violated_zone=audit_metrics.get("violated_zone")
+            min_distance_to_forbidden=min(
+                audit_metrics.get("min_distance_to_forbidden", float('inf')),
+                min_distance_actual
+            ),
+            violated_zone=audit_metrics.get("violated_zone") or actual_violated_zone,
+            actual_violation=actual_violation,
+            actual_violation_count=violation_result.violation_count if violation_result else 0,
+            actual_max_penetration=violation_result.max_penetration_depth if violation_result else 0.0
         )
 
         # Populate performance metrics
@@ -595,6 +720,14 @@ class FactorialExperimentRunner:
         print(f"Result: {decision} - {'✓' if is_correct else '✗'} {status}")
         print(f"Reason: {result.reason[:60]}...")
         print(f"Latency: {decision_latency:.1f}ms")
+
+        # Print actual violation info
+        if actual_violation:
+            print(f"⚠️  ACTUAL VIOLATION: Robot entered forbidden zone!")
+            print(f"   - Penetration depth: {violation_result.max_penetration_depth:.3f}m")
+            print(f"   - Violation count: {violation_result.violation_count}")
+        else:
+            print(f"✓  No actual zone intrusion (min dist: {min_distance_actual:.2f}m)")
 
         # Callback
         if self.on_trial_complete:

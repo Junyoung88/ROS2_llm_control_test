@@ -30,6 +30,8 @@ setup(
             'metrics_logger_node = geofence_policy_enforcer.metrics_logger_node:main',
             'attack_stepwise_goals = geofence_policy_enforcer.attack_stepwise_goals:main',
             'attack_cmd_vel = geofence_policy_enforcer.attack_cmd_vel:main',
+            'attack_velocity_amplify = geofence_policy_enforcer.attack_velocity_amplify:main',
+            'attack_pose_spoofing = geofence_policy_enforcer.attack_pose_spoofing:main',
         ],
     },
 )

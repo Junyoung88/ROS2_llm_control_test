@@ -199,6 +199,23 @@ class ExperimentConfig:
                     "latency": 0.1
                 }
             ),
+            MethodConfig(
+                id="geofence_no_margin",
+                name="Geofence (No Margin)",
+                description="Geometric zone checking without safety margins (for fair comparison)",
+                uses_ltl=False,
+                uses_geometric=True,
+                supports_projection=False,
+                has_reprompting=False,
+                has_noisy_perception=False,
+                params={
+                    "k_sigma": 0.0,
+                    "localization_sigma": 0.0,
+                    "tracking_error": 0.0,
+                    "v_max": 0.0,
+                    "latency": 0.0
+                }
+            ),
         ]
 
     def _get_default_scenarios(self) -> List[ScenarioConfig]:

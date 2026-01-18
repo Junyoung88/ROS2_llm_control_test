@@ -76,6 +76,12 @@ def generate_launch_description():
         description='Cmd vel override strategy: stop, scale, redirect'
     )
 
+    safety_method_arg = DeclareLaunchArgument(
+        'safety_method',
+        default_value='geofence',
+        description='Safety method: no_guard, geofence, safetychip, selp'
+    )
+
     # Get launch configurations
     geofence_config = LaunchConfiguration('geofence_config')
     params_file = LaunchConfiguration('params_file')
@@ -86,6 +92,7 @@ def generate_launch_description():
     enable_metrics = LaunchConfiguration('enable_metrics')
     csv_output = LaunchConfiguration('csv_output')
     override_strategy = LaunchConfiguration('override_strategy')
+    safety_method = LaunchConfiguration('safety_method')
 
     # Goal Gate Node
     goal_gate_node = Node(
@@ -97,6 +104,7 @@ def generate_launch_description():
             {
                 'use_sim_time': use_sim_time,
                 'geofence_config': geofence_config,
+                'safety_method': safety_method,
             }
         ],
         output='screen',
@@ -164,6 +172,7 @@ def generate_launch_description():
         enable_metrics_arg,
         csv_output_arg,
         override_strategy_arg,
+        safety_method_arg,
 
         # Nodes
         goal_gate_node,
