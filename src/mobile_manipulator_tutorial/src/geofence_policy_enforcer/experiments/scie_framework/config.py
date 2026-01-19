@@ -151,7 +151,7 @@ class ExperimentConfig:
     scenarios: List[ScenarioConfig] = field(default_factory=list)
 
     # Factor levels
-    intensity_levels: List[str] = field(default_factory=lambda: ["low", "medium", "high"])
+    intensity_levels: List[str] = field(default_factory=lambda: ["low", "medium", "high", "extreme"])
     noise_levels: List[float] = field(default_factory=lambda: [0.1, 0.2, 0.3])
 
     # Random seed for reproducibility
@@ -323,9 +323,13 @@ class ExperimentConfig:
                 goal_y=5.6,
                 approach_velocity=1.5,
                 intensity_variations={
-                    "low": {"approach_velocity": 0.5, "goal_x": -3.0},
-                    "medium": {"approach_velocity": 1.0, "goal_x": -3.3},
-                    "high": {"approach_velocity": 2.0, "goal_x": -3.5},
+                    "low": {"approach_velocity": 0.5, "goal_x": -3.0},      # Safe: well within margin
+                    "medium": {"approach_velocity": 1.0, "goal_x": -3.3},   # Safe: within margin
+                    "high": {"approach_velocity": 2.0, "goal_x": -3.5},     # Edge: at margin limit
+                    # Extreme: goal OUTSIDE margin (-3.1 > -3.15 margin boundary)
+                    # Geofence will ALLOW, but 3x velocity may cause actual violation
+                    # Zone boundary: -3.7, margin: 0.55m, so -3.15 is margin edge
+                    "extreme": {"approach_velocity": 3.0, "goal_x": -3.1},  # Outside margin - geofence allows!
                 }
             ),
             ScenarioConfig(
@@ -338,9 +342,12 @@ class ExperimentConfig:
                 goal_x=-6.0,
                 goal_y=5.6,
                 intensity_variations={
-                    "low": {"goal_x": -5.5, "goal_y": 5.0},
-                    "medium": {"goal_x": -6.0, "goal_y": 5.6},
-                    "high": {"goal_x": -7.0, "goal_y": 6.0},
+                    "low": {"goal_x": -5.5, "goal_y": 5.0},     # Safe: path avoids zone
+                    "medium": {"goal_x": -6.0, "goal_y": 5.6},  # Edge: path grazes zone
+                    "high": {"goal_x": -7.0, "goal_y": 6.0},    # Hard: path through zone
+                    # Extreme: goal just outside margin, spoofing offset 5m
+                    # Geofence allows, but spoofed position causes wrong path planning
+                    "extreme": {"goal_x": -3.1, "goal_y": 5.6}, # Outside margin - geofence allows!
                 }
             ),
             ScenarioConfig(
@@ -354,9 +361,12 @@ class ExperimentConfig:
                 goal_y=5.6,
                 latency_ms=500,
                 intensity_variations={
-                    "low": {"latency_ms": 100},
-                    "medium": {"latency_ms": 500},
-                    "high": {"latency_ms": 1000},
+                    "low": {"latency_ms": 100},      # Safe: well within latency compensation
+                    "medium": {"latency_ms": 500},   # Safe: within compensation (tau=0.1s)
+                    "high": {"latency_ms": 1000},    # Edge: 10x expected latency
+                    # Extreme: 2000ms latency + goal outside margin
+                    # Geofence allows, but delayed zone info causes violation
+                    "extreme": {"latency_ms": 2000, "goal_x": -3.1}, # Outside margin - geofence allows!
                 }
             ),
             ScenarioConfig(

@@ -235,6 +235,10 @@ class TrialResult:
             flat["min_distance_to_forbidden"] = self.safety.min_distance_to_forbidden
             flat["violated_zone"] = self.safety.violated_zone
             flat["entered_forbidden"] = self.safety.entered_forbidden
+            # Actual runtime violation tracking (for VR, ASR, FNR metrics)
+            flat["actual_violation"] = self.safety.actual_violation
+            flat["actual_violation_count"] = self.safety.actual_violation_count
+            flat["actual_max_penetration"] = self.safety.actual_max_penetration
 
         # Performance metrics
         if self.performance:
@@ -423,56 +427,159 @@ class ExperimentLogger:
             if not trials:
                 return {}
 
+            n = len(trials)
+
             # Basic counts
             correct = sum(1 for t in trials if t.safety and t.safety.is_correct)
 
-            # 1. VR (Violation Rate) - actual physical zone intrusion
+            # === 1. VR (Violation Rate) ===
+            # Actual physical zone intrusion during navigation
             actual_violations = sum(1 for t in trials if t.safety and t.safety.actual_violation)
+            vr = actual_violations / n if n > 0 else 0
 
-            # 2. ASR (Attack Success Rate) - for attack scenarios
+            # === 2. ASR (Attack Success Rate) ===
             # Attack succeeds if robot entered forbidden zone despite safety policy
+            attack_scenarios = ('S5', 'S6', 'S7', 'S8')
             attack_trials = [t for t in trials if t.conditions and
-                           t.conditions.scenario in ('S5', 'S6', 'S7', 'S8')]
+                           t.conditions.scenario in attack_scenarios]
             attack_successes = sum(1 for t in attack_trials if t.safety and t.safety.actual_violation)
+            asr = attack_successes / len(attack_trials) if attack_trials else 0
 
-            # 3. MD (Minimum Distance) - min distance to forbidden region
+            # === 3. FNR (False Negative Rate) ===
+            # FN = policy allowed but violation occurred (DANGEROUS!)
+            # TP = policy rejected correctly (expected=reject)
+            # FNR = FN / (FN + TP)
+            fn_count = sum(1 for t in trials if t.safety and
+                          t.safety.decision == "allow" and t.safety.actual_violation)
+            tp_count = sum(1 for t in trials if t.safety and
+                          t.safety.decision == "reject" and t.safety.expected_decision == "reject")
+            fnr = fn_count / (fn_count + tp_count) if (fn_count + tp_count) > 0 else 0
+
+            # === 4. TCR (Task Completion Rate) ===
+            # Completed tasks / Allowed tasks
+            allowed_trials = [t for t in trials if t.safety and t.safety.decision == "allow"]
+            completed_in_allowed = sum(1 for t in allowed_trials
+                                       if t.performance and t.performance.goal_reached)
+            tcr = completed_in_allowed / len(allowed_trials) if allowed_trials else 0
+
+            # === 5. MD (Mean Minimum Distance) ===
             min_distances = [t.safety.min_distance_to_forbidden for t in trials
                            if t.safety and t.safety.min_distance_to_forbidden < float('inf')]
+            md_mean = sum(min_distances) / len(min_distances) if min_distances else 0
+            md_min = min(min_distances) if min_distances else 0
+            md_std = 0
+            if len(min_distances) > 1:
+                mean = md_mean
+                md_std = (sum((d - mean)**2 for d in min_distances) / len(min_distances))**0.5
 
-            # 4. BR (Block Rate) - goals rejected by safety policy
-            blocked = sum(1 for t in trials if t.safety and t.safety.decision == "reject")
+            # === 6. BR (Block Rate) / SR (Success Rate) ===
+            # BR = Correct Rejects / Total Rejects
+            # SR = Correct Allows / Total Allows
+            total_rejects = sum(1 for t in trials if t.safety and t.safety.decision == "reject")
+            correct_rejects = sum(1 for t in trials if t.safety and
+                                 t.safety.decision == "reject" and t.safety.is_correct)
+            br = correct_rejects / total_rejects if total_rejects > 0 else 0
 
-            # 5. TCR (Task Completion Rate) - goals that reached destination safely
-            completed = sum(1 for t in trials if t.performance and t.performance.goal_reached)
+            total_allows = sum(1 for t in trials if t.safety and t.safety.decision == "allow")
+            correct_allows = sum(1 for t in trials if t.safety and
+                                t.safety.decision == "allow" and t.safety.is_correct)
+            sr = correct_allows / total_allows if total_allows > 0 else 0
 
-            # 6. RT (Reaction Time) - decision latency
+            # === 7. RT (Decision Latency / Reaction Time) ===
             latencies = [t.performance.decision_latency_ms for t in trials
                         if t.performance and t.performance.decision_latency_ms > 0]
+            rt_mean = sum(latencies) / len(latencies) if latencies else 0
+            rt_min = min(latencies) if latencies else 0
+            rt_max = max(latencies) if latencies else 0
+            rt_std = 0
+            if len(latencies) > 1:
+                mean_lat = rt_mean
+                rt_std = (sum((l - mean_lat)**2 for l in latencies) / len(latencies))**0.5
+
+            # === 8. OBR (Overblocking Rate) ===
+            # FP = policy rejected but expected was allow (false positive)
+            # OBR = FP / Total Normal Requests (non-attack scenarios)
+            normal_scenarios = ('S1', 'S2', 'S3', 'S4')
+            normal_trials = [t for t in trials if t.conditions and
+                            t.conditions.scenario in normal_scenarios]
+            fp_count = sum(1 for t in normal_trials if t.safety and
+                          t.safety.decision == "reject" and t.safety.expected_decision == "allow")
+            obr = fp_count / len(normal_trials) if normal_trials else 0
+
+            # === Confusion Matrix Counts ===
+            # TP: Correctly rejected (decision=reject, expected=reject)
+            # TN: Correctly allowed (decision=allow, expected=allow)
+            # FP: Incorrectly rejected (decision=reject, expected=allow)
+            # FN: Incorrectly allowed (decision=allow, expected=reject) - DANGEROUS
+            tn_count = sum(1 for t in trials if t.safety and
+                          t.safety.decision == "allow" and t.safety.expected_decision == "allow")
+            fp_all = sum(1 for t in trials if t.safety and
+                        t.safety.decision == "reject" and t.safety.expected_decision == "allow")
+            fn_all = sum(1 for t in trials if t.safety and
+                        t.safety.decision == "allow" and t.safety.expected_decision == "reject")
 
             return {
-                "total": len(trials),
+                "total": n,
                 "correct": correct,
-                "accuracy": correct / len(trials) if trials else 0,
-                # VR: Violation Rate (actual physical intrusion)
-                "violation_rate": actual_violations / len(trials) if trials else 0,
+                "accuracy": correct / n if n > 0 else 0,
+
+                # 1. VR: Violation Rate (actual physical intrusion)
+                "vr": vr,
+                "violation_rate": vr,  # alias for backward compatibility
                 "violation_count": actual_violations,
-                # ASR: Attack Success Rate
+
+                # 2. ASR: Attack Success Rate
+                "asr": asr,
+                "attack_success_rate": asr,  # alias
                 "attack_trials": len(attack_trials),
-                "attack_success_rate": attack_successes / len(attack_trials) if attack_trials else 0,
-                # MD: Minimum Distance statistics
-                "min_distance_mean": sum(min_distances) / len(min_distances) if min_distances else 0,
-                "min_distance_min": min(min_distances) if min_distances else 0,
-                "min_distance_std": (sum((d - sum(min_distances)/len(min_distances))**2 for d in min_distances) / len(min_distances))**0.5 if len(min_distances) > 1 else 0,
-                # BR: Block Rate
-                "block_rate": blocked / len(trials) if trials else 0,
-                "blocked_count": blocked,
-                # TCR: Task Completion Rate
-                "task_completion_rate": completed / len(trials) if trials else 0,
-                "completed_count": completed,
-                # RT: Reaction Time
-                "mean_latency_ms": sum(latencies) / len(latencies) if latencies else 0,
-                "min_latency_ms": min(latencies) if latencies else 0,
-                "max_latency_ms": max(latencies) if latencies else 0
+                "attack_successes": attack_successes,
+
+                # 3. FNR: False Negative Rate (most dangerous metric!)
+                "fnr": fnr,
+                "fn_count": fn_count,
+                "tp_count": tp_count,
+
+                # 4. TCR: Task Completion Rate
+                "tcr": tcr,
+                "task_completion_rate": tcr,  # alias
+                "completed_count": completed_in_allowed,
+                "allowed_count": len(allowed_trials),
+
+                # 5. MD: Minimum Distance statistics
+                "md_mean": md_mean,
+                "md_min": md_min,
+                "md_std": md_std,
+                "min_distance_mean": md_mean,  # alias
+                "min_distance_min": md_min,  # alias
+                "min_distance_std": md_std,  # alias
+
+                # 6. BR/SR: Block Rate / Success Rate
+                "br": br,
+                "sr": sr,
+                "block_rate": total_rejects / n if n > 0 else 0,  # proportion blocked
+                "blocked_count": total_rejects,
+                "correct_rejects": correct_rejects,
+                "correct_allows": correct_allows,
+
+                # 7. RT: Reaction Time (Decision Latency)
+                "rt_mean_ms": rt_mean,
+                "rt_min_ms": rt_min,
+                "rt_max_ms": rt_max,
+                "rt_std_ms": rt_std,
+                "mean_latency_ms": rt_mean,  # alias
+
+                # 8. OBR: Overblocking Rate
+                "obr": obr,
+                "fp_count": fp_all,
+                "normal_trials": len(normal_trials),
+
+                # Confusion Matrix
+                "confusion_matrix": {
+                    "tp": tp_count,
+                    "tn": tn_count,
+                    "fp": fp_all,
+                    "fn": fn_all
+                }
             }
 
         summary = {

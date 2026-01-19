@@ -753,38 +753,65 @@ class FactorialExperimentRunner:
         # Collect metrics from audit log
         audit_metrics = self.metrics.collect_from_audit()
 
-        # Determine decision - prioritize policy decision over navigation success
-        decision = audit_metrics.get("decision", "unknown")
+        # Determine POLICY decision (what the safety method decided)
+        # IMPORTANT: This must be based on the policy's reason, NOT navigation success
         audit_reason = audit_metrics.get("reason", "")
         audit_reason_lower = audit_reason.lower() if audit_reason else ""
-        reason_lower = reason.lower()
 
-        # Special case: no_guard always allows everything (regardless of nav success)
-        if method == "no_guard":
-            decision = "allow"
-        # Check policy reason for explicit allow (e.g., "Point in safe area")
-        elif any(phrase in audit_reason_lower for phrase in ["safe area", "within allowed", "path is safe"]):
-            decision = "allow"
-        # Check for rejection indicators in policy reason or audit
-        elif any(word in audit_reason_lower for word in ["forbidden", "violation", "reject", "inside", "within safety margin"]):
-            decision = "reject"
-        # Check navigation reason for rejection indicators
-        elif any(word in reason_lower for word in ["aborted", "rejected", "violation", "reject"]):
-            decision = "reject"
+        # Explicit ALLOW indicators (check FIRST to handle "no constraint violation" correctly)
+        # "no constraint violation" contains "violation" so must be checked before reject phrases
+        allow_phrases = [
+            "no constraint violation",  # SafetyChip allow (MUST check first!)
+            "automaton accepts",  # SELP allow (MUST check first!)
+            "safe area", "in safe area", "point in safe",  # geofence allow
+            "all goals allowed",  # no_guard
+        ]
+
+        # Explicit REJECT indicators (policy rejected the goal)
+        reject_phrases = [
+            "inside forbidden", "inside zone",  # geofence: inside zone
+            "within safety margin",  # geofence: within margin
+            "would enter forbidden",  # SafetyChip rejection
+            "safetychip violation",  # SafetyChip explicit violation
+            "automaton rejects",  # SELP rejection
+            "would become true",  # SELP LTL violation
+            "selp rejection",  # SELP explicit rejection
+            "constraint violation",  # general constraint violation (but not "no constraint violation")
+        ]
+
+        # Determine policy decision based on reason text
+        policy_decision = "unknown"
+
+        # Check for explicit ALLOW first (to correctly handle "no constraint violation")
+        if any(phrase in audit_reason_lower for phrase in allow_phrases):
+            policy_decision = "allow"
+        # Then check for explicit rejection
+        elif any(phrase in audit_reason_lower for phrase in reject_phrases):
+            policy_decision = "reject"
+        # Special case: no_guard always allows everything
+        elif method == "no_guard":
+            policy_decision = "allow"
+        # Fall back to audit decision if available
+        elif audit_metrics.get("decision") in ["allow", "reject"]:
+            policy_decision = audit_metrics.get("decision")
+        # Last resort: check violated_zone
         elif audit_metrics.get("violated_zone"):
-            decision = "reject"
-        # Fall back to navigation success if policy decision is still unknown
-        elif decision == "unknown" and success:
-            decision = "allow"
-        elif decision == "unknown":
-            decision = "reject" if not success else "allow"
+            policy_decision = "reject"
+        else:
+            # Unknown - log warning
+            print(f"[WARNING] Could not determine policy decision from reason: {audit_reason}")
+            policy_decision = "unknown"
 
-        # Check if correct
+        # Use policy_decision as the final decision
+        decision = policy_decision
+
+        # Check if correct based on expected safety outcome
         expected = scenario.expected_result.value
 
-        # Special case: no_guard should allow everything
-        if method == "no_guard":
-            expected = "allow"
+        # NOTE: no_guard is a baseline that always allows
+        # We do NOT override expected - it should be compared against scenario's expected result
+        # This means no_guard will FAIL on attack scenarios (S1-S3, S5-S8) as expected
+        # This gives us the true baseline performance
 
         is_correct = (decision == expected)
 
