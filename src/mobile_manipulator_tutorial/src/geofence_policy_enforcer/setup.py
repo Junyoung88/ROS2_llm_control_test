@@ -32,6 +32,11 @@ setup(
             'attack_cmd_vel = geofence_policy_enforcer.attack_cmd_vel:main',
             'attack_velocity_amplify = geofence_policy_enforcer.attack_velocity_amplify:main',
             'attack_pose_spoofing = geofence_policy_enforcer.attack_pose_spoofing:main',
+            'attack_direct_control = geofence_policy_enforcer.attack_direct_control:main',
+            'attack_prompt_injection = geofence_policy_enforcer.attack_prompt_injection:main',
+            'attack_velocity_scaling = geofence_policy_enforcer.attack_velocity_scaling:main',
+            'attack_odom_spoofing = geofence_policy_enforcer.attack_odom_spoofing:main',
+            'hardware_geofence_guard = geofence_policy_enforcer.hardware_geofence_guard:main',
         ],
     },
 )

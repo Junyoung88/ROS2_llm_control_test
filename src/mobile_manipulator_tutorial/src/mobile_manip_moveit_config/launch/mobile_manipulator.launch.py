@@ -16,13 +16,25 @@ def generate_launch_description():
     y_arg = DeclareLaunchArgument('y', default_value='0', description='y coordinate of spawned robot')
     yaw_arg = DeclareLaunchArgument('yaw', default_value='-1.5707', description='yaw angle of spawned robot')
     sim_time_arg = DeclareLaunchArgument('use_sim_time', default_value='True', description='Flag to enable use_sim_time')
+    headless_arg = DeclareLaunchArgument('headless', default_value='false', description='Run Gazebo without GUI')
+
+    # Allow custom bridge config (for hardware guard mode)
+    default_bridge_config = os.path.join(pkg_navigation_stack, 'config', 'gz_bridge.yaml')
+    gz_bridge_config_arg = DeclareLaunchArgument(
+        'gz_bridge_config',
+        default_value=default_bridge_config,
+        description='Path to gz_bridge config file'
+    )
 
     urdf_file_path = PathJoinSubstitution([pkg_navigation_stack, "urdf", LaunchConfiguration('model')])
-    gz_bridge_params_path = os.path.join(pkg_navigation_stack, 'config', 'gz_bridge.yaml')
+    gz_bridge_params_path = LaunchConfiguration('gz_bridge_config')
 
     world_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(pkg_navigation_stack, 'launch', 'world.launch.py')),
-        launch_arguments={'world': LaunchConfiguration('world')}.items()
+        launch_arguments={
+            'world': LaunchConfiguration('world'),
+            'headless': LaunchConfiguration('headless')
+        }.items()
     )
 
     spawn_urdf_node = Node(
@@ -36,7 +48,10 @@ def generate_launch_description():
     gz_bridge_node = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
-        arguments=['--ros-args', '-p', f'config_file:={gz_bridge_params_path}'],
+        arguments=[
+            '--ros-args', '-p',
+            ['config_file:=', gz_bridge_params_path]
+        ],
         output="screen",
         parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}]
     )
@@ -102,6 +117,8 @@ def generate_launch_description():
     launchDescriptionObject.add_action(y_arg)
     launchDescriptionObject.add_action(yaw_arg)
     launchDescriptionObject.add_action(sim_time_arg)
+    launchDescriptionObject.add_action(headless_arg)
+    launchDescriptionObject.add_action(gz_bridge_config_arg)
     launchDescriptionObject.add_action(world_launch)
     launchDescriptionObject.add_action(spawn_urdf_node)
     launchDescriptionObject.add_action(gz_bridge_node_delayed)
