@@ -360,161 +360,98 @@ def fig_violation_vs_margin(sweep: List[Dict], params: SimParams, path: Path) ->
 def fig_ablation(ablation: Dict, loo: Dict[str, Dict],
                  params: SimParams, path: Path) -> None:
     """
-    3-panel ablation figure combining build-up and leave-one-out analyses.
+    2-panel ablation figure: build-up (left) and leave-one-out (right).
 
-    Left panel   — Physical violation-rate curve with markers for BOTH approaches:
-                   circles = build-up steps (M grows left→right)
-                   diamonds = leave-one-out variants (all near full-formula M, w/o one term)
+    Left panel  — Build-up: sequential addition of each term (narrative view).
+                  Shows how each term progressively reduces violation rate.
 
-    Middle panel — Build-up vertical bar chart (sequential addition, narrative view).
-                   Shows how each term added progressively reduces violation rate.
-
-    Right panel  — Leave-one-out vertical bar chart (order-independent, rigorous view).
-                   Shows the marginal contribution of each term by removing it from
-                   the full formula and measuring the increase in violations.
+    Right panel — Leave-one-out: remove ONE term from full formula at a time
+                  (order-independent, rigorous view).  Each bar shows the
+                  marginal contribution of that term.  Bars with the same
+                  violation rate reflect equal-sized term contributions in M
+                  (e.g. e_track = v·τ = v²/2a = 0.05 m at default params).
     """
-    phys    = ablation["physical_curve"]
     buildup = ablation["buildup"]
 
-    margins = [r["margin"]              for r in phys]
-    rates   = [max(r["viol_pct"], 2e-4) for r in phys]
+    fig, (ax_bu, ax_loo) = plt.subplots(
+        1, 2, figsize=(13, 6),
+        gridspec_kw={"width_ratios": [1, 1]})
 
-    fig, (ax_curve, ax_bu, ax_loo) = plt.subplots(
-        1, 3, figsize=(18, 6),
-        gridspec_kw={"width_ratios": [2.5, 1, 1]})
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # LEFT PANEL — violation-rate curve with both sets of markers
-    # ══════════════════════════════════════════════════════════════════════════
-    ax_curve.semilogy(margins, rates, color="#555555", lw=2.5, zorder=2,
-                      label="Physical violation rate")
-    ax_curve.axhline(0.3, color="grey", ls=":", lw=1.2, label="0.3 % (3σ target)")
-
-    # Build-up markers (circles)
+    # Collect bar data
     bu_rates, bu_margins = [], []
-    for (label, r), col in zip(buildup.items(), BUILDUP_COLORS):
-        Mp   = r["formula_margin"]
-        viol = r["viol_pct"]
-        ax_curve.plot(Mp, max(viol, 2e-4), "o", color=col, ms=11, zorder=5,
-                      markeredgecolor="white", markeredgewidth=0.8)
-        bu_rates.append(max(viol, 2e-4))
-        bu_margins.append(Mp)
+    for r in buildup.values():
+        bu_rates.append(max(r["viol_pct"], 2e-4))
+        bu_margins.append(r["formula_margin"])
 
-    # Leave-one-out markers (diamonds)
-    loo_rates, loo_margins = [], []
-    for (label, r), col in zip(loo.items(), LOO_COLORS):
-        Mp   = r["formula_margin"]
-        viol = r["viol_pct"]
-        ax_curve.plot(Mp, max(viol, 2e-4), "D", color=col, ms=10, zorder=6,
-                      markeredgecolor="white", markeredgewidth=0.8)
-        loo_rates.append(max(viol, 2e-4))
-        loo_margins.append(Mp)
+    loo_rates, loo_margins, loo_missing = [], [], []
+    for r in loo.values():
+        loo_rates.append(max(r["viol_pct"], 2e-4))
+        loo_margins.append(r["formula_margin"])
+        loo_missing.append(r.get("missing_term_m", 0.0))
 
-    # Legend entries (proxy artists)
-    from matplotlib.lines import Line2D
-    legend_handles = [
-        Line2D([0], [0], color="#555555", lw=2.5, label="Physical violation rate"),
-        Line2D([0], [0], color="grey", ls=":", lw=1.2, label="0.3% (3σ target)"),
-        Line2D([0], [0], marker="o", color="w", markerfacecolor="#888",
-               markersize=10, markeredgecolor="white", label="Build-up steps (●)"),
-        Line2D([0], [0], marker="D", color="w", markerfacecolor="#888",
-               markersize=9, markeredgecolor="white", label="Leave-one-out (◆)"),
-    ]
-    ax_curve.legend(handles=legend_handles, fontsize=9, loc="upper right")
-    ax_curve.set_xlabel("Geofence Margin M (m)", fontsize=13)
-    ax_curve.set_ylabel("Zone Violation Rate (%)", fontsize=13)
-    ax_curve.set_title("Violation Rate vs. Margin\n"
-                       r"(● build-up: M grows; ◆ leave-one-out: near full M)",
-                       fontsize=12)
-    ax_curve.grid(True, which="both", alpha=0.3)
-    ax_curve.set_xlim(-0.02, 1.2)
-    ax_curve.set_ylim(2e-4, 110)
+    def _draw_bars(ax, rates, colors, step_labels, title, margins_info,
+                   info_fmt="M={:.2f}"):
+        x_pos = range(len(step_labels))
+        ax.bar(x_pos, rates, color=colors, edgecolor="white", width=0.6, zorder=3)
+        ax.set_yscale("log")
+        ax.axhline(0.3, color="#555555", ls="--", lw=1.5, zorder=4)
+        ax.text(len(step_labels) - 0.48, 0.38, "0.3%\ntarget",
+                fontsize=8.5, color="#555555", va="bottom", ha="center")
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # MIDDLE PANEL — build-up bars
-    # ══════════════════════════════════════════════════════════════════════════
+        for i, (v, m_val) in enumerate(zip(rates, margins_info)):
+            # violation rate label above bar
+            ax.text(i, v * 2.0, f"{v:.2f}%", ha="center", va="bottom",
+                    fontsize=10, fontweight="bold", color=colors[i])
+            # margin info inside bar (white text)
+            sub = info_fmt.format(m_val)
+            ax.text(i, v * 0.52, sub, ha="center", va="top",
+                    fontsize=8, color="white", fontweight="bold")
+
+        ax.set_xticks(list(x_pos))
+        ax.set_xticklabels(step_labels, fontsize=10)
+        ax.set_yticks([0.1, 1, 10, 100])
+        ax.set_yticklabels(["0.1%", "1%", "10%", "100%"], fontsize=10)
+        ax.yaxis.grid(False)
+        ax.xaxis.grid(False)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.set_ylabel("Zone Violation Rate", fontsize=12)
+        ax.set_title(title, fontsize=12)
+        ax.set_xlim(-0.5, len(step_labels) - 0.5)
+        ax.set_ylim(0.05, 200)
+
+    # ── (a) Build-up ─────────────────────────────────────────────────────────
     bu_step_labels = [
         "No\nformula",
-        r"$+k_\sigma\sigma$",
-        r"$+e_{track}$",
-        r"$+v\tau$",
-        r"$+v^2/2a$" "\n(Full)",
+        r"$+k_\sigma\sigma$" "\n(+0.45m)",
+        r"$+e_{track}$" "\n(+0.05m)",
+        r"$+v\tau$" "\n(+0.05m)",
+        r"$+v^2/2a$" "\n(+0.05m)\n[Full]",
     ]
-    x_bu = range(len(bu_step_labels))
+    _draw_bars(ax_bu, bu_rates, BUILDUP_COLORS, bu_step_labels,
+               "(a) Build-up  (sequential addition)\n"
+               r"No formula $\to$ Full $M=0.60\,$m",
+               bu_margins, info_fmt="M={:.2f}m")
 
-    ax_bu.bar(x_bu, bu_rates, color=BUILDUP_COLORS,
-              edgecolor="white", width=0.6, zorder=3)
-    ax_bu.set_yscale("log")
-    ax_bu.axhline(0.3, color="#555555", ls="--", lw=1.5, zorder=4)
-    ax_bu.text(len(bu_step_labels) - 0.48, 0.38, "0.3%\ntarget",
-               fontsize=8, color="#555555", va="bottom", ha="center")
-
-    for i, (v, Mp) in enumerate(zip(bu_rates, bu_margins)):
-        ax_bu.text(i, v * 1.9, f"{v:.2f}%", ha="center", va="bottom",
-                   fontsize=9, fontweight="bold", color=BUILDUP_COLORS[i])
-        ax_bu.text(i, v * 0.55, f"M={Mp:.2f}", ha="center", va="top",
-                   fontsize=7.5, color="white", fontweight="bold")
-
-    ax_bu.set_xticks(list(x_bu))
-    ax_bu.set_xticklabels(bu_step_labels, fontsize=9.5)
-    ax_bu.set_yticks([0.1, 1, 10, 100])
-    ax_bu.set_yticklabels(["0.1%", "1%", "10%", "100%"], fontsize=10)
-    ax_bu.yaxis.grid(False)
-    ax_bu.xaxis.grid(False)
-    ax_bu.spines["top"].set_visible(False)
-    ax_bu.spines["right"].set_visible(False)
-    ax_bu.set_ylabel("Zone Violation Rate", fontsize=12)
-    ax_bu.set_title("(a) Build-up\n(sequential addition)", fontsize=11)
-    ax_bu.set_xlim(-0.5, len(bu_step_labels) - 0.5)
-    ax_bu.set_ylim(0.05, 200)
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # RIGHT PANEL — leave-one-out bars
-    # ══════════════════════════════════════════════════════════════════════════
+    # ── (b) Leave-one-out ─────────────────────────────────────────────────────
     loo_step_labels = [
-        "Full\nformula",
-        r"w/o" "\n" r"$k_\sigma\sigma$",
-        r"w/o" "\n" r"$e_{track}$",
-        r"w/o" "\n" r"$v\tau$",
-        r"w/o" "\n" r"$v^2/2a$",
+        "Full\nformula\n(0.60m)",
+        r"w/o $k_\sigma\sigma$" "\n(−0.45m\n→0.15m)",
+        r"w/o $e_{track}$" "\n(−0.05m\n→0.55m)",
+        r"w/o $v\tau$" "\n(−0.05m\n→0.55m)",
+        r"w/o $v^2/2a$" "\n(−0.05m\n→0.55m)",
     ]
-    x_loo = range(len(loo_step_labels))
-
-    ax_loo.bar(x_loo, loo_rates, color=LOO_COLORS,
-               edgecolor="white", width=0.6, zorder=3)
-    ax_loo.set_yscale("log")
-    ax_loo.axhline(0.3, color="#555555", ls="--", lw=1.5, zorder=4)
-    ax_loo.text(len(loo_step_labels) - 0.48, 0.38, "0.3%\ntarget",
-                fontsize=8, color="#555555", va="bottom", ha="center")
-
-    for i, (v, Mp) in enumerate(zip(loo_rates, loo_margins)):
-        label_r = list(loo.values())[i]
-        missing = label_r.get("missing_term_m", 0.0)
-        ax_loo.text(i, v * 1.9, f"{v:.2f}%", ha="center", va="bottom",
-                    fontsize=9, fontweight="bold", color=LOO_COLORS[i])
-        sub = f"M={Mp:.2f}" if missing == 0.0 else f"−{missing:.2f}m"
-        ax_loo.text(i, v * 0.55, sub, ha="center", va="top",
-                    fontsize=7.5, color="white", fontweight="bold")
-
-    ax_loo.set_xticks(list(x_loo))
-    ax_loo.set_xticklabels(loo_step_labels, fontsize=9.5)
-    ax_loo.set_yticks([0.1, 1, 10, 100])
-    ax_loo.set_yticklabels(["0.1%", "1%", "10%", "100%"], fontsize=10)
-    ax_loo.yaxis.grid(False)
-    ax_loo.xaxis.grid(False)
-    ax_loo.spines["top"].set_visible(False)
-    ax_loo.spines["right"].set_visible(False)
-    ax_loo.set_ylabel("Zone Violation Rate", fontsize=12)
-    ax_loo.set_title("(b) Leave-one-out\n(order-independent, marginal contribution)", fontsize=11)
-    ax_loo.set_xlim(-0.5, len(loo_step_labels) - 0.5)
-    ax_loo.set_ylim(0.05, 200)
+    _draw_bars(ax_loo, loo_rates, LOO_COLORS, loo_step_labels,
+               "(b) Leave-one-out  (marginal contribution)\n"
+               r"Equal rate for $e_{track},v\tau,v^2/2a$: each contributes 0.05m",
+               loo_missing, info_fmt="−{:.2f}m")
+    # Fix info label for "Full formula" (missing=0 → show M=0.60m instead)
+    ax_loo.texts[-len(loo_step_labels)].set_text("M=0.60m")
 
     fig.suptitle(
         r"Formula Ablation: $M = k_\sigma\sigma + e_{track} + v\tau + v^2/2a$"
-        "\n"
-        "(a) Build-up: sequential addition shows each term's cumulative effect  |  "
-        "(b) Leave-one-out: marginal contribution of each term",
-        fontsize=12, y=1.02)
+        "  =  0.45 + 0.05 + 0.05 + 0.05  =  0.60 m",
+        fontsize=13, y=1.01)
     fig.tight_layout()
     _savefig(fig, path)
 
