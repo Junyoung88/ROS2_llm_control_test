@@ -260,6 +260,8 @@ def generate_launch_description():
                 'override_strategy': override_strategy,
                 'input_topic': cmd_vel_input_topic,
                 'output_topic': cmd_vel_output_topic,
+                'safety_method': safety_method,
+                'odom_topic': '/odom',
             }
         ],
         output='screen',

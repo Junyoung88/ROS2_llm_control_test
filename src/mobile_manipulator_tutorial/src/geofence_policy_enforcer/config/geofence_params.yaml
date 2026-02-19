@@ -16,10 +16,10 @@ cmd_vel_guard:
     input_topic: "/cmd_vel_raw"
     output_topic: "/cmd_vel"
     odom_topic: "/odom"
-    simulation_horizon: 2.0  # seconds
-    simulation_steps: 20
+    simulation_horizon: 1.0  # seconds (reduced from 2.0)
+    simulation_steps: 10     # reduced from 20
     override_strategy: "stop"  # stop, scale, or redirect
-    min_distance_threshold: 0.3  # meters
+    min_distance_threshold: 0.05  # meters (reduced from 0.3 - only stop at actual boundary)
     scale_factor_decay: 0.8
 
 # Path Watchdog Node - Monitors planned paths

@@ -36,6 +36,8 @@ setup(
             'attack_prompt_injection = geofence_policy_enforcer.attack_prompt_injection:main',
             'attack_velocity_scaling = geofence_policy_enforcer.attack_velocity_scaling:main',
             'attack_odom_spoofing = geofence_policy_enforcer.attack_odom_spoofing:main',
+            'attack_scan_spoofing = geofence_policy_enforcer.attack_scan_spoofing:main',
+            'scan_relay = geofence_policy_enforcer.scan_relay:main',
             'hardware_geofence_guard = geofence_policy_enforcer.hardware_geofence_guard:main',
         ],
     },

@@ -26,6 +26,7 @@ from typing import Optional, Tuple, Dict
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rcl_interfaces.msg import SetParametersResult
 from geometry_msgs.msg import Twist
 from std_msgs.msg import String
 import json
@@ -61,6 +62,7 @@ class HardwareGeofenceGuard(Node):
         self.declare_parameter('gazebo_world', 'empty')
         self.declare_parameter('model_name', 'mobile_manip')
         self.declare_parameter('position_update_rate', 20.0)  # Hz
+        self.declare_parameter('reaction_latency_ms', 0.0)  # Simulated detection-to-action delay
 
         # Load parameters
         zones_json = self.get_parameter('zones_json').get_parameter_value().string_value
@@ -75,12 +77,17 @@ class HardwareGeofenceGuard(Node):
         self.model_name = self.get_parameter('model_name').get_parameter_value().string_value
         pos_rate = self.get_parameter('position_update_rate').get_parameter_value().double_value
 
+        self.reaction_latency = self.get_parameter('reaction_latency_ms').get_parameter_value().double_value / 1000.0
+
         # Robot state from Gazebo ground truth
         self.robot_x = 0.0
         self.robot_y = 0.0
         self.robot_yaw = 0.0
         self.last_position_update = None
         self.position_lock = threading.Lock()
+
+        # Latency tracking: when was the first block triggered?
+        self.first_block_time = None
 
         # Statistics
         self.stats = {
@@ -89,18 +96,22 @@ class HardwareGeofenceGuard(Node):
             'blocked': 0,
             'inside_zone_blocks': 0,
             'prediction_blocks': 0,
+            'latency_passed': 0,  # Commands passed during reaction latency window
         }
 
-        # QoS for real-time control
-        qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+        # QoS for input: BEST_EFFORT (matches Nav2 velocity smoother)
+        qos_input = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+
+        # QoS for output: RELIABLE (required by gz_bridge)
+        qos_output = QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE)
 
         # Subscriber: intercept ALL cmd_vel commands
         self.cmd_sub = self.create_subscription(
-            Twist, input_topic, self.cmd_vel_callback, qos
+            Twist, input_topic, self.cmd_vel_callback, qos_input
         )
 
-        # Publisher: only safe commands go here
-        self.cmd_pub = self.create_publisher(Twist, output_topic, qos)
+        # Publisher: only safe commands go here (RELIABLE for gz_bridge)
+        self.cmd_pub = self.create_publisher(Twist, output_topic, qos_output)
 
         # Status publisher
         self.status_pub = self.create_publisher(String, '/hardware_guard/status', 10)
@@ -113,14 +124,30 @@ class HardwareGeofenceGuard(Node):
         # Status timer
         self.create_timer(1.0, self.publish_status)
 
+        # Dynamic parameter callback (for runtime latency changes)
+        self.add_on_set_parameters_callback(self._on_parameter_change)
+
         self.get_logger().info('=' * 60)
         self.get_logger().info('HARDWARE GEOFENCE GUARD ACTIVE')
         self.get_logger().info('=' * 60)
         self.get_logger().info(f'Input: {input_topic} -> Output: {output_topic}')
         self.get_logger().info(f'Safety margin: {self.safety_margin}m')
         self.get_logger().info(f'Zones: {list(self.zones.keys())}')
+        if self.reaction_latency > 0:
+            self.get_logger().info(f'Reaction latency: {self.reaction_latency*1000:.0f}ms')
         self.get_logger().info('Using Gazebo ground truth (CANNOT BE BYPASSED)')
         self.get_logger().info('=' * 60)
+
+    def _on_parameter_change(self, params):
+        """Handle dynamic parameter updates (e.g., reaction_latency_ms)."""
+        for param in params:
+            if param.name == 'reaction_latency_ms':
+                self.reaction_latency = param.value / 1000.0
+                self.first_block_time = None  # Reset on change
+                self.get_logger().info(
+                    f'Reaction latency updated: {param.value:.0f}ms'
+                )
+        return SetParametersResult(successful=True)
 
     def _position_update_loop(self):
         """Background thread to get robot position from Gazebo ground truth."""
@@ -159,9 +186,9 @@ class HardwareGeofenceGuard(Node):
             except subprocess.TimeoutExpired:
                 pass
             except Exception as e:
-                self.get_logger().warn_throttle(
-                    self.get_clock(), 5000,
-                    f'Position update failed: {e}'
+                self.get_logger().warning(
+                    f'Position update failed: {e}',
+                    throttle_duration_sec=5.0
                 )
 
             time.sleep(0.05)  # ~20Hz
@@ -200,7 +227,13 @@ class HardwareGeofenceGuard(Node):
         return min_dist
 
     def cmd_vel_callback(self, msg: Twist):
-        """Process incoming velocity command with safety check."""
+        """Process incoming velocity command with safety check.
+
+        Reaction latency simulation:
+        When reaction_latency > 0, the guard detects violations but continues
+        forwarding commands for the latency duration before actually blocking.
+        This simulates real-world detection-to-action delay.
+        """
         self.stats['total_commands'] += 1
 
         # Get current position from Gazebo ground truth
@@ -208,9 +241,9 @@ class HardwareGeofenceGuard(Node):
 
         # Check if we have recent position data
         if self.last_position_update is None:
-            self.get_logger().warn_throttle(
-                self.get_clock(), 2000,
-                'No Gazebo position data yet - BLOCKING all commands'
+            self.get_logger().warning(
+                'No Gazebo position data yet - BLOCKING all commands',
+                throttle_duration_sec=2.0
             )
             self.stats['blocked'] += 1
             self.cmd_pub.publish(Twist())  # Zero velocity
@@ -219,44 +252,67 @@ class HardwareGeofenceGuard(Node):
         # Check position data freshness
         age = time.time() - self.last_position_update
         if age > 0.5:
-            self.get_logger().warn_throttle(
-                self.get_clock(), 2000,
-                f'Gazebo position stale ({age:.2f}s) - BLOCKING'
+            self.get_logger().warning(
+                f'Gazebo position stale ({age:.2f}s) - BLOCKING',
+                throttle_duration_sec=2.0
             )
             self.stats['blocked'] += 1
             self.cmd_pub.publish(Twist())
             return
 
-        # CRITICAL CHECK 1: Is robot already inside forbidden zone?
+        # Determine if command should be blocked
+        should_block = False
         inside_zone = self.is_inside_zone(x, y)
+
         if inside_zone:
-            self.get_logger().warn(
-                f'BLOCKED: Robot inside {inside_zone}! pos=({x:.2f}, {y:.2f})'
+            should_block = True
+        else:
+            will_violate, violation_time, violation_dist = self._simulate_trajectory(
+                x, y, yaw, msg
             )
-            self.stats['blocked'] += 1
-            self.stats['inside_zone_blocks'] += 1
+            if will_violate:
+                should_block = True
 
-            # Only allow commands that move AWAY from zone center
-            safe_cmd = self._compute_escape_velocity(x, y, inside_zone)
-            self.cmd_pub.publish(safe_cmd)
+        if should_block:
+            # Reaction latency: forward commands during delay window
+            if self.reaction_latency > 0:
+                now = time.time()
+                if self.first_block_time is None:
+                    self.first_block_time = now
+                    self.get_logger().warn(
+                        f'VIOLATION DETECTED at ({x:.2f},{y:.2f}) - '
+                        f'reaction delay {self.reaction_latency*1000:.0f}ms'
+                    )
+
+                elapsed = now - self.first_block_time
+                if elapsed < self.reaction_latency:
+                    # Still within reaction window - pass command through
+                    self.stats['latency_passed'] += 1
+                    self.stats['passed'] += 1
+                    self.cmd_pub.publish(msg)
+                    return
+
+            # Actually block (no latency, or latency window expired)
+            if inside_zone:
+                self.get_logger().warn(
+                    f'BLOCKED: Robot inside {inside_zone}! pos=({x:.2f}, {y:.2f})'
+                )
+                self.stats['inside_zone_blocks'] += 1
+                safe_cmd = self._compute_escape_velocity(x, y, inside_zone)
+                self.cmd_pub.publish(safe_cmd)
+            else:
+                self.get_logger().warn(
+                    f'BLOCKED: Predicted violation in {violation_time:.2f}s, '
+                    f'dist={violation_dist:.3f}m'
+                )
+                self.stats['prediction_blocks'] += 1
+                self.cmd_pub.publish(Twist())  # Zero velocity
+
+            self.stats['blocked'] += 1
             return
 
-        # CRITICAL CHECK 2: Would this command lead into forbidden zone?
-        will_violate, violation_time, violation_dist = self._simulate_trajectory(
-            x, y, yaw, msg
-        )
-
-        if will_violate:
-            self.get_logger().warn(
-                f'BLOCKED: Predicted violation in {violation_time:.2f}s, '
-                f'dist={violation_dist:.3f}m'
-            )
-            self.stats['blocked'] += 1
-            self.stats['prediction_blocks'] += 1
-            self.cmd_pub.publish(Twist())  # Zero velocity
-            return
-
-        # Command is safe - forward it
+        # Command is safe - forward it and reset latency tracking
+        self.first_block_time = None
         self.stats['passed'] += 1
         self.cmd_pub.publish(msg)
 

@@ -23,6 +23,7 @@ Proper Version Features:
 import math
 import json
 import random
+import asyncio
 from datetime import datetime
 from typing import Optional, Dict, List, Tuple, Set, Any
 from dataclasses import dataclass, field
@@ -36,9 +37,11 @@ from rclpy.action.server import ServerGoalHandle
 from rclpy.callback_groups import ReentrantCallbackGroup
 
 from geometry_msgs.msg import PoseStamped, Twist
-from std_msgs.msg import String
+from std_msgs.msg import String, Float64
 from nav_msgs.msg import Odometry, Path
 from nav2_msgs.action import NavigateToPose, FollowWaypoints
+# Note: ComputePathToPose is an ACTION, not a service. Path checking feature disabled.
+# from nav2_msgs.action import ComputePathToPose
 from std_srvs.srv import Trigger, SetBool
 from visualization_msgs.msg import MarkerArray
 
@@ -47,6 +50,12 @@ from tf_transformations import euler_from_quaternion, quaternion_from_euler
 from .geofence_core import (
     GeofencePolicy, PolicyAction, PolicyDecision, ZoneType,
     VelocityMonitor, LatencyMonitor, TrackingErrorMonitor
+)
+
+# Import new safety baselines (SELP, CBF, Static Margin, SSM)
+from .safety_baselines import (
+    SELPSpatialSafety, CBFSpatialSafety, StaticMarginSafety, SSMSpatialSafety,
+    SafetyDecision, SafetyResult
 )
 
 
@@ -556,6 +565,10 @@ class GoalGateNode(Node):
         self.declare_parameter('enable_latency_term', True)
         self.declare_parameter('ablation_condition', 'full')
 
+        # Runtime monitoring parameters (for velocity-dependent safety during navigation)
+        self.declare_parameter('enable_runtime_monitoring', False)
+        self.declare_parameter('runtime_monitoring_rate', 10.0)  # Hz
+
         # Dynamic v_max parameters
         self.declare_parameter('use_dynamic_v_max', True)
         self.declare_parameter('v_max_window_size', 100)
@@ -595,6 +608,12 @@ class GoalGateNode(Node):
         self.policy.uncertainty.use_dynamic_e_track = self.get_parameter('use_dynamic_e_track').value
         self._ablation_condition = self.get_parameter('ablation_condition').value
 
+        # Runtime monitoring settings
+        self.enable_runtime_monitoring = self.get_parameter('enable_runtime_monitoring').value
+        self.runtime_monitoring_rate = self.get_parameter('runtime_monitoring_rate').value
+        self._runtime_violations = []  # Track violations during navigation
+        # Note: Runtime monitoring log moved after safety_method initialization (line ~642)
+
         # Initialize velocity monitor for dynamic v_max
         self._velocity_monitor = VelocityMonitor(
             window_size=self.get_parameter('v_max_window_size').value
@@ -618,10 +637,19 @@ class GoalGateNode(Node):
         self.audit_log_file = self.get_parameter('audit_log_file').get_parameter_value().string_value
         self.safety_method = self.get_parameter('safety_method').get_parameter_value().string_value
 
+        # Log runtime monitoring settings (after safety_method is set)
+        if self.enable_runtime_monitoring:
+            self.get_logger().info(
+                f'[RUNTIME MONITORING] Enabled for method {self.safety_method} at {self.runtime_monitoring_rate}Hz'
+            )
+
         # Initialize SafetyChip and SELP from geofence zones
         self.safetychip_monitor = None
         self.selp_automaton = None
         self._init_ltl_monitors()
+
+        # Initialize new safety baselines (CBF, Static Margin, SSM, SELP-proper)
+        self._init_safety_baselines()
 
         # Callback group for concurrent action handling
         self.cb_group = ReentrantCallbackGroup()
@@ -638,6 +666,14 @@ class GoalGateNode(Node):
             self, FollowWaypoints, waypoints_action,
             callback_group=self.cb_group
         )
+
+        # Service client for path planning (disabled - ComputePathToPose is an action, not service)
+        # Path-based zone checking feature is disabled for now
+        # self._compute_path_client = self.create_client(
+        #     ComputePathToPose, '/compute_path_to_pose',
+        #     callback_group=self.cb_group
+        # )
+        self._compute_path_client = None
 
         # Action servers (proxy entry points)
         self._nav_server = ActionServer(
@@ -661,6 +697,10 @@ class GoalGateNode(Node):
         self.status_pub = self.create_publisher(String, '/geofence/status', 10)
         self.margin_pub = self.create_publisher(String, '/geofence/margin_breakdown', 10)
 
+        # Navigation state publisher for cmd_vel_guard integration
+        # Enables unapproved motion detection: guard blocks cmd_vel not authorized by goal_gate
+        self._nav_state_pub = self.create_publisher(String, '/geofence/nav_state', 10)
+
         # Subscriber for velocity monitoring (dynamic v_max) and latency measurement
         self._odom_sub = self.create_subscription(
             Odometry, '/odom', self._odom_callback, 10
@@ -674,6 +714,13 @@ class GoalGateNode(Node):
         # Subscriber for planned path (tracking error measurement)
         self._plan_sub = self.create_subscription(
             Path, '/plan', self._plan_callback, 10
+        )
+
+        # Subscriber for approach velocity override (S4 attack scenario)
+        # When set, SSM will use this velocity instead of current robot velocity
+        self._approach_velocity_override = None
+        self._approach_velocity_sub = self.create_subscription(
+            Float64, '/approach_velocity', self._approach_velocity_callback, 10
         )
 
         # Service for reloading geofence config
@@ -753,6 +800,44 @@ class GoalGateNode(Node):
             )
             self.get_logger().info(f'Created {len(constraints)} LTL constraints from forbidden zones')
             self.get_logger().info('SELP: Noisy perception disabled (original paper)')
+
+    def _init_safety_baselines(self):
+        """
+        Initialize new safety baselines: CBF, Static Margin, SSM, SELP-proper.
+
+        These provide fair academic comparisons with properly cited methods:
+        - CBF: Ames et al., TAC 2017
+        - Static Margin: Lu et al., IROS 2014 (costmap inflation)
+        - SSM: ISO/TS 15066 (Speed and Separation Monitoring)
+        - SELP-proper: Wu et al., ICRA 2025 (adapted for spatial safety)
+        """
+        zone_names = [z.name.replace(' ', '_').lower()
+                      for z in self.policy.zones if z.zone_type == ZoneType.FORBIDDEN]
+
+        # SELP-proper: LTL automaton adapted for spatial safety
+        self.selp_proper = SELPSpatialSafety(zone_names)
+
+        # CBF: Control Barrier Functions with configurable margin
+        # Default margin = 0.3m (can be tuned for comparison)
+        self.cbf_checker = CBFSpatialSafety(gamma=1.0, margin=0.3)
+
+        # Static Margin: Fixed costmap-style inflation
+        # Default margin = 0.5m (typical ROS Nav2 inflation_radius)
+        self.static_margin_checker = StaticMarginSafety(margin=0.5)
+
+        # SSM: Speed and Separation Monitoring per ISO 15066
+        self.ssm_checker = SSMSpatialSafety(
+            reaction_time=0.1,      # System reaction time (s)
+            stopping_time=0.2,      # Time to initiate stop (s)
+            max_deceleration=1.0,   # Max deceleration (m/s²)
+            intrusion_distance=0.1, # Uncertainty margin (m)
+            base_margin=0.2         # Minimum margin when stationary (m)
+        )
+
+        self.get_logger().info('Initialized safety baselines: CBF, Static Margin, SSM, SELP-proper')
+        self.get_logger().info(f'  - CBF margin: {self.cbf_checker.margin}m')
+        self.get_logger().info(f'  - Static margin: {self.static_margin_checker.margin}m')
+        self.get_logger().info(f'  - SSM base margin: {self.ssm_checker.base_margin}m')
 
     def _get_propositions_for_point(self, x: float, y: float,
                                      include_near_boundary: bool = False) -> Dict[str, bool]:
@@ -894,6 +979,137 @@ class GoalGateNode(Node):
                 min_distance_to_forbidden=self.policy.get_min_distance_to_forbidden(x, y)
             )
 
+        # ============================================================
+        # NEW BASELINES: Properly implemented academic methods
+        # ============================================================
+
+        # selp_proper: SELP adapted for spatial safety (Wu et al., ICRA 2025)
+        if self.safety_method == 'selp_proper':
+            forbidden_zones = [z for z in self.policy.zones if z.zone_type == ZoneType.FORBIDDEN]
+            result = self.selp_proper.evaluate(point, forbidden_zones)
+
+            if result.decision == SafetyDecision.REJECT:
+                return PolicyDecision(
+                    action=PolicyAction.REJECT,
+                    reason=result.reason,
+                    original_point=point,
+                    min_distance_to_forbidden=result.distance_to_boundary,
+                    violated_zone=result.extra_info.get("violated_zones", ["unknown"])[0] if result.extra_info.get("violated_zones") else "unknown",
+                    extra_info={
+                        "automaton_state": result.automaton_state,
+                        "method": "selp_proper",
+                        "reference": "Wu et al., ICRA 2025"
+                    }
+                )
+            return PolicyDecision(
+                action=PolicyAction.ALLOW,
+                reason=result.reason,
+                original_point=point,
+                min_distance_to_forbidden=result.distance_to_boundary,
+                extra_info={"automaton_state": result.automaton_state, "method": "selp_proper"}
+            )
+
+        # cbf: Control Barrier Functions (Ames et al., TAC 2017)
+        # CBF evaluates safety using barrier function h(x) = distance - margin.
+        # If h(x) < 0, the goal position violates the safety constraint.
+        if self.safety_method == 'cbf':
+            forbidden_zones = [z for z in self.policy.zones if z.zone_type == ZoneType.FORBIDDEN]
+            result = self.cbf_checker.evaluate(point, forbidden_zones)
+
+            # CBF rejects goals where barrier function h(x) < 0 (inside safety margin)
+            if result.barrier_value < 0:
+                return PolicyDecision(
+                    action=PolicyAction.REJECT,
+                    reason=f"CBF barrier h(x)={result.barrier_value:.3f} < 0 (goal inside safety margin {result.margin_used}m)",
+                    original_point=point,
+                    min_distance_to_forbidden=result.distance_to_boundary,
+                    violated_zone=result.extra_info.get("closest_zone", "unknown") if result.extra_info else "forbidden_zone",
+                    extra_info={
+                        "barrier_value": result.barrier_value,
+                        "margin": result.margin_used,
+                        "method": "cbf",
+                        "reference": "Ames et al., TAC 2017"
+                    }
+                )
+            return PolicyDecision(
+                action=PolicyAction.ALLOW,
+                reason=f"CBF allows goal. Barrier h(x)={result.barrier_value:.3f} >= 0, distance: {result.distance_to_boundary:.2f}m",
+                original_point=point,
+                min_distance_to_forbidden=result.distance_to_boundary,
+                extra_info={
+                    "barrier_value": result.barrier_value,
+                    "margin": result.margin_used,
+                    "method": "cbf",
+                    "reference": "Ames et al., TAC 2017"
+                }
+            )
+
+        # static_margin: Fixed costmap inflation (Lu et al., IROS 2014)
+        if self.safety_method == 'static_margin':
+            forbidden_zones = [z for z in self.policy.zones if z.zone_type == ZoneType.FORBIDDEN]
+            result = self.static_margin_checker.evaluate(point, forbidden_zones)
+
+            if result.decision == SafetyDecision.REJECT:
+                return PolicyDecision(
+                    action=PolicyAction.REJECT,
+                    reason=result.reason,
+                    original_point=point,
+                    min_distance_to_forbidden=result.distance_to_boundary,
+                    violated_zone=result.extra_info.get("closest_zone", "unknown"),
+                    extra_info={
+                        "margin": result.margin_used,
+                        "method": "static_margin",
+                        "reference": "Lu et al., IROS 2014"
+                    }
+                )
+            return PolicyDecision(
+                action=PolicyAction.ALLOW,
+                reason=result.reason,
+                original_point=point,
+                min_distance_to_forbidden=result.distance_to_boundary,
+                extra_info={"margin": result.margin_used, "method": "static_margin"}
+            )
+
+        # ssm: Speed and Separation Monitoring (ISO 15066)
+        # SSM uses velocity-dependent safety margins. For goal checking, use max velocity.
+        if self.safety_method == 'ssm':
+            forbidden_zones = [z for z in self.policy.zones if z.zone_type == ZoneType.FORBIDDEN]
+            # Use max velocity for goal-level checking (conservative approach)
+            # At runtime, actual velocity could be used for more precise margins
+            max_velocity = 0.5  # Use v_max for goal-level checking
+            if hasattr(self, '_approach_velocity_override') and self._approach_velocity_override is not None:
+                max_velocity = self._approach_velocity_override
+                self._approach_velocity_override = None
+            result = self.ssm_checker.evaluate(point, forbidden_zones, velocity=max_velocity)
+
+            # SSM rejects goals where distance < required margin for max velocity
+            if result.distance_to_boundary < result.margin_used:
+                return PolicyDecision(
+                    action=PolicyAction.REJECT,
+                    reason=f"SSM: distance {result.distance_to_boundary:.3f}m < margin {result.margin_used:.3f}m (at v_max={max_velocity}m/s)",
+                    original_point=point,
+                    min_distance_to_forbidden=result.distance_to_boundary,
+                    violated_zone=result.extra_info.get("closest_zone", "forbidden_zone") if result.extra_info else "forbidden_zone",
+                    extra_info={
+                        "margin": result.margin_used,
+                        "velocity": max_velocity,
+                        "method": "ssm",
+                        "reference": "ISO/TS 15066:2016"
+                    }
+                )
+            return PolicyDecision(
+                action=PolicyAction.ALLOW,
+                reason=f"SSM allows goal. Distance {result.distance_to_boundary:.2f}m >= margin {result.margin_used:.2f}m",
+                original_point=point,
+                min_distance_to_forbidden=result.distance_to_boundary,
+                extra_info={
+                    "margin": result.margin_used,
+                    "velocity": max_velocity,
+                    "method": "ssm",
+                    "reference": "ISO/TS 15066:2016"
+                }
+            )
+
         # Fallback to geofence
         self.get_logger().warn(f'Unknown safety method: {self.safety_method}, using geofence')
         return self.policy.evaluate_point(x, y)
@@ -910,6 +1126,126 @@ class GoalGateNode(Node):
             response.success = False
             response.message = f'Failed to change method: {e}'
         return response
+
+    def _check_line_through_zones(self, goal_x: float, goal_y: float,
+                                    num_samples: int = 50) -> Optional[Tuple[str, Tuple[float, float]]]:
+        """
+        Check if straight line from current position to goal passes through any forbidden zone.
+
+        This is a simplified path check that samples points along the line.
+        Used for S5 odom spoofing attack detection - if robot's perceived position
+        is spoofed, this check may incorrectly allow dangerous paths.
+
+        Args:
+            goal_x, goal_y: Goal coordinates
+            num_samples: Number of points to sample along the path
+
+        Returns:
+            Tuple of (zone_name, (x, y)) if path passes through zone, None if safe
+        """
+        start_x = self._current_x
+        start_y = self._current_y
+
+        # Include safety margin in the check
+        margin = self.policy.uncertainty.compute_margin() if hasattr(self.policy, 'uncertainty') else 0.0
+
+        for i in range(num_samples + 1):
+            t = i / num_samples
+            px = start_x + t * (goal_x - start_x)
+            py = start_y + t * (goal_y - start_y)
+
+            # Check against all forbidden zones
+            for zone in self.policy.zones:
+                if zone.zone_type != ZoneType.FORBIDDEN:
+                    continue
+
+                # Check if point is inside zone (with margin)
+                # Expand zone by margin for conservative check
+                expanded_vertices = []
+                cx = sum(v[0] for v in zone.vertices) / len(zone.vertices)
+                cy = sum(v[1] for v in zone.vertices) / len(zone.vertices)
+                for vx, vy in zone.vertices:
+                    dx, dy = vx - cx, vy - cy
+                    dist = math.sqrt(dx*dx + dy*dy)
+                    if dist > 0:
+                        expanded_vertices.append((vx + margin * dx / dist, vy + margin * dy / dist))
+                    else:
+                        expanded_vertices.append((vx, vy))
+
+                if self.policy._point_in_polygon((px, py), expanded_vertices):
+                    self.get_logger().warn(
+                        f'[PATH CHECK] Line from ({start_x:.2f}, {start_y:.2f}) to ({goal_x:.2f}, {goal_y:.2f}) '
+                        f'passes through {zone.name} at ({px:.2f}, {py:.2f})'
+                    )
+                    return (zone.name, (px, py))
+
+        return None  # Path is safe
+
+    async def _check_path_through_zones(self, goal_pose: PoseStamped) -> Optional[Tuple[str, Tuple[float, float]]]:
+        """
+        Check if the planned path to goal passes through any forbidden zone.
+
+        NOTE: This feature is disabled. ComputePathToPose is an action, not a service,
+        and proper async handling requires more work.
+
+        Returns:
+            None (always) - feature disabled
+        """
+        # Feature disabled - client is None
+        if self._compute_path_client is None:
+            return None
+
+        # Check if service is available
+        if not self._compute_path_client.wait_for_service(timeout_sec=2.0):
+            self.get_logger().warn('ComputePathToPose service not available, skipping path check')
+            return None
+
+        # NOTE: This code is unreachable since client is None
+        # Keeping it for reference - would need to use ActionClient instead of service client
+        request = None  # ComputePathToPose.Request()
+        request.goal = goal_pose
+        request.planner_id = ''  # Use default planner
+        request.use_start = False  # Use robot's current position
+
+        try:
+            # Call service synchronously with spin_until_future_complete
+            future = self._compute_path_client.call_async(request)
+
+            # Wait for result with timeout using polling
+            start_time = self.get_clock().now()
+            timeout_sec = 5.0
+            while not future.done():
+                elapsed = (self.get_clock().now() - start_time).nanoseconds / 1e9
+                if elapsed > timeout_sec:
+                    self.get_logger().warn('ComputePathToPose service timed out')
+                    return None
+                await asyncio.sleep(0.1)
+
+            result = future.result()
+
+            if not result or not result.path.poses:
+                self.get_logger().warn('No path returned from planner')
+                return None
+
+            # Check each point in the path against forbidden zones
+            for pose in result.path.poses:
+                px = pose.pose.position.x
+                py = pose.pose.position.y
+
+                # Check against all forbidden zones
+                for zone in self.policy.zones:
+                    if zone.zone_type != ZoneType.FORBIDDEN:
+                        continue
+
+                    # Check if point is inside zone polygon
+                    if self.policy._point_in_polygon((px, py), zone.vertices):
+                        return (zone.name, (px, py))
+
+            return None  # Path is safe
+
+        except Exception as e:
+            self.get_logger().warn(f'Path check failed: {e}')
+            return None
 
     def goal_callback(self, goal_request) -> GoalResponse:
         """Accept all goals initially; policy check happens in execute."""
@@ -963,6 +1299,49 @@ class GoalGateNode(Node):
             self.stats['allowed'] += 1
             self.get_logger().info(f'ALLOWED goal ({x:.2f}, {y:.2f})')
 
+        # Path-based zone checking using line sampling
+        # Check if straight line from current position to goal passes through forbidden zone
+        # NOTE: This uses self._current_x/y from odom, so odom spoofing attacks can bypass this!
+        #
+        # Methods that need path checking:
+        # - geofence/geofence_hw: Our method with full path checking and uncertainty margins
+        #
+        # Methods that ONLY check goal point (NO path checking per their papers):
+        # - selp/selp_proper: Goal-only check (Wu et al., ICRA 2025)
+        # - cbf: Control Barrier Functions - goal point only (Ames et al., TAC 2017)
+        # - ssm: Speed and Separation Monitoring - goal point only (ISO 15066)
+        # NOTE: CBF/SSM are intentionally EXCLUDED - they evaluate goal safety, not path safety
+        path_aware_methods = ['geofence', 'geofence_hw']
+        if self.safety_method in path_aware_methods:
+            # Use the (possibly projected) goal coordinates
+            check_x = pose.pose.position.x
+            check_y = pose.pose.position.y
+            path_check_result = self._check_line_through_zones(check_x, check_y)
+            if path_check_result is not None:
+                violated_zone, violation_point = path_check_result
+                self.get_logger().warn(
+                    f'PATH REJECTED: Route from ({self._current_x:.2f}, {self._current_y:.2f}) to '
+                    f'({check_x:.2f}, {check_y:.2f}) passes through {violated_zone} '
+                    f'at ({violation_point[0]:.2f}, {violation_point[1]:.2f})'
+                )
+                # Update stats
+                self.stats['rejected'] += 1
+                self.stats['allowed'] -= 1  # Undo the earlier allowed count
+
+                # Log the path rejection for experiment analysis
+                self.audit_log(PolicyDecision(
+                    action=PolicyAction.REJECT,
+                    reason=f"Path crosses forbidden zone {violated_zone} at ({violation_point[0]:.2f}, {violation_point[1]:.2f})",
+                    original_point=(check_x, check_y),
+                    min_distance_to_forbidden=0.0,
+                    violated_zone=violated_zone,
+                    extra_info={"rejection_type": "path_check", "violation_point": violation_point}
+                ), 'NavigateToPose', pose)
+
+                goal_handle.abort()
+                result = NavigateToPose.Result()
+                return result
+
         # Forward to Nav2
         if not self._nav_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error('Nav2 action server not available')
@@ -982,9 +1361,103 @@ class GoalGateNode(Node):
             goal_handle.abort()
             return NavigateToPose.Result()
 
-        # Wait for result
+        # Notify cmd_vel_guard that navigation is authorized
+        nav_state_msg = String()
+        nav_state_msg.data = json.dumps({'state': 'active', 'goal_x': x, 'goal_y': y})
+        self._nav_state_pub.publish(nav_state_msg)
+
+        # Wait for result with optional runtime monitoring
         result_future = nav_goal_handle.get_result_async()
+
+        if self.enable_runtime_monitoring and self.safety_method in ['ssm', 'cbf']:
+            # Real-time monitoring during navigation
+            monitoring_active = True
+            monitoring_interval = 1.0 / self.runtime_monitoring_rate
+            runtime_violation_logged = False
+            monitoring_check_count = 0
+
+            self.get_logger().info(f'[RUNTIME] Starting monitoring loop for {self.safety_method} at {self.runtime_monitoring_rate}Hz')
+
+            while monitoring_active and not result_future.done():
+                try:
+                    # Get current state
+                    current_velocity = math.sqrt(self._current_vx**2 + self._current_vy**2)
+                    current_x = self._current_x
+                    current_y = self._current_y
+                    monitoring_check_count += 1
+
+                    # CBF/SSM runtime safety check - directly evaluate barrier function
+                    # instead of using _evaluate_goal_point which always returns ALLOW
+                    forbidden_zones = [z for z in self.policy.zones if z.zone_type == ZoneType.FORBIDDEN]
+                    point = (current_x, current_y)
+                    runtime_violation = False
+                    violation_reason = ""
+
+                    if self.safety_method == 'cbf':
+                        # CBF: Check barrier function h(x) = distance - margin
+                        result = self.cbf_checker.evaluate(point, forbidden_zones)
+
+                        # Debug log every 10 checks
+                        if monitoring_check_count % 10 == 0:
+                            self.get_logger().info(
+                                f'[RUNTIME CHECK #{monitoring_check_count}] pos=({current_x:.2f}, {current_y:.2f}), '
+                                f'h(x)={result.barrier_value:.3f}, dist={result.distance_to_boundary:.3f}m'
+                            )
+
+                        # If barrier value is negative, robot is in danger zone
+                        if result.barrier_value < 0:
+                            runtime_violation = True
+                            violation_reason = f"CBF barrier h(x)={result.barrier_value:.2f} < 0 (inside safety margin)"
+                    elif self.safety_method == 'ssm':
+                        # SSM: Check velocity-dependent margin
+                        result = self.ssm_checker.evaluate(point, forbidden_zones, velocity=current_velocity)
+                        # If distance < required margin, robot is too close
+                        if result.distance_to_boundary < result.margin_used:
+                            runtime_violation = True
+                            violation_reason = f"SSM distance {result.distance_to_boundary:.2f}m < margin {result.margin_used:.2f}m"
+
+                    # Check for violations
+                    if runtime_violation:
+                        self.get_logger().warn(
+                            f'[RUNTIME VIOLATION] Position ({current_x:.2f}, {current_y:.2f}), '
+                            f'Velocity: {current_velocity:.2f} m/s - {violation_reason}'
+                        )
+
+                        # Log runtime violation
+                        if not runtime_violation_logged:
+                            self._runtime_violations.append({
+                                'timestamp': datetime.now().isoformat(),
+                                'position': (current_x, current_y),
+                                'velocity': current_velocity,
+                                'original_goal': (x, y),
+                                'reason': violation_reason,
+                                'method': self.safety_method
+                            })
+                            self.stats['runtime_violations'] = self.stats.get('runtime_violations', 0) + 1
+                            runtime_violation_logged = True
+
+                        # Cancel navigation
+                        self.get_logger().warn('[RUNTIME] Canceling navigation due to safety violation')
+                        await nav_goal_handle.cancel_goal_async()
+                        goal_handle.abort()
+                        monitoring_active = False
+                        return NavigateToPose.Result()
+
+                    # Sleep until next check
+                    await asyncio.sleep(monitoring_interval)
+
+                except Exception as e:
+                    self.get_logger().error(f'Runtime monitoring error: {e}')
+                    monitoring_active = False
+
+            self.get_logger().info(f'[RUNTIME] Monitoring loop ended after {monitoring_check_count} checks')
+
         nav_result = await result_future
+
+        # Navigation completed — notify cmd_vel_guard
+        nav_state_msg = String()
+        nav_state_msg.data = json.dumps({'state': 'idle'})
+        self._nav_state_pub.publish(nav_state_msg)
 
         # Forward result
         if nav_result.status == 4:  # SUCCEEDED
@@ -1114,9 +1587,11 @@ class GoalGateNode(Node):
         """Process odometry for dynamic v_max, latency, and tracking error estimation."""
         import math
 
-        # Extract velocity
+        # Extract velocity - store for SSM velocity-dependent margin
         vx = msg.twist.twist.linear.x
         vy = msg.twist.twist.linear.y
+        self._current_vx = vx
+        self._current_vy = vy
         velocity = math.sqrt(vx*vx + vy*vy)
 
         # Extract position
@@ -1153,7 +1628,9 @@ class GoalGateNode(Node):
         if self.policy.uncertainty.use_dynamic_e_track:
             e_track_stats = self._tracking_error_monitor.get_stats()
             if e_track_stats.get('sample_count', 0) >= 20:
-                self.policy.uncertainty.e_track_observed = e_track_stats['e_track_95']
+                # Cap e_track to reasonable maximum (0.2m) to prevent excessive margins
+                e_track_value = min(e_track_stats['e_track_95'], 0.2)
+                self.policy.uncertainty.e_track_observed = e_track_value
                 self.policy.uncertainty.e_track_samples = e_track_stats['sample_count']
 
     def _cmd_vel_callback(self, msg: Twist):
@@ -1161,6 +1638,11 @@ class GoalGateNode(Node):
         # Get current time
         timestamp = self.get_clock().now().nanoseconds * 1e-9
         self._latency_monitor.record_cmd_vel(timestamp, msg.linear.x, msg.linear.y)
+
+    def _approach_velocity_callback(self, msg: Float64):
+        """Handle approach velocity override for S4 attack scenario."""
+        self._approach_velocity_override = msg.data
+        self.get_logger().info(f'[S4] Approach velocity override set to {msg.data:.2f} m/s')
 
     def _plan_callback(self, msg: Path):
         """Update tracking error monitor with new planned path."""

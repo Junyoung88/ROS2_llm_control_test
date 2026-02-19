@@ -10,7 +10,10 @@
   gz_type_name: "gz.msgs.Model"
   direction: "GZ_TO_ROS"
 
-- ros_topic_name: "odom"
+# Original odom → odom_real for S4 odom spoofing attack support
+# Attack node: /odom_real → [spoof] → /odom
+# Normal operation: needs relay node /odom_real → /odom
+- ros_topic_name: "odom_real"
   gz_topic_name: "odom"
   ros_type_name: "nav_msgs/msg/Odometry"
   gz_type_name: "gz.msgs.Odometry"
@@ -28,7 +31,10 @@
   gz_type_name: "gz.msgs.CameraInfo"
   direction: "GZ_TO_ROS"
 
-- ros_topic_name: "scan"
+# Original scan → scan_real for LIDAR spoofing attack support
+# Attack node: /scan_real → [spoof] → /scan
+# Normal operation: needs relay node /scan_real → /scan
+- ros_topic_name: "scan_real"
   gz_topic_name: "scan"
   ros_type_name: "sensor_msgs/msg/LaserScan"
   gz_type_name: "gz.msgs.LaserScan"

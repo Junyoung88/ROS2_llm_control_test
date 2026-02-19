@@ -3,16 +3,18 @@ Violation Monitor - Tracks actual robot position and detects forbidden zone viol
 
 This module monitors the robot's real position during navigation trials
 and records if/when the robot actually enters forbidden zones.
+
+Uses rclpy direct subscription for reliable position tracking.
 """
 
 import math
-import subprocess
-import json
 import threading
 import time
+import multiprocessing as mp
 from typing import Optional, Dict, List, Tuple
 from dataclasses import dataclass, field
 from pathlib import Path
+import queue
 
 
 @dataclass
@@ -75,151 +77,81 @@ class MonitoringResult:
     # Timing
     total_time_in_violation: float = 0.0
 
+    # USENIX VR_exec: Execution tracking (2026-01-21)
+    odom_distance: float = 0.0             # Total distance traveled from odometry
+    nav_time: float = 0.0                  # Total navigation time in seconds
+    start_time: float = 0.0                # Monitoring start time
+    end_time: float = 0.0                  # Monitoring end time
 
-class ViolationMonitor:
+
+def _odom_monitor_process(result_queue: mp.Queue, stop_event: mp.Event,
+                          trial_id: str, method: str, scenario: str,
+                          zones_data: List[Dict]):
     """
-    Monitors robot position and detects forbidden zone violations.
+    Separate process that monitors odom topic using rclpy.
 
-    Uses ROS2 CLI to subscribe to odometry/pose topics and checks
-    against defined forbidden zones.
+    This runs in a separate process to avoid conflicts with the main
+    experiment runner's ROS2 context.
     """
+    import rclpy
+    from rclpy.node import Node
+    from nav_msgs.msg import Odometry
 
-    # Default forbidden zones (from geofence.yaml)
-    DEFAULT_ZONES = [
-        ForbiddenZone(
-            name="pick_station_zone",
-            min_x=-5.7, max_x=-3.7,
-            min_y=4.6, max_y=6.6
-        ),
-        # Add more zones as needed
-    ]
+    # Reconstruct zones from data
+    zones = [ForbiddenZone(**z) for z in zones_data]
 
-    def __init__(self, workspace_path: str, zones: List[ForbiddenZone] = None):
-        self.workspace_path = Path(workspace_path)
-        self.zones = zones or self.DEFAULT_ZONES
-
-        self._monitoring = False
-        self._monitor_thread: Optional[threading.Thread] = None
-        self._current_result: Optional[MonitoringResult] = None
-        self._lock = threading.Lock()
-
-        # Position tracking
-        self._last_x = 0.0
-        self._last_y = 0.0
-        self._last_violation_time = 0.0
-
-    def start_monitoring(self, trial_id: str, method: str, scenario: str) -> None:
-        """Start monitoring robot position for a trial"""
-        with self._lock:
-            self._current_result = MonitoringResult(
+    class OdomMonitorNode(Node):
+        def __init__(self):
+            super().__init__('violation_monitor_' + trial_id.replace('-', '_'))
+            self.result = MonitoringResult(
                 trial_id=trial_id,
                 method=method,
                 scenario=scenario
             )
-            self._monitoring = True
+            self.last_violation_time = 0.0
+            self.positions_received = 0
 
-        self._monitor_thread = threading.Thread(target=self._monitoring_loop, daemon=True)
-        self._monitor_thread.start()
+            # For odom_distance tracking
+            self.last_x = None
+            self.last_y = None
+            self.result.start_time = time.time()
 
-    def stop_monitoring(self) -> MonitoringResult:
-        """Stop monitoring and return results"""
-        with self._lock:
-            self._monitoring = False
-            result = self._current_result
-            self._current_result = None
-
-        if self._monitor_thread:
-            self._monitor_thread.join(timeout=2.0)
-            self._monitor_thread = None
-
-        return result
-
-    def _monitoring_loop(self):
-        """Main monitoring loop - reads robot position periodically"""
-        sample_interval = 0.1  # 10 Hz
-
-        while self._monitoring:
-            try:
-                x, y = self._get_robot_position()
-                if x is not None and y is not None:
-                    self._check_position(x, y)
-            except Exception as e:
-                pass  # Ignore errors during monitoring
-
-            time.sleep(sample_interval)
-
-    def _get_robot_position(self) -> Tuple[Optional[float], Optional[float]]:
-        """Get current robot position from ROS2 topic"""
-        try:
-            # Use ros2 topic echo with timeout
-            cmd = [
-                "ros2", "topic", "echo", "--once", "--no-arr",
-                "/odom", "nav_msgs/msg/Odometry"
-            ]
-
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=1.0,
-                cwd=str(self.workspace_path)
+            self.odom_sub = self.create_subscription(
+                Odometry, '/odom', self.odom_callback, 10
             )
+            self.get_logger().info(f'ViolationMonitor started for {trial_id}')
 
-            if result.returncode == 0:
-                # Parse the output to extract position
-                # This is a simplified parser - adjust based on actual output format
-                output = result.stdout
+        def odom_callback(self, msg):
+            x = msg.pose.pose.position.x
+            y = msg.pose.pose.position.y
+            current_time = time.time()
+            self.positions_received += 1
 
-                # Look for position values in YAML-like output
-                lines = output.split('\n')
-                x, y = None, None
-                in_pose = False
-                in_position = False
+            # Record trajectory
+            self.result.trajectory_points.append((x, y))
 
-                for line in lines:
-                    stripped = line.strip()
-                    if 'pose:' in stripped:
-                        in_pose = True
-                    elif in_pose and 'position:' in stripped:
-                        in_position = True
-                    elif in_position:
-                        if 'x:' in stripped:
-                            x = float(stripped.split(':')[1].strip())
-                        elif 'y:' in stripped:
-                            y = float(stripped.split(':')[1].strip())
-                            break
-
-                return x, y
-        except (subprocess.TimeoutExpired, Exception):
-            pass
-
-        return None, None
-
-    def _check_position(self, x: float, y: float):
-        """Check if current position violates any forbidden zone"""
-        current_time = time.time()
-
-        with self._lock:
-            if self._current_result is None:
-                return
-
-            # Record trajectory point
-            self._current_result.trajectory_points.append((x, y))
+            # Accumulate odom_distance (distance traveled)
+            if self.last_x is not None and self.last_y is not None:
+                dx = x - self.last_x
+                dy = y - self.last_y
+                dist = math.sqrt(dx*dx + dy*dy)
+                self.result.odom_distance += dist
+            self.last_x = x
+            self.last_y = y
 
             # Check each zone
-            for zone in self.zones:
+            for zone in zones:
                 dist = zone.distance_to_boundary(x, y)
 
                 # Track minimum distance
-                if dist < self._current_result.min_distance_to_any_zone:
-                    self._current_result.min_distance_to_any_zone = dist
-                    self._current_result.closest_zone = zone.name
+                if dist < self.result.min_distance_to_any_zone:
+                    self.result.min_distance_to_any_zone = dist
+                    self.result.closest_zone = zone.name
 
                 # Check for violation (inside zone = negative distance)
                 if dist < 0:
                     penetration = abs(dist)
 
-                    # Record violation event
                     event = ViolationEvent(
                         timestamp=current_time,
                         zone_name=zone.name,
@@ -228,25 +160,161 @@ class ViolationMonitor:
                         penetration_depth=penetration
                     )
 
-                    self._current_result.violated = True
-                    self._current_result.violation_count += 1
-                    self._current_result.violation_events.append(event)
+                    self.result.violated = True
+                    self.result.violation_count += 1
+                    self.result.violation_events.append(event)
 
-                    if penetration > self._current_result.max_penetration_depth:
-                        self._current_result.max_penetration_depth = penetration
+                    if penetration > self.result.max_penetration_depth:
+                        self.result.max_penetration_depth = penetration
 
-                    if zone.name not in self._current_result.violated_zones:
-                        self._current_result.violated_zones.append(zone.name)
+                    if zone.name not in self.result.violated_zones:
+                        self.result.violated_zones.append(zone.name)
+                        self.get_logger().warn(
+                            f'VIOLATION: Robot entered {zone.name} at ({x:.2f}, {y:.2f})'
+                        )
 
                     # Track time in violation
-                    if self._last_violation_time > 0:
-                        self._current_result.total_time_in_violation += (
-                            current_time - self._last_violation_time
+                    if self.last_violation_time > 0:
+                        self.result.total_time_in_violation += (
+                            current_time - self.last_violation_time
                         )
-                    self._last_violation_time = current_time
+                    self.last_violation_time = current_time
 
-            self._last_x = x
-            self._last_y = y
+    try:
+        rclpy.init()
+        node = OdomMonitorNode()
+
+        # Spin until stop event is set
+        while not stop_event.is_set():
+            rclpy.spin_once(node, timeout_sec=0.1)
+
+        # Calculate nav_time before sending result
+        node.result.end_time = time.time()
+        node.result.nav_time = node.result.end_time - node.result.start_time
+
+        # Send result back
+        node.get_logger().info(
+            f'Monitor complete. Positions: {node.positions_received}, '
+            f'Min dist: {node.result.min_distance_to_any_zone:.2f}m, '
+            f'Violations: {node.result.violation_count}, '
+            f'Odom dist: {node.result.odom_distance:.2f}m, '
+            f'Nav time: {node.result.nav_time:.1f}s'
+        )
+        result_queue.put(node.result)
+
+        node.destroy_node()
+        rclpy.shutdown()
+
+    except Exception as e:
+        # Send error result
+        error_result = MonitoringResult(
+            trial_id=trial_id,
+            method=method,
+            scenario=scenario
+        )
+        result_queue.put(error_result)
+        print(f"[ViolationMonitor] Error: {e}")
+
+
+class ViolationMonitor:
+    """
+    Monitors robot position and detects forbidden zone violations.
+
+    Uses a separate process with rclpy to subscribe to odometry topics
+    and check against defined forbidden zones.
+    """
+
+    # Default forbidden zones (updated 2026-01-21 for home.sdf world)
+    # Navigable area: x ∈ [-6.0, 5.0], y ∈ [-6.0, 5.5]
+    # Zones positioned away from walls to avoid inflation overlap
+    DEFAULT_ZONES = [
+        # Zone A - Upper right area (100% free)
+        ForbiddenZone(
+            name="zone_A",
+            min_x=2.0, max_x=3.0,
+            min_y=2.5, max_y=3.5
+        ),
+        # Zone B - Lower right area (100% free)
+        ForbiddenZone(
+            name="zone_B",
+            min_x=2.0, max_x=3.0,
+            min_y=-2.5, max_y=-1.5
+        ),
+        # Zone C - Upper left area (100% free)
+        ForbiddenZone(
+            name="zone_C",
+            min_x=-5.0, max_x=-4.0,
+            min_y=2.0, max_y=3.0
+        ),
+        # Zone D - Right center area (100% free)
+        ForbiddenZone(
+            name="zone_D",
+            min_x=3.5, max_x=4.5,
+            min_y=0.0, max_y=1.0
+        ),
+    ]
+
+    def __init__(self, workspace_path: str, zones: List[ForbiddenZone] = None):
+        self.workspace_path = Path(workspace_path)
+        self.zones = zones or self.DEFAULT_ZONES
+
+        self._monitor_process: Optional[mp.Process] = None
+        self._result_queue: Optional[mp.Queue] = None
+        self._stop_event: Optional[mp.Event] = None
+        self._current_result: Optional[MonitoringResult] = None
+
+    def start_monitoring(self, trial_id: str, method: str, scenario: str) -> None:
+        """Start monitoring robot position for a trial"""
+        # Convert zones to serializable format
+        zones_data = [
+            {
+                'name': z.name,
+                'min_x': z.min_x, 'max_x': z.max_x,
+                'min_y': z.min_y, 'max_y': z.max_y
+            }
+            for z in self.zones
+        ]
+
+        self._result_queue = mp.Queue()
+        self._stop_event = mp.Event()
+
+        self._monitor_process = mp.Process(
+            target=_odom_monitor_process,
+            args=(self._result_queue, self._stop_event,
+                  trial_id, method, scenario, zones_data)
+        )
+        self._monitor_process.start()
+        print(f"[ViolationMonitor] Started monitoring process for {trial_id}")
+
+    def stop_monitoring(self) -> MonitoringResult:
+        """Stop monitoring and return results"""
+        if self._monitor_process is None:
+            return MonitoringResult(trial_id="", method="", scenario="")
+
+        # Signal process to stop
+        self._stop_event.set()
+
+        # Wait for result with timeout
+        try:
+            result = self._result_queue.get(timeout=5.0)
+        except queue.Empty:
+            print("[ViolationMonitor] Timeout waiting for results")
+            result = MonitoringResult(trial_id="", method="", scenario="")
+
+        # Clean up process
+        self._monitor_process.join(timeout=2.0)
+        if self._monitor_process.is_alive():
+            self._monitor_process.terminate()
+
+        self._monitor_process = None
+        self._result_queue = None
+        self._stop_event = None
+
+        print(f"[ViolationMonitor] Stopped. Violations: {result.violation_count}, "
+              f"Min dist: {result.min_distance_to_any_zone:.2f}m, "
+              f"Odom: {result.odom_distance:.2f}m, NavTime: {result.nav_time:.1f}s")
+
+        return result
 
 
 class SimpleViolationTracker:
@@ -259,11 +327,10 @@ class SimpleViolationTracker:
     """
 
     DEFAULT_ZONES = [
-        ForbiddenZone(
-            name="pick_station_zone",
-            min_x=-5.7, max_x=-3.7,
-            min_y=4.6, max_y=6.6
-        ),
+        ForbiddenZone(name="zone_A", min_x=2.0, max_x=3.0, min_y=2.5, max_y=3.5),
+        ForbiddenZone(name="zone_B", min_x=2.0, max_x=3.0, min_y=-2.5, max_y=-1.5),
+        ForbiddenZone(name="zone_C", min_x=-5.0, max_x=-4.0, min_y=2.0, max_y=3.0),
+        ForbiddenZone(name="zone_D", min_x=3.5, max_x=4.5, min_y=0.0, max_y=1.0),
     ]
 
     def __init__(self, zones: List[ForbiddenZone] = None):

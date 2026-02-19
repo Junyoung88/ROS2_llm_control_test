@@ -266,9 +266,11 @@ class TrackingErrorMonitor:
                 if dist < min_dist:
                     min_dist = dist
 
-            # Only record if we're reasonably close to the path (< 2m)
+            # Only record if we're reasonably close to the path (< 0.3m)
             # to filter out cases where robot is far from path start/end
-            if min_dist < 2.0:
+            # or during path transitions. 0.3m is a reasonable upper bound
+            # for tracking error during normal navigation.
+            if min_dist < 0.3:
                 self._errors.append(min_dist)
 
             return min_dist
@@ -294,12 +296,22 @@ class TrackingErrorMonitor:
 
         return math.sqrt((px - nearest_x)**2 + (py - nearest_y)**2)
 
-    def get_e_track_estimate(self, default: float = 0.05) -> float:
-        """Get the estimated tracking error based on percentile of measured errors."""
+    def get_e_track_estimate(self, default: float = 0.05, max_value: float = 0.2) -> float:
+        """Get the estimated tracking error based on percentile of measured errors.
+
+        Args:
+            default: Default value if not enough samples (default 0.05m)
+            max_value: Maximum allowed e_track value (default 0.2m)
+
+        Returns:
+            Capped tracking error estimate
+        """
         with self._lock:
             if len(self._errors) < 20:
                 return default
-            return float(np.percentile(np.array(self._errors), self._percentile))
+            estimate = float(np.percentile(np.array(self._errors), self._percentile))
+            # Cap the estimate to prevent unreasonably large margins
+            return min(estimate, max_value)
 
     def get_stats(self) -> dict:
         """Get tracking error statistics."""

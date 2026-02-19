@@ -1,7 +1,7 @@
 import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command
 from launch_ros.actions import Node
@@ -28,6 +28,12 @@ def generate_launch_description():
     sim_time_arg = DeclareLaunchArgument(
         'use_sim_time', default_value='True',
         description='Flag to enable use_sim_time'
+    )
+
+    # AMCL localization enable/disable (for dead reckoning experiments)
+    use_amcl_arg = DeclareLaunchArgument(
+        'use_amcl', default_value='true',
+        description='Enable AMCL localization. Set to false for dead reckoning only.'
     )
 
     # Generate path to config file
@@ -65,7 +71,7 @@ def generate_launch_description():
     map_file_path = os.path.join(
         get_package_share_directory('mobile_manip_moveit_config'),
         'maps',
-        'my_map.yaml'
+        'empty_map.yaml'  # Use empty map for simpler localization
     )
 
     # Launch rviz
@@ -85,7 +91,8 @@ def generate_launch_description():
                 'use_sim_time': LaunchConfiguration('use_sim_time'),
                 'params_file': localization_params_path,
                 'map': map_file_path,
-        }.items()
+        }.items(),
+        condition=IfCondition(LaunchConfiguration('use_amcl'))
     )
 
     navigation_launch = IncludeLaunchDescription(
@@ -96,14 +103,56 @@ def generate_launch_description():
         }.items()
     )
 
+    # When AMCL is disabled (dead reckoning mode), we need:
+    # 1. Static transform from map -> odom (identity, assuming start at origin)
+    # 2. Map server to publish the map
+    static_tf_map_odom = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_map_odom_tf',
+        arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
+        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
+        condition=UnlessCondition(LaunchConfiguration('use_amcl'))
+    )
+
+    # Map server for dead reckoning mode (since localization_launch includes map_server)
+    map_server_node = Node(
+        package='nav2_map_server',
+        executable='map_server',
+        name='map_server',
+        parameters=[
+            {'yaml_filename': map_file_path},
+            {'use_sim_time': LaunchConfiguration('use_sim_time')}
+        ],
+        condition=UnlessCondition(LaunchConfiguration('use_amcl'))
+    )
+
+    # Lifecycle manager for map_server when AMCL is disabled
+    map_lifecycle_manager = Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='lifecycle_manager_map',
+        parameters=[
+            {'autostart': True},
+            {'node_names': ['map_server']},
+            {'use_sim_time': LaunchConfiguration('use_sim_time')}
+        ],
+        condition=UnlessCondition(LaunchConfiguration('use_amcl'))
+    )
+
     launchDescriptionObject = LaunchDescription()
 
     launchDescriptionObject.add_action(rviz_launch_arg)
     launchDescriptionObject.add_action(rviz_config_arg)
     launchDescriptionObject.add_action(sim_time_arg)
+    launchDescriptionObject.add_action(use_amcl_arg)
     launchDescriptionObject.add_action(rviz_node)
     #launchDescriptionObject.add_action(interactive_marker_twist_server_node)
     launchDescriptionObject.add_action(localization_launch)
     launchDescriptionObject.add_action(navigation_launch)
+    # Dead reckoning support (when AMCL disabled)
+    launchDescriptionObject.add_action(static_tf_map_odom)
+    launchDescriptionObject.add_action(map_server_node)
+    launchDescriptionObject.add_action(map_lifecycle_manager)
 
     return launchDescriptionObject
