@@ -345,17 +345,23 @@ class TrackingErrorMonitor:
 
 @dataclass
 class UncertaintyParams:
-    """Parameters for uncertainty-aware margin computation with ablation support."""
+    """Parameters for uncertainty-aware margin computation with ablation support.
+
+    Full formula:  M = k_sigma*sigma + e_track + v*tau + v²/(2*a_max)
+    Default value: M = 3.0*0.15 + 0.05 + 0.5*0.1 + 0.5²/(2*2.5) = 0.60m
+    """
     k_sigma: float = 3.0              # Confidence multiplier (e.g., 3-sigma)
     localization_sigma: float = 0.1   # Localization uncertainty (meters)
     tracking_error: float = 0.05      # Path tracking error (meters)
     v_max: float = 1.0                # Maximum velocity (m/s)
-    latency: float = 0.1              # System latency (seconds)
+    latency: float = 0.1              # System latency τ (seconds)
+    a_max: float = 2.5                # Maximum deceleration magnitude (m/s²)
 
     # Ablation study flags
     enable_estimation_term: bool = True
     enable_tracking_term: bool = True
     enable_latency_term: bool = True
+    enable_braking_term: bool = True
 
     # Dynamic v_max tracking
     use_dynamic_v_max: bool = False
@@ -373,23 +379,33 @@ class UncertaintyParams:
     e_track_samples: int = 0
 
     def compute_margin(self) -> float:
-        """Compute total safety margin with ablation support."""
+        """Compute total safety margin with ablation support.
+
+        M = k_sigma*sigma + e_track + v*tau + v²/(2*a_max)
+          = localization uncertainty + tracking error
+            + latency distance + braking distance
+        """
         margin = 0.0
 
-        # Estimation uncertainty term
+        # Term 1: Localization uncertainty — k_sigma * sigma
         if self.enable_estimation_term:
             margin += self.k_sigma * self.localization_sigma
 
-        # Tracking error term (use dynamic if enabled)
+        # Term 2: Path tracking error — e_track (use dynamic if enabled)
         if self.enable_tracking_term:
             e_track = self.e_track_observed if self.use_dynamic_e_track else self.tracking_error
             margin += e_track
 
-        # Latency compensation term (use dynamic values if enabled)
+        # Term 3: Latency compensation — v * tau (use dynamic values if enabled)
         if self.enable_latency_term:
             v = self.v_max_observed if self.use_dynamic_v_max else self.v_max
             tau = self.tau_observed if self.use_dynamic_tau else self.latency
             margin += v * tau
+
+        # Term 4: Braking distance — v² / (2 * a_max)
+        if self.enable_braking_term:
+            v = self.v_max_observed if self.use_dynamic_v_max else self.v_max
+            margin += (v ** 2) / (2.0 * self.a_max)
 
         return margin
 
@@ -402,6 +418,7 @@ class UncertaintyParams:
             'estimation': self.k_sigma * self.localization_sigma if self.enable_estimation_term else 0.0,
             'tracking': e_track if self.enable_tracking_term else 0.0,
             'latency': v * tau if self.enable_latency_term else 0.0,
+            'braking': (v ** 2) / (2.0 * self.a_max) if self.enable_braking_term else 0.0,
             'total': self.compute_margin(),
         }
 
@@ -433,6 +450,8 @@ class UncertaintyParams:
             'tau_observed': self.tau_observed,
             'tau_samples': self.tau_samples,
             'use_dynamic_tau': self.use_dynamic_tau,
+            # Braking
+            'a_max': self.a_max,
         }
 
 
@@ -479,7 +498,8 @@ class GeofencePolicy:
                     localization_sigma=u.get('localization_sigma', 0.1),
                     tracking_error=u.get('tracking_error', 0.05),
                     v_max=u.get('v_max', 1.0),
-                    latency=u.get('latency', 0.1)
+                    latency=u.get('latency', 0.1),
+                    a_max=u.get('a_max', 2.5),
                 )
 
             # Load zones

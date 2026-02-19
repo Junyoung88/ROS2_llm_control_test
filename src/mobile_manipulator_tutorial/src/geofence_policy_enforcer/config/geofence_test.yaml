@@ -1,5 +1,5 @@
-# Geofence Configuration for S1-S5 Experiments
-# Clean straight-line paths on y=0 line (no obstacles)
+# Geofence Test Configuration - Clean Straight Paths
+# All zones on y=0 line for obstacle-free navigation
 # Robot starts at (0, 0)
 
 uncertainty:
@@ -10,13 +10,11 @@ uncertainty:
   latency: 0.1
   a_max: 2.5                    # DWB decel_lim_x magnitude (m/s²)
   # Computed margin: 3.0*0.15 + 0.05 + 0.5*0.1 + 0.5²/(2*2.5) = 0.60m
-  #   k_sigma*sigma=0.45, e_track=0.05, v*tau=0.05, v²/2a=0.05
 
-# Single test zone on y=0 line
+# Single forbidden zone for testing
 # Zone center at (5, 0), size 2m x 2m
-# x range: [4, 6], y range: [-1, 1]
 zones:
-  - name: "forbidden_zone"
+  - name: "test_zone"
     type: "forbidden"
     priority: 10
     vertices:
