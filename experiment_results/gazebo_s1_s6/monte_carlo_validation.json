@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-19T13:25:41",
+  "timestamp": "2026-02-19T13:36:12",
   "n_per_point": 500000,
   "params": {
     "sigma": 0.15,
@@ -522,6 +522,63 @@
         "worst_breach_m": 0.398917661362991,
         "formula_margin": 0.6
       }
+    }
+  },
+  "leave_one_out": {
+    "Full formula": {
+      "margin": 0.6,
+      "n": 500000,
+      "violations": 468,
+      "violation_rate": 0.000936,
+      "viol_pct": 0.0936,
+      "mean_clearance_m": 0.5142837813117488,
+      "worst_breach_m": 0.398917661362991,
+      "formula_margin": 0.6,
+      "missing_term_m": 0.0
+    },
+    "w/o Localization": {
+      "margin": 0.15,
+      "n": 500000,
+      "violations": 170550,
+      "violation_rate": 0.3411,
+      "viol_pct": 34.11,
+      "mean_clearance_m": 0.06428378131174856,
+      "worst_breach_m": 0.8489176613629912,
+      "formula_margin": 0.15,
+      "missing_term_m": 0.45
+    },
+    "w/o Tracking": {
+      "margin": 0.55,
+      "n": 500000,
+      "violations": 1160,
+      "violation_rate": 0.00232,
+      "viol_pct": 0.232,
+      "mean_clearance_m": 0.46428378131174847,
+      "worst_breach_m": 0.4489176613629917,
+      "formula_margin": 0.55,
+      "missing_term_m": 0.05
+    },
+    "w/o Latency": {
+      "margin": 0.55,
+      "n": 500000,
+      "violations": 1160,
+      "violation_rate": 0.00232,
+      "viol_pct": 0.232,
+      "mean_clearance_m": 0.46428378131174847,
+      "worst_breach_m": 0.4489176613629917,
+      "formula_margin": 0.55,
+      "missing_term_m": 0.05
+    },
+    "w/o Braking": {
+      "margin": 0.55,
+      "n": 500000,
+      "violations": 1160,
+      "violation_rate": 0.00232,
+      "viol_pct": 0.232,
+      "mean_clearance_m": 0.46428378131187376,
+      "worst_breach_m": 0.4489176613628665,
+      "formula_margin": 0.55,
+      "missing_term_m": 0.05
     }
   },
   "sensitivity": {
