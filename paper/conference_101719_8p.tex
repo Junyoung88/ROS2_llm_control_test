@@ -72,8 +72,11 @@ Four physically grounded bounds---localization covariance, cross-track error, la
 \item \textbf{Controller-agnostic execution-layer module (three gates).}
 A drop-in ROS~2 node applies a goal gate, a path gate, and a per-cycle runtime monitor without altering any navigation component; the runtime monitor acts on the command channel and its guarantee is validated identically under two different local planners (DWB and RPP).
 
+\item \textbf{Attack model with demonstrated realizability.}
+We organize six attack scenarios into a capability ladder (Table~\ref{tab:ladder})---from command-tier goal injection that needs no robot access, through unauthenticated \texttt{cmd\_vel} injection and physical map-consistent LiDAR spoofing, to coordinated dual-channel compromise---and empirically confirm the network rung on a default ROS~2 stack, where an unprivileged process with no security material injects drive commands over unauthenticated DDS. This delimits precisely which attacks an execution-layer monitor can and cannot address.
+
 \item \textbf{Causal and systematic evaluation.}
-Beyond a multi-seed campaign over four cyber-physical attack scenarios in simulation and on hardware, we isolate the runtime monitor with a paired ablation, characterize the attack-surface boundary with a magnitude sweep, and report the monitor's operating point (zero nuisance trips on benign runs; positive stopping clearance on every intervention).
+Beyond a multi-seed campaign over six cyber-physical attack scenarios in simulation and on hardware---including a localization-spoofing hijack that defeats every planning-layer baseline ($5/5$ zone entries) while PETSE holds ($0/5$)---we isolate the runtime monitor with a paired ablation, characterize the attack-surface boundary with a magnitude sweep, and report the monitor's operating point (zero nuisance trips on benign runs; positive stopping clearance on every intervention).
 \end{enumerate}
 
 The rest of this article is organized as follows. Section~II reviews related work. Section~III defines the threat model and attack scenarios. Section~IV details the proposed method. Section~V presents experimental results including simulation and real-robot validation. Section~VI discusses limitations, and Section~VII concludes this article.
@@ -221,19 +224,46 @@ proprioceptive odometry remains an honest reference, which is precisely
 what lets an execution-layer cross-check revoke an already-approved task.
 
 \subsection{Attack Scenarios}
-Four scenarios (S1--S4), each targeting a distinct control layer (Fig.~\ref{fig:attack_scenarios}), are designed to force the robot into forbidden zone~$F$:
+Six scenarios target distinct control layers (Fig.~\ref{fig:attack_scenarios}) to force the robot into forbidden zone~$F$. For each we state not only the mechanism but the \emph{capability it requires} and \emph{how that capability is realistically obtained}; Table~\ref{tab:ladder} summarizes the resulting ladder. S1--S4 are the core factorial campaign; S5--S6 stress execution-time defenses specifically.
 
-\textbf{S1 (Direct Hazard Goal).} Coordinates inside $F$ are injected as the navigation goal through prompt injection or command contamination, probing whether the safety layer blocks or reprojects overtly dangerous goals.
+\textbf{S1 (Direct Hazard Goal).} Coordinates inside $F$ are injected as the navigation goal via prompt injection or command contamination. \emph{Capability:} untrusted input to the command tier only---no robot access. It probes whether the safety layer blocks or reprojects overtly dangerous goals.
 
-\textbf{S2 (Implicit Path Inducement).} Both start and goal lie outside $F$, yet the shortest feasible path cuts through it---exposing defenses that only inspect the goal coordinate and not the trajectory geometry.
+\textbf{S2 (Implicit Path Inducement).} Start and goal both lie outside $F$, yet the shortest feasible path cuts through it. \emph{Capability:} same command-tier input as S1; the attack exploits planner geometry, exposing defenses that inspect only the goal coordinate and not the trajectory.
 
-\textbf{S3 (Velocity Manipulation + Communication Delay).} The approved goal is safe, but the attacker covertly amplifies execution velocity and injects 0--100\,ms of extra latency, so that cumulative displacement overshoots the planned envelope.
+\textbf{S3 (Velocity Manipulation + Communication Delay).} The approved goal is safe, but the attacker amplifies execution velocity and injects 0--100\,ms of extra latency so that cumulative displacement overshoots the planned envelope. \emph{Capability:} write access to control parameters or the communication channel---i.e., a network foothold on the ROS~2 graph (Section~\ref{sec:threat_model}).
 
-\textbf{S4 (Position Spoofing).} The localization estimate $\hat{p}_t$ is offset so that it appears safe while the true position $p_t$ drifts toward $F$, testing robustness under corrupted state feedback.
+\textbf{S4 (Position Spoofing).} The localization estimate $\hat{p}_t$ is offset so it appears safe while the true position $p_t$ drifts toward $F$. Two realizations bracket the capability range. \emph{(a) \texttt{cmd\_vel} injection:} an unprivileged process publishes drive commands over unauthenticated DDS (Section~\ref{sec:threat_model}), requiring only network reach. \emph{(b) Map-consistent LiDAR spoofing:} the attacker injects crafted laser returns~\cite{sun2020towards,cao2019adversarial} that, ray-cast from a chosen spoofed pose against the \emph{known} facility map, form a self-consistent scan; AMCL converges to the spoofed pose. This needs only physical line-of-sight to the sensor---no software intrusion and no access to the proprioceptive odometry that anchors PETSE.
+
+\textbf{S5 (Localization-Spoofing Hijack, TOCTOU).} A composite, security-motivated scenario: a hijacked robot is steered into a confidential keep-out zone (e.g., to film fab interior). The goal is approved on a clean pose; \emph{during} execution, map-consistent LiDAR spoofing (S4b) biases $\hat{p}_t$ so the robot appears to stay clear while $p_t$ enters $F$---a time-of-check-to-time-of-use gap that goal- and path-level approval cannot revoke. \emph{Capability:} S4b (physical line-of-sight), no on-board compromise.
+
+\textbf{S6 (Time-Varying Forbidden Zone).} The keep-out region changes after approval: a zone is \emph{activated mid-navigation}, after the goal was cleared on a then-unobstructed path (dynamic safety areas, shift changes, human co-presence). \emph{Capability:} none beyond a legitimate zone update---it needs no attacker at all, yet defeats any approval-time-only check, isolating the value of continuous re-verification.
+
+\begin{table}[t]
+\centering\footnotesize
+\caption{Attacker capability ladder. Each scenario's required capability and how it is realistically obtained. Only consistent dual-channel compromise (bottom, per~A1) is out of scope; PETSE defends every rung above it.}
+\label{tab:ladder}
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}p{1.35cm} p{2.35cm} p{2.5cm} c@{}}
+\toprule
+Attack & Capability required & Realized by & PETSE \\
+\midrule
+S1--S2 goal inj. & Untrusted input to command tier & Prompt injection; no robot access & \checkmark \\
+S3 param/lat. & Write to params / comms & Network foothold on ROS~2 graph & \checkmark \\
+S4a \texttt{cmd\_vel} & Publish to actuation topic & Unauth.\ DDS on robot net~\cite{maggi2022dds,dieber2017security} & \checkmark \\
+S4b/S5 LiDAR spoof & Corrupt one exteroceptive channel & Laser injection, physical LoS, no SW~\cite{sun2020towards,cao2019adversarial} & \checkmark \\
+S6 t-var zone & None (legit.\ zone update) & Post-approval activation & \checkmark \\
+\midrule
+Coord.\ dual-ch. & On-board compute \emph{and} odom & Root / firmware compromise & $\times$\,(A1) \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 %=====================================================================
 \section{Proposed Method}
 %=====================================================================
+
+The central contribution of PETSE is a \emph{mechanism}, not a formula: a runtime monitor that re-evaluates an already-approved task against its spatial constraint at \emph{every} control cycle. An attack injected \emph{after} approval---when prompt- and planning-stage checks are no longer in the loop---is caught the moment the robot's estimated state approaches a forbidden zone, because the check is repeated continuously rather than once. The safety margin derived in Section~\ref{sec:margin} is not the contribution in itself; it only sets the distance threshold this monitor enforces, chosen conservatively enough that the check never fires late. Accordingly, we first describe the enforcement architecture (Section~\ref{sec:architecture}) and then the margin that parameterizes it (Section~\ref{sec:margin}); the experiments (Section~\ref{sec:reverify}) confirm that it is the continuous re-verification---not the particular margin value, which is held \emph{fixed} across the key ablation---that closes the post-approval attack surface.
 
 \subsection{System Architecture}\label{sec:architecture}
 Fig.~\ref{fig:system_arch} illustrates the four-layer pipeline and the position of the PETSE enforcement layer within the overall control architecture.
@@ -293,6 +323,8 @@ Pub & \texttt{/petse/status} & \texttt{DiagnosticArray} & $M(t)$, decision \\
 \end{figure*}
 
 \subsection{Dynamic Safety Margin Formulation}\label{sec:margin}
+
+This section derives the distance threshold $M(t)$ that the runtime monitor of Section~\ref{sec:architecture} enforces. The margin is a means to an end: it must be large enough that a stop issued when $\mathrm{dist}(\hat p_t,\mathcal F)=M(t)$ still halts the robot outside the zone despite localization error, tracking error, latency, and braking. We therefore bound each of these four displacement sources from measurable system parameters and sum them.
 
 \subsubsection{Safety Margin Definition}
 Let $p_t \in \mathbb{R}^2$ denote the robot's true position and $\hat{p}_t$ the AMCL estimate at decision time~$t$. The dynamic safety margin is defined as
@@ -369,50 +401,8 @@ Let $\mathcal{F}\subset\mathbb{R}^2$ be a closed forbidden zone. If conditions \
 By the triangle inequality and conditions~\eqref{eq:b1}--\eqref{eq:b4}, $\|p_s - \hat{p}_t\| \le M(t)$ for all $s \in [t,\, t{+}\tau{+}t_b]$, so $p_s \in B(\hat{p}_t, M(t))$. Since $\mathrm{dist}(\hat{p}_t, \mathcal{F}) \ge M(t)$ implies $B(\hat{p}_t, M(t)) \cap \mathcal{F} = \emptyset$, it follows that $p_s \notin \mathcal{F}$.
 \end{proof}
 
-\subsubsection{Adversarial Formalization and Bound Tightness}\label{sec:adversarial}
-
-The additive margin~\eqref{eq:margin} is, in fact, the exact solution to a minimax adversarial problem, which we state formally next.
-
-\begin{definition}[Adversarial Perturbation Set]\label{def:adv}
-At each decision time $t$, an adversary selects a perturbation vector $\delta = (\delta_{\mathrm{est}},\, \delta_{\mathrm{track}},\, \delta_{\mathrm{lat}},\, \delta_{\mathrm{brake}})$ from the capability set
-\begin{equation}
-\mathcal{D}(t) = \Big\{\delta \;\Big|\;
-  \|\delta_i\| \le M_i(t),\; i \in \{\mathrm{est}, \mathrm{track}, \mathrm{lat}, \mathrm{brake}\}
-\Big\},
-\label{eq:advset}
-\end{equation}
-where each $M_i(t)$ is the corresponding bound from Lemma~\ref{lem:bounds}. The adversary's objective is to maximize the total displacement $\|p_s - \hat{p}_t\|$ for some $s \in [t,\, t{+}\tau{+}t_b]$, subject to $\delta \in \mathcal{D}(t)$.
-\end{definition}
-
-Each perturbation source acts on a temporally or spatially distinct segment of the displacement chain $\hat{p}_t \to p_t \to p_{t+\tau} \to p_{t+\tau+t_b}$. Crucially, no distributional relationship---independence, correlation, or joint density---is imposed, because an adversary can deliberately coordinate the four sources to maximize total displacement.
-
-\begin{proposition}[Tightness of the Additive Bound]\label{prop:tight}
-Under the no-independence assumption---i.e., when no constraint beyond~\eqref{eq:advset} is imposed on the joint behavior of perturbation sources---the additive margin $M(t) = \sum_i M_i(t)$ satisfies:
-\begin{equation}
-M(t) = \max_{\delta \in \mathcal{D}(t)} \max_{s \in [t,\, t+\tau+t_b]} \|p_s - \hat{p}_t\|.
-\label{eq:tight}
-\end{equation}
-That is, $M(t)$ equals the worst-case displacement achievable by any adversary operating within $\mathcal{D}(t)$, and no smaller margin can guarantee safety against all strategies in $\mathcal{D}(t)$.
-\end{proposition}
-
-\begin{proof}
-Upper bound: by the triangle inequality applied to the displacement chain,
-$\|p_s - \hat{p}_t\| \le \|\delta_{\mathrm{est}}\| + \|\delta_{\mathrm{track}}\| + \|\delta_{\mathrm{lat}}\| + \|\delta_{\mathrm{brake}}\| \le \sum_i M_i(t) = M(t)$
-for all $\delta \in \mathcal{D}(t)$.
-Attainability: the maximum is attained when the adversary selects $\delta_i^* = M_i(t) \cdot \hat{u}$ for all $i$, where $\hat{u}$ is a common unit vector directed toward $\mathcal{F}$. Under collinear alignment, $\|p_s - \hat{p}_t\| = \sum_i M_i(t) = M(t)$. Since this strategy lies within $\mathcal{D}(t)$, the bound is tight.
-\end{proof}
-
-\begin{remark}[Conservatism under Practical Conditions]\label{rem:conservatism}
-In practice, perfect collinear alignment of all four perturbation sources is unlikely. If the sources were mutually independent and isotropically distributed, the expected displacement would scale as $\sqrt{\sum_i M_i^2}$ rather than $\sum_i M_i$. For the baseline parameters used in this work ($M_{\mathrm{est}}{=}0.412$\,m, $M_{\mathrm{track}}{=}0.05$\,m, $M_{\mathrm{lat}}{=}0.05$\,m, $M_{\mathrm{brake}}{=}0.05$\,m), $\sqrt{\sum_i M_i^2} = 0.421$\,m while $\sum_i M_i = 0.562$\,m, yielding a conservatism ratio of $0.562 / 0.421 \approx 1.33$. The additive form thus inflates the margin by approximately 33\% relative to the independence-assuming bound, in exchange for requiring no distributional assumptions---a trade-off appropriate for safety-critical applications operating under adversarial conditions.
-\end{remark}
-
-\begin{remark}[Sufficient vs.\ Necessary Condition]\label{rem:suff}
-The enforcement condition $\mathrm{dist}(\hat{p}_t, \mathcal{F}) \ge M(t)$ is a \emph{sufficient} condition for safety: it guarantees non-entry, but its violation does not necessarily imply zone entry. A necessary-and-sufficient condition would require exact knowledge of the joint distribution of all perturbation sources and their temporal correlations---information that is generally unavailable at runtime and that an adversary can deliberately invalidate. The sufficient condition is therefore the appropriate design choice for a runtime safety module operating under adversarial conditions, where false negatives (missed violations) carry far greater cost than false positives (conservative blocking).
-\end{remark}
-
-\begin{corollary}[Probabilistic Interpretation of $M_{\mathrm{est}}$]
-If $\mathbf{e}_t := p_t - \hat{p}_t$ follows a 2D Gaussian with covariance $\Sigma_{xy}(t)$, then $\Pr(\|\mathbf{e}_t\| \le M_{\mathrm{est}}(t)) \ge 1{-}\varepsilon$. The deterministic guarantee of Theorem~1 is independent of this assumption; if adversarial perturbations invalidate the Gaussian model, the $\lambda_{\max}$-based bound still maintains the sufficient condition.
-\end{corollary}
+\subsubsection{Why the Margin Is Summed, Not Combined in Quadrature}\label{sec:adversarial}
+The four bounds are added rather than root-sum-squared because an adversary can \emph{coordinate} the error sources---spoofing localization, amplifying the commanded velocity, and exploiting latency at once and in the same direction. Formally, for any perturbation $\delta=(\delta_{\mathrm{est}},\delta_{\mathrm{track}},\delta_{\mathrm{lat}},\delta_{\mathrm{brake}})$ with $\|\delta_i\|\le M_i(t)$, the triangle inequality gives $\|p_s-\hat p_t\|\le\sum_i M_i(t)=M(t)$, with equality when the four align collinearly toward $\mathcal{F}$. Thus $M(t)$ is the \emph{tight} worst-case displacement under this no-independence assumption, and no smaller threshold is safe against a coordinated attacker. Assuming independence instead would shrink the margin to $\sqrt{\sum_i M_i^2}$ (here $0.421$ vs.\ $0.562$\,m, a $33\%$ reduction) at the cost of that guarantee. The enforcement condition $\mathrm{dist}(\hat p_t,\mathcal F)\ge M(t)$ is therefore \emph{sufficient} for non-entry rather than necessary---the appropriate choice for a runtime monitor, where a missed violation is far costlier than a conservative stop. When the Gaussian localization model holds, $M_{\mathrm{est}}$ additionally admits the reading $\Pr(\|p_t-\hat p_t\|\le M_{\mathrm{est}})\ge 1-\varepsilon$; the deterministic guarantee of Theorem~1 does not rely on it.
 
 \begin{algorithm}[t]
 \caption{PETSE Enforcement}
@@ -666,6 +656,22 @@ The comparison above varies the architecture; here we hold the architecture fixe
     \caption{Runtime-monitor operating point. \textbf{(a)}~No nuisance trips: $0/243$ benign trajectories aborted mid-execution. \textbf{(b)}~Every one of the 55 interventions stops with positive clearance to the zone ($0$ violations); velocity/deviation attacks are caught early (median $3.12$\,m), TOCTOU near the boundary (median $0.45$\,m).}
     \label{fig:oppoint}
 \end{figure*}
+
+\subsection{Execution-Time-Only Attacks: Hijack and Time-Varying Zones}\label{sec:exectime}
+Two scenarios (S5, S6) isolate attacks that succeed \emph{only} after approval, where prompt- and planning-stage defenses are structurally blind; each runs five seeds per method on the warehouse map.
+
+\textbf{S5 (Localization-spoofing hijack).} An approved, clean-pose goal is followed by map-consistent LiDAR spoofing that biases $\hat p_t$ away from the confidential zone while the true robot drives in. Every planning-layer baseline is defeated (Fig.~\ref{fig:hijack}): No~Guard, SELP, and CBF-inflated each enter the zone in all $5/5$ trials (mean $89$--$179$ in-zone samples), because none re-checks the constraint against an independent channel once motion is approved---CBF simply trusts the spoofed pose it is handed. PETSE enters in $0/5$: its runtime cross-check of the exteroceptive estimate against the proprioceptive odometry (Section~\ref{sec:threat_model}) detects the growing disagreement and fail-stops. This is the paper's central security result---an execution-layer, cross-channel monitor is the only defense that survives post-approval sensor spoofing.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.82\linewidth]{fig_hijack.png}
+    \vspace{-1.0ex}
+    \caption{S5 localization-spoofing hijack (warehouse, five seeds). Map-consistent LiDAR spoofing after goal approval defeats every planning-layer baseline ($5/5$ zone entries); only PETSE's cross-channel runtime re-verification holds ($0/5$).}
+    \label{fig:hijack}
+\end{figure}
+
+\textbf{S6 (Time-varying zone).} A goal is approved on a clear path; a keep-out region is then activated mid-navigation. Approval-time-only methods (No~Guard, SELP) drive straight in ($5/5$), whereas \emph{any} continuous re-verifier stops before entry---both PETSE and a guard-equipped CBF achieve $0/5$. Unlike S5, S6 involves no spoofing, so a runtime monitor alone suffices and no cross-channel anchor is needed. The contrast sharpens the claim: continuous re-verification is necessary for both, but sensor-spoofing attacks (S5) additionally demand the cross-channel check that distinguishes PETSE from a merely runtime-monitored CBF.
+
 
 \subsection{Ablation Study}\label{sec:ablation}
 
