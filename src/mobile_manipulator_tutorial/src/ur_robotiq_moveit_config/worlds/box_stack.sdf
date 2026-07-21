@@ -1,0 +1,184 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="box_stack">
+    <!-- Sensors system for camera rendering -->
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+      <background_color>0.8 0.8 0.8</background_color>
+    </plugin>
+    <scene>
+      <shadows>0</shadows>
+    </scene>
+
+    <gui>
+      <camera name="user_camera">
+        <pose>1.2 -0.8 1.6 0 0.4 2.2</pose>
+      </camera>
+    </gui>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <include>
+        <uri>model://ground_plane</uri>
+      </include>
+    </model>
+
+    <!-- Table in front of robot -->
+    <model name="table">
+      <static>true</static>
+      <include>
+        <uri>model://table</uri>
+      </include>
+      <pose>0 0.5 0 0 0 1.5708</pose>
+    </model>
+
+    <!-- Box stack: 3 boxes, 6cm wide × 6cm deep × 12cm tall -->
+    <!-- Narrower than gripper opening (85mm) for reliable grasp -->
+    <!-- Table top at z≈1.0 -->
+
+    <!-- Bottom box (RED) — center at z=1.06 -->
+    <model name="box_bottom">
+      <pose>0.0 0.55 1.06 0 0 0</pose>
+      <link name="link">
+        <inertial>
+          <mass>0.5</mass>
+          <inertia>
+            <ixx>0.00065</ixx><iyy>0.00065</iyy><izz>0.00030</izz>
+            <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry><box><size>0.06 0.06 0.12</size></box></geometry>
+          <surface>
+            <friction><ode><mu>5.0</mu><mu2>5.0</mu2></ode></friction>
+            <contact><ode><kp>1e6</kp><kd>100</kd></ode></contact>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.06 0.06 0.12</size></box></geometry>
+          <material>
+            <ambient>0.9 0.2 0.2 1</ambient>
+            <diffuse>0.9 0.2 0.2 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Middle box (GREEN) — center at z=1.18 -->
+    <model name="box_middle">
+      <pose>0.0 0.55 1.18 0 0 0</pose>
+      <link name="link">
+        <inertial>
+          <mass>0.4</mass>
+          <inertia>
+            <ixx>0.00052</ixx><iyy>0.00052</iyy><izz>0.00024</izz>
+            <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry><box><size>0.06 0.06 0.12</size></box></geometry>
+          <surface>
+            <friction><ode><mu>5.0</mu><mu2>5.0</mu2></ode></friction>
+            <contact><ode><kp>1e6</kp><kd>100</kd></ode></contact>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.06 0.06 0.12</size></box></geometry>
+          <material>
+            <ambient>0.2 0.9 0.2 1</ambient>
+            <diffuse>0.2 0.9 0.2 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Top box (BLUE) — center at z=1.30 -->
+    <model name="box_top">
+      <pose>0.0 0.55 1.30 0 0 0</pose>
+      <link name="link">
+        <inertial>
+          <mass>0.3</mass>
+          <inertia>
+            <ixx>0.00039</ixx><iyy>0.00039</iyy><izz>0.00018</izz>
+            <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry><box><size>0.06 0.06 0.12</size></box></geometry>
+          <surface>
+            <friction><ode><mu>5.0</mu><mu2>5.0</mu2></ode></friction>
+            <contact><ode><kp>1e6</kp><kd>100</kd></ode></contact>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.06 0.06 0.12</size></box></geometry>
+          <material>
+            <ambient>0.2 0.2 0.9 1</ambient>
+            <diffuse>0.2 0.2 0.9 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Safe placement area -->
+    <model name="safe_zone">
+      <static>true</static>
+      <pose>0.3 0.55 1.001 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.15 0.15 0.002</size></box></geometry>
+          <material>
+            <ambient>0.3 0.8 0.3 0.5</ambient>
+            <diffuse>0.3 0.8 0.3 0.5</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Fixed RGB-D camera looking at the box stack -->
+    <!-- Position: (0.5, 0.0, 1.5), pointing toward boxes at (0.0, 0.55, 1.18) -->
+    <!-- yaw=2.31, pitch=-0.41 to aim camera +X axis at the boxes -->
+    <model name="rgbd_camera">
+      <static>true</static>
+      <pose>0.5 0.0 1.5 0 0.41 2.31</pose>
+      <link name="camera_link">
+        <visual name="visual">
+          <geometry><box><size>0.05 0.08 0.03</size></box></geometry>
+          <material>
+            <ambient>0.3 0.3 0.3 1</ambient>
+            <diffuse>0.3 0.3 0.3 1</diffuse>
+          </material>
+        </visual>
+        <sensor name="rgbd_sensor" type="rgbd_camera">
+          <update_rate>5</update_rate>
+          <topic>rgbd_camera</topic>
+          <camera>
+            <horizontal_fov>1.047</horizontal_fov>
+            <image>
+              <width>640</width>
+              <height>480</height>
+              <format>R8G8B8</format>
+            </image>
+            <clip>
+              <near>0.1</near>
+              <far>5.0</far>
+            </clip>
+            <depth_camera>
+              <clip>
+                <near>0.1</near>
+                <far>5.0</far>
+              </clip>
+            </depth_camera>
+          </camera>
+          <always_on>1</always_on>
+          <visualize>true</visualize>
+        </sensor>
+      </link>
+    </model>
+
+  </world>
+</sdf>

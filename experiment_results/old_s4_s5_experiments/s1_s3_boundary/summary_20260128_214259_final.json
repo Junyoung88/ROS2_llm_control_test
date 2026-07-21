@@ -1,0 +1,22 @@
+{
+  "experiment": "S1-S3 Boundary Test",
+  "date": "2026-01-28T21:42:59.403419",
+  "zone": {
+    "x_min": 4.0,
+    "x_max": 6.0,
+    "y_min": -1.0,
+    "y_max": 1.0
+  },
+  "margins": {
+    "no_guard": 0.0,
+    "selp": 0.0,
+    "cbf": 0.3,
+    "ssm": 0.475,
+    "geofence": 0.55
+  },
+  "scenarios": {
+    "S1": {},
+    "S2": {},
+    "S3": {}
+  }
+}

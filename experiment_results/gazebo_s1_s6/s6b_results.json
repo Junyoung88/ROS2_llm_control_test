@@ -1,0 +1,458 @@
+[
+  {
+    "a_max": 0.1,
+    "use_braking": false,
+    "M": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 30.5861,
+    "violation": true,
+    "pen_m": 26.5861,
+    "exp_pen_m": 0.75,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5861,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "no_brake_a0.1_s0",
+    "seed": 0
+  },
+  {
+    "a_max": 0.2,
+    "use_braking": false,
+    "M": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 30.5861,
+    "violation": true,
+    "pen_m": 26.5861,
+    "exp_pen_m": 0.125,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5861,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "no_brake_a0.2_s0",
+    "seed": 0
+  },
+  {
+    "a_max": 0.5,
+    "use_braking": false,
+    "M": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 30.5861,
+    "violation": true,
+    "pen_m": 26.5861,
+    "exp_pen_m": -0.25,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5861,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "no_brake_a0.5_s0",
+    "seed": 0
+  },
+  {
+    "a_max": 1.0,
+    "use_braking": false,
+    "M": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 30.5861,
+    "violation": true,
+    "pen_m": 26.5861,
+    "exp_pen_m": -0.375,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5861,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "no_brake_a1.0_s0",
+    "seed": 0
+  },
+  {
+    "a_max": 0.1,
+    "use_braking": true,
+    "M": 1.8,
+    "trigger_x": 2.2,
+    "final_x": 30.5861,
+    "violation": true,
+    "pen_m": 26.5861,
+    "exp_pen_m": 0.75,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5861,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "with_brake_a0.1_s0",
+    "seed": 0
+  },
+  {
+    "a_max": 0.2,
+    "use_braking": true,
+    "M": 1.175,
+    "trigger_x": 2.825,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": 0.125,
+    "traj": [
+      {
+        "t": 0.201,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "with_brake_a0.2_s0",
+    "seed": 0
+  },
+  {
+    "a_max": 0.5,
+    "use_braking": true,
+    "M": 0.8,
+    "trigger_x": 3.2,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": -0.25,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "with_brake_a0.5_s0",
+    "seed": 0
+  },
+  {
+    "a_max": 1.0,
+    "use_braking": true,
+    "M": 0.675,
+    "trigger_x": 3.325,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": -0.375,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "with_brake_a1.0_s0",
+    "seed": 0
+  },
+  {
+    "a_max": 0.1,
+    "use_braking": false,
+    "M": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": 0.75,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "no_brake_a0.1_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 0.2,
+    "use_braking": false,
+    "M": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": 0.125,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "no_brake_a0.2_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 0.5,
+    "use_braking": false,
+    "M": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": -0.25,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "no_brake_a0.5_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 1.0,
+    "use_braking": false,
+    "M": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": -0.375,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "no_brake_a1.0_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 0.1,
+    "use_braking": true,
+    "M": 1.8,
+    "trigger_x": 2.2,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": 0.75,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "with_brake_a0.1_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 0.2,
+    "use_braking": true,
+    "M": 1.175,
+    "trigger_x": 2.825,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": 0.125,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "with_brake_a0.2_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 0.5,
+    "use_braking": true,
+    "M": 0.8,
+    "trigger_x": 3.2,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": -0.25,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "with_brake_a0.5_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 1.0,
+    "use_braking": true,
+    "M": 0.675,
+    "trigger_x": 3.325,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": -0.375,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "with_brake_a1.0_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 0.1,
+    "use_braking": false,
+    "M": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": 0.75,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "no_brake_a0.1_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 0.2,
+    "use_braking": false,
+    "M": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": 0.125,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "no_brake_a0.2_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 0.5,
+    "use_braking": false,
+    "M": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": -0.25,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "no_brake_a0.5_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 1.0,
+    "use_braking": false,
+    "M": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": -0.375,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "no_brake_a1.0_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 0.1,
+    "use_braking": true,
+    "M": 1.8,
+    "trigger_x": 2.2,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": 0.75,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "with_brake_a0.1_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 0.2,
+    "use_braking": true,
+    "M": 1.175,
+    "trigger_x": 2.825,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": 0.125,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "with_brake_a0.2_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 0.5,
+    "use_braking": true,
+    "M": 0.8,
+    "trigger_x": 3.2,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": -0.25,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "with_brake_a0.5_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 1.0,
+    "use_braking": true,
+    "M": 0.675,
+    "trigger_x": 3.325,
+    "final_x": 30.5865,
+    "violation": true,
+    "pen_m": 26.5865,
+    "exp_pen_m": -0.375,
+    "traj": [
+      {
+        "t": 0.2,
+        "x": 30.5865,
+        "vel": 0.5
+      }
+    ],
+    "trial_id": "with_brake_a1.0_s2",
+    "seed": 2
+  }
+]

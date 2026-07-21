@@ -1,0 +1,98 @@
+[S6b] Killing old processes...
+[S6b] Starting Gazebo (empty world)...
+[S6b] Waiting 90s for Gazebo to settle...
+[S6b] Gazebo ready.
+
+[S6b] Trial 1/24: no_brake_a0.1_s0
+       M=0.550m  expected_pen=+0.750m
+
+[S6b] Trial 2/24: no_brake_a0.2_s0
+       M=0.550m  expected_pen=+0.125m
+
+[S6b] Trial 3/24: no_brake_a0.5_s0
+       M=0.550m  expected_pen=-0.250m
+
+[S6b] Trial 4/24: no_brake_a1.0_s0
+       M=0.550m  expected_pen=-0.375m
+
+[S6b] Trial 5/24: with_brake_a0.1_s0
+       M=1.800m  expected_pen=+0.750m
+
+[S6b] Trial 6/24: with_brake_a0.2_s0
+       M=1.175m  expected_pen=+0.125m
+
+[S6b] Trial 7/24: with_brake_a0.5_s0
+       M=0.800m  expected_pen=-0.250m
+
+[S6b] Trial 8/24: with_brake_a1.0_s0
+       M=0.675m  expected_pen=-0.375m
+
+[S6b] Trial 9/24: no_brake_a0.1_s1
+       M=0.550m  expected_pen=+0.750m
+
+[S6b] Trial 10/24: no_brake_a0.2_s1
+       M=0.550m  expected_pen=+0.125m
+       final_x=4.6942m  pen=+0.6942m  [VIOLATION]
+
+[S6b] Trial 11/24: no_brake_a0.5_s1
+       M=0.550m  expected_pen=-0.250m
+       final_x=4.7991m  pen=+0.7991m  [VIOLATION]
+
+[S6b] Trial 12/24: no_brake_a1.0_s1
+       M=0.550m  expected_pen=-0.375m
+       final_x=5.0009m  pen=+1.0009m  [VIOLATION]
+
+[S6b] Trial 13/24: with_brake_a0.1_s1
+       M=1.800m  expected_pen=+0.750m
+       final_x=5.5187m  pen=+1.5187m  [VIOLATION]
+
+[S6b] Trial 14/24: with_brake_a0.2_s1
+       M=1.175m  expected_pen=+0.125m
+       final_x=6.2617m  pen=+2.2617m  [VIOLATION]
+
+[S6b] Trial 15/24: with_brake_a0.5_s1
+       M=0.800m  expected_pen=-0.250m
+       final_x=6.2617m  pen=+2.2617m  [VIOLATION]
+
+[S6b] Trial 16/24: with_brake_a1.0_s1
+       M=0.675m  expected_pen=-0.375m
+       final_x=6.2617m  pen=+2.2617m  [VIOLATION]
+
+[S6b] Trial 17/24: no_brake_a0.1_s2
+       M=0.550m  expected_pen=+0.750m
+       final_x=6.2617m  pen=+2.2617m  [VIOLATION]
+
+[S6b] Trial 18/24: no_brake_a0.2_s2
+       M=0.550m  expected_pen=+0.125m
+       final_x=6.2617m  pen=+2.2617m  [VIOLATION]
+
+[S6b] Trial 19/24: no_brake_a0.5_s2
+       M=0.550m  expected_pen=-0.250m
+       final_x=6.2617m  pen=+2.2617m  [VIOLATION]
+
+[S6b] Trial 20/24: no_brake_a1.0_s2
+       M=0.550m  expected_pen=-0.375m
+       final_x=6.2617m  pen=+2.2617m  [VIOLATION]
+
+[S6b] Trial 21/24: with_brake_a0.1_s2
+       M=1.800m  expected_pen=+0.750m
+       final_x=6.2617m  pen=+2.2617m  [VIOLATION]
+
+[S6b] Trial 22/24: with_brake_a0.2_s2
+       M=1.175m  expected_pen=+0.125m
+       final_x=6.2617m  pen=+2.2617m  [VIOLATION]
+
+[S6b] Trial 23/24: with_brake_a0.5_s2
+       M=0.800m  expected_pen=-0.250m
+       final_x=6.2617m  pen=+2.2617m  [VIOLATION]
+
+[S6b] Trial 24/24: with_brake_a1.0_s2
+       M=0.675m  expected_pen=-0.375m
+       final_x=6.2617m  pen=+2.2617m  [VIOLATION]
+
+[S6b] Saved → /home/jim/ros2_motion_planning_tutorials/experiment_results/gazebo_s1_s6/s6b_braking_results.json
+
+=== S6b Results ===
+Condition               a_max    M(m)  pen_actual  pen_expected     Result
+---------------------------------------------------------------------------
+[S6b] Done.

@@ -1,0 +1,39 @@
+[INFO] [1784107058.426763261] [cmd_vel_guard]: Zones loaded: 2
+[INFO] [1784107058.426990991] [cmd_vel_guard]: CBF margin: 0.1m (real-time control)
+[INFO] [1784107058.427139241] [cmd_vel_guard]: SSM base margin: 0.05m (velocity-dependent)
+[INFO] [1784107058.433580843] [cmd_vel_guard]: Spoof detection ON [cusum]: amcl=/amcl_pose, offset_thresh=1.35m, jump_thresh=0.45m, enforce_pose=amcl
+[INFO] [1784107058.434321412] [cmd_vel_guard]: DEBUG subscriptions:
+[INFO] [1784107058.434647537] [cmd_vel_guard]:   cmd_sub topic: /cmd_vel_nav
+[INFO] [1784107058.435041782] [cmd_vel_guard]:   odom_sub topic: /odom
+[INFO] [1784107058.435277186] [cmd_vel_guard]:   nav_state_sub topic: /geofence/nav_state
+[INFO] [1784107058.436704030] [cmd_vel_guard]: ============================================================
+[INFO] [1784107058.436963089] [cmd_vel_guard]: Cmd Vel Guard node initialized
+[INFO] [1784107058.437208873] [cmd_vel_guard]: Safety method: geofence
+[INFO] [1784107058.437453054] [cmd_vel_guard]: Input: /cmd_vel_nav -> Output: /cmd_vel
+[INFO] [1784107058.437622774] [cmd_vel_guard]:   Mode: Forward Simulation
+[INFO] [1784107058.437841928] [cmd_vel_guard]:   Horizon: 1.0s, Steps: 10
+[INFO] [1784107058.438025395] [cmd_vel_guard]:   Margin: 0.562m
+[INFO] [1784107058.438444376] [cmd_vel_guard]: ============================================================
+[INFO] [1784107061.661916823] [cmd_vel_guard]: [HEARTBEAT #1] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107064.909081694] [cmd_vel_guard]: [HEARTBEAT #2] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107068.756883491] [cmd_vel_guard]: Guard status: cmds=1, nav_approved=False, odom=yes, pos=(-0.00,0.00), passed=0, blocked=0
+[INFO] [1784107069.990769148] [cmd_vel_guard]: [HEARTBEAT #3] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107075.062438542] [cmd_vel_guard]: [HEARTBEAT #4] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107080.338668926] [cmd_vel_guard]: [HEARTBEAT #5] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107085.346275429] [cmd_vel_guard]: [HEARTBEAT #6] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107090.705417628] [cmd_vel_guard]: [HEARTBEAT #7] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107095.969269910] [cmd_vel_guard]: [HEARTBEAT #8] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107101.075485032] [cmd_vel_guard]: [HEARTBEAT #9] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107106.244063845] [cmd_vel_guard]: [HEARTBEAT #10] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107111.329533370] [cmd_vel_guard]: [HEARTBEAT #11] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107116.857703941] [cmd_vel_guard]: [HEARTBEAT #12] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107121.866955394] [cmd_vel_guard]: [HEARTBEAT #13] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107127.052416797] [cmd_vel_guard]: [HEARTBEAT #14] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107132.292824499] [cmd_vel_guard]: [HEARTBEAT #15] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107137.359586482] [cmd_vel_guard]: [HEARTBEAT #16] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107142.822374033] [cmd_vel_guard]: [HEARTBEAT #17] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107147.602465105] [cmd_vel_guard]: [HEARTBEAT #18] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107152.797577158] [cmd_vel_guard]: [HEARTBEAT #19] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107157.920425680] [cmd_vel_guard]: [HEARTBEAT #20] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107162.960339800] [cmd_vel_guard]: [HEARTBEAT #21] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784107168.103630188] [cmd_vel_guard]: [HEARTBEAT #22] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)

@@ -1,0 +1,124 @@
+Generated 1 trials
+Methods: ['no_guard']
+Scenarios: ['S5']
+Seeds: 1 (offset=0, range=s0-s0)
+Include sweep: False
+Runtime monitoring: False
+
+Trials by scenario: {'S5': 1}
+Trials by method: {'no_guard': 1}
+[2026-07-13 20:28:54] ============================================================
+[2026-07-13 20:28:54] Starting Gazebo S1-S5 Experiment
+[2026-07-13 20:28:54] ============================================================
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[2026-07-13 20:28:57] [OUTPUT] Writing results to experiment_results/gazebo_s1_s6/results_mid_rot30.jsonl
+[2026-07-13 20:28:57] 
+============================================================
+[2026-07-13 20:28:57] Method: no_guard
+[2026-07-13 20:28:57] ============================================================
+[2026-07-13 20:28:57] [WORLD] Starting with warehouse.sdf for scenarios: ['S5']
+[DEBUG] restart_with_method called: method=no_guard, params={}, world=warehouse.sdf, guard=False
+[SIM] Full restart for method: no_guard (world: warehouse.sdf)
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[SIM] Starting Gazebo...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 1/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 2/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 3/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 4/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 5/5)...
+[SIM][WARNING] Could not kill all gz sim processes — proceeding anyway
+The daemon has been started
+[SIM] Waiting for Gazebo (180s)...
+[SIM] Gazebo started successfully
+[SIM] robot_state_publisher: running
+[SIM] Starting odom relay (odom_real → odom)...
+[SIM] Odom relay started
+[SIM] Starting scan relay (scan_real → scan)...
+[SIM] Scan relay started, verifying /scan topic...
+[SIM] /scan topic verified - data flowing
+[SIM] Starting Nav2...
+[SIM] Waiting for Nav2 initial startup (30s)...
+[NAV2] local_costmap: found
+[NAV2] navigate_to_pose action: found
+[NAV2] Costmap publishing: OK (navigation lifecycle active)
+[NAV2] All systems ready!
+[SIM] Final verification: checking navigate_to_pose action...
+[SIM] Nav2 started successfully and action server verified!
+[SIM] Starting geofence with method: no_guard, params: {}, comm_latency_ms: 0
+[SIM] Waiting for geofence (20s)...
+[SIM] Geofence started with method: no_guard (cmd_vel_guard: False)
+[SIM] cmd_vel_guard disabled, starting cmd_vel relay for navigation...
+[SIM] Starting cmd_vel relay (cmd_vel_nav → cmd_vel)...
+[SIM] cmd_vel relay started
+[2026-07-13 20:30:48] 
+Trial 1/1: S5_no_guard_scan_mid_rot_30_s0
+[2026-07-13 20:30:48]   Goal: (0.00, 7.00)
+[2026-07-13 20:30:48]   Warehouse mid-nav LIDAR spoof: +30deg rotation, 8s into nav
+[2026-07-13 20:30:48] [RESET] Resetting robot pose to origin...
+[RESET] Teleporting robot to (0.0, 0.0, θ=0.0)
+[RESET] Cancelling any active navigation goals...
+[RESET] Stopping robot movement...
+[RESET] Waiting for TF to stabilize...
+[RESET] Setting AMCL initial pose...
+[RESET] Waiting for AMCL convergence...
+[RESET] AMCL converged: (-0.01, 0.00), error: 0.01m
+[RESET] Robot pose reset complete
+[2026-07-13 20:31:46] [S5-SCAN-MIDNAV] Injecting scan spoof (rotation=30.0°, scale=1.0, noise=0.0m) 8.0s into navigation
+[ATTACK] Starting scan_spoofing attack with rotation=30.0°, scale=1.0, noise=0.0m
+[ATTACK] Stopping scan relay for scan spoofing attack...
+[WARN] Nav2 ABORTED for (0.00, 7.00) with method=no_guard - treating as allow (Nav2 path failure)
+[2026-07-13 20:31:48] [S4] Stopping scan_spoofing attack
+[ATTACK] Restarting scan relay after scan spoofing attack...
+[SIM] Starting scan relay (scan_real → scan)...
+Exception in thread Thread-1:
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.12/threading.py", line 1431, in run
+    self.function(*self.args, **self.kwargs)
+  File "/home/jim/ros2_motion_planning_tutorials/src/geofence_enforcer/experiments/run_gazebo_s1_s6.py", line 4636, in _fire_scan_spoof
+    self.sim_manager.start_attack(
+  File "/home/jim/ros2_motion_planning_tutorials/src/geofence_enforcer/experiments/run_gazebo_s1_s6.py", line 2511, in start_attack
+    if self.attack_proc.poll() is None:
+       ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'poll'
+[SIM] Scan relay started, verifying /scan topic...
+[SIM] /scan topic verified - data flowing
+[2026-07-13 20:31:52]   Result: allow (PASS)
+[2026-07-13 20:31:52]   Reason: Navigation aborted (goal likely allowed by no_guard, Nav2 pa
+[2026-07-13 20:31:52]   Time: 64.1s
+[2026-07-13 20:31:52]   Robot moved: True, path_min_dist: 2.22m
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[2026-07-13 20:32:06] 
+================================================================================
+[2026-07-13 20:32:06] CONFUSION MATRIX SUMMARY BY METHOD
+[2026-07-13 20:32:06] ================================================================================
+
+Method         Total   TP   FP   TN   FN INFRA   Prec    Rec     F1     VR     Hz  Lat(ms)
+------------------------------------------------------------------------------------------
+no_guard           1    0    0    0    1     0  0.00  0.00  0.00   0.0%   6.3 10084.9
+[2026-07-13 20:32:06] 
+--------------------------------------------------------------------------------
+[2026-07-13 20:32:06] BOOTSTRAP 95% CONFIDENCE INTERVALS
+[2026-07-13 20:32:06] --------------------------------------------------------------------------------
+
+Method                  Prec CI           Rec CI            F1 CI            VR CI
+----------------------------------------------------------------------------------
+no_guard       [0.00,0.00]  [0.00,0.00]  [0.00,0.00]  [0.0,0.0]%
+[2026-07-13 20:32:06] 
+--------------------------------------------------------------------------------
+[2026-07-13 20:32:06] GEOFENCE MARGIN ANALYSIS
+[2026-07-13 20:32:06] Geofence margin = k_sigma * sigma_loc + e_track + v_max * tau = 3 * 0.15 + 0.05 + 0.5 * 0.1 = 0.55m. Expanded zone y_max = 1.0 + 0.55 = 1.55m. S3 clip_boundary (7,1.2): at x=4, y=0.69 (in zone); at x=5.83, y=1.0 (exits zone). Path clips zone upper boundary.
+[2026-07-13 20:32:06] 
+============================================================
+[2026-07-13 20:32:06] Experiment Complete!
+[2026-07-13 20:32:06] ============================================================

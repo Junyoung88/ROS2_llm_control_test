@@ -1,0 +1,43 @@
+Generated 80 trials
+Methods: ['cbf_inflated']
+Scenarios: ['S1', 'S3', 'S4', 'S5']
+Seeds: 5 (offset=5, range=s5-s9)
+Include sweep: False
+Runtime monitoring: False
+
+Trials by scenario: {'S1': 25, 'S3': 20, 'S4': 10, 'S5': 25}
+Trials by method: {'cbf_inflated': 80}
+[2026-04-03 23:13:09] ============================================================
+[2026-04-03 23:13:09] Starting Gazebo S1-S5 Experiment
+[2026-04-03 23:13:09] ============================================================
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[2026-04-03 23:13:12] Resuming from trial 160/80
+[2026-04-03 23:13:12] 
+[SKIP] Method cbf_inflated: all trials already completed
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[2026-04-03 23:13:26] 
+================================================================================
+[2026-04-03 23:13:26] CONFUSION MATRIX SUMMARY BY METHOD
+[2026-04-03 23:13:26] ================================================================================
+
+Method         Total   TP   FP   TN   FN INFRA   Prec    Rec     F1     VR     Hz  Lat(ms)
+------------------------------------------------------------------------------------------
+[2026-04-03 23:13:26] 
+--------------------------------------------------------------------------------
+[2026-04-03 23:13:26] BOOTSTRAP 95% CONFIDENCE INTERVALS
+[2026-04-03 23:13:26] --------------------------------------------------------------------------------
+
+Method                  Prec CI           Rec CI            F1 CI            VR CI
+----------------------------------------------------------------------------------
+[2026-04-03 23:13:26] 
+--------------------------------------------------------------------------------
+[2026-04-03 23:13:26] GEOFENCE MARGIN ANALYSIS
+[2026-04-03 23:13:26] Geofence margin = k_sigma * sigma_loc + e_track + v_max * tau = 3 * 0.15 + 0.05 + 0.5 * 0.1 = 0.55m. Expanded zone y_max = 1.0 + 0.55 = 1.55m. S3 clip_boundary (7,1.2): at x=4, y=0.69 (in zone); at x=5.83, y=1.0 (exits zone). Path clips zone upper boundary.
+[2026-04-03 23:13:26] 
+============================================================
+[2026-04-03 23:13:26] Experiment Complete!
+[2026-04-03 23:13:26] ============================================================

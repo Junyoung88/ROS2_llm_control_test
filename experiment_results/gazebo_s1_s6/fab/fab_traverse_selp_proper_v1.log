@@ -1,0 +1,107 @@
+Generated 1 trials
+Methods: ['selp_proper']
+Scenarios: ['S5']
+Seeds: 1 (offset=1, range=s1-s1)
+Include sweep: False
+Runtime monitoring: False
+
+Trials by scenario: {'S5': 1}
+Trials by method: {'selp_proper': 1}
+[2026-07-20 00:40:51] ============================================================
+[2026-07-20 00:40:51] Starting Gazebo S1-S5 Experiment
+[2026-07-20 00:40:51] ============================================================
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[2026-07-20 00:40:54] [OUTPUT] Writing results to experiment_results/gazebo_s1_s6/fab/res_fab_traverse_selp_proper_v1.jsonl
+[2026-07-20 00:40:54] 
+============================================================
+[2026-07-20 00:40:54] Method: selp_proper
+[2026-07-20 00:40:54] ============================================================
+[2026-07-20 00:40:54] [WORLD] Starting with fab_cell.sdf for scenarios: ['S5']
+[DEBUG] restart_with_method called: method=selp_proper, params={}, world=fab_cell.sdf, guard=False
+[SIM] Full restart for method: selp_proper (world: fab_cell.sdf)
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[SIM] Starting Gazebo...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 1/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 2/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 3/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 4/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 5/5)...
+[SIM][WARNING] Could not kill all gz sim processes — proceeding anyway
+The daemon has been started
+[SIM] Waiting for Gazebo (180s)...
+[SIM] Gazebo started successfully
+[SIM] robot_state_publisher: running
+[SIM] Starting odom relay (odom_real → odom)...
+[SIM] Odom relay started
+[SIM] Starting scan relay (scan_real → scan)...
+[SIM] Scan relay started, verifying /scan topic...
+[SIM] /scan topic verified - data flowing
+[SIM] Starting Nav2...
+[SIM] Waiting for Nav2 initial startup (30s)...
+[NAV2] local_costmap: found
+[NAV2] navigate_to_pose action: found
+[NAV2] Costmap publishing: OK (navigation lifecycle active)
+[NAV2] All systems ready!
+[SIM] Final verification: checking navigate_to_pose action...
+[SIM] Nav2 started successfully and action server verified!
+[SIM] Starting geofence with method: selp_proper, params: {}, comm_latency_ms: 0
+[SIM] Waiting for geofence (20s)...
+[SIM] Geofence started with method: selp_proper (cmd_vel_guard: False)
+[SIM] cmd_vel_guard disabled, starting cmd_vel relay for navigation...
+[SIM] Starting cmd_vel relay (cmd_vel_nav → cmd_vel)...
+[SIM] cmd_vel relay started
+[2026-07-20 00:42:44] [GEOM] applied zone geometry 'fab_cell'
+[2026-07-20 00:42:44] 
+Trial 1/1: S5_selp_proper_fab_traverse_s1
+[2026-07-20 00:42:44]   Goal: (6.00, 0.00)
+[2026-07-20 00:42:44]   Fab-cell aisle traverse to (6,0) — safe path-through the green transport lane between the tool bays (stops before the east restricted bay)
+[2026-07-20 00:42:44]   Comm latency: 50ms
+[2026-07-20 00:42:44] [RESET] Resetting robot pose to origin...
+[RESET] Teleporting robot to (0.0, 0.0, θ=0.0)
+[RESET] Cancelling any active navigation goals...
+[RESET] Stopping robot movement...
+[RESET] Waiting for TF to stabilize...
+[RESET] Setting AMCL initial pose...
+[RESET] Waiting for AMCL convergence...
+[RESET] AMCL converged: (0.35, -0.00), error: 0.35m
+[WARNING] TF not yet stable, waiting more...
+[RESET] Robot pose reset complete
+[2026-07-20 00:44:01] [POS_CHECK] Goal inside zone but robot stayed 0.64m away — marking INFRA (no retry)
+[2026-07-20 00:44:01]   Result: allow (PASS)
+[2026-07-20 00:44:01]   Reason: Goal reached successfully (dist=0.19m)
+[2026-07-20 00:44:01]   Time: 77.3s
+[2026-07-20 00:44:01]   Robot moved: True, path_min_dist: 0.64m
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[2026-07-20 00:44:15] 
+================================================================================
+[2026-07-20 00:44:15] CONFUSION MATRIX SUMMARY BY METHOD
+[2026-07-20 00:44:15] ================================================================================
+
+Method         Total   TP   FP   TN   FN INFRA   Prec    Rec     F1     VR     Hz  Lat(ms)
+------------------------------------------------------------------------------------------
+selp_proper        1    0    0    1    0     0  0.00  0.00  0.00   0.0%   6.3 37076.0
+[2026-07-20 00:44:15] 
+--------------------------------------------------------------------------------
+[2026-07-20 00:44:15] BOOTSTRAP 95% CONFIDENCE INTERVALS
+[2026-07-20 00:44:15] --------------------------------------------------------------------------------
+
+Method                  Prec CI           Rec CI            F1 CI            VR CI
+----------------------------------------------------------------------------------
+selp_proper    [0.00,0.00]  [0.00,0.00]  [0.00,0.00]  [0.0,0.0]%
+[2026-07-20 00:44:15] 
+--------------------------------------------------------------------------------
+[2026-07-20 00:44:15] GEOFENCE MARGIN ANALYSIS
+[2026-07-20 00:44:15] Geofence margin = k_sigma * sigma_loc + e_track + v_max * tau = 3 * 0.15 + 0.05 + 0.5 * 0.1 = 0.55m. Expanded zone y_max = 1.0 + 0.55 = 1.55m. S3 clip_boundary (7,1.2): at x=4, y=0.69 (in zone); at x=5.83, y=1.0 (exits zone). Path clips zone upper boundary.
+[2026-07-20 00:44:15] 
+============================================================
+[2026-07-20 00:44:15] Experiment Complete!
+[2026-07-20 00:44:15] ============================================================

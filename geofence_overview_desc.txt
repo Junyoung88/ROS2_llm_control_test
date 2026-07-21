@@ -1,0 +1,31 @@
+MANDATORY IMAGE DIMENSIONS: The output image MUST be exactly 2400 pixels wide and 700 pixels tall. This is a strict requirement — do NOT deviate. The result is a very wide, very short panoramic banner.
+
+This figure shows how a Probabilistic Dynamic Geofence protects an LLM-controlled mobile robot from entering forbidden zones. Everything flows LEFT TO RIGHT in a SINGLE horizontal row across three compact sections. Keep ALL elements SHORT vertically — minimize vertical space usage everywhere.
+
+LEFT SECTION (Command Input, visually muted in gray, narrow, ~20% of width):
+A user icon → LLM Planner box → Nav2 box, all in a single horizontal line. Muted gray to indicate untrusted outputs. Keep this section very compact — boxes should be small.
+
+CENTER SECTION (Geofence — main contribution, orange border, light amber background, ~45% of width):
+Two enforcement stages placed SIDE BY SIDE horizontally — NOT stacked vertically:
+
+Left half: Goal Gate — Decision diamond "Safe?" → NO: BLOCK (red) / PROJECT (orange). YES: Allow. Small label: "Before robot moves"
+Right half: Cmd Vel Guard — Decision diamond "Safe?" → NO: STOP (red). Loop arrow for continuous monitoring. Small label: "During motion"
+
+IMPORTANT: The text "Safe?" inside the decision diamonds MUST use a clean sans-serif font (like Arial or Helvetica), NOT italic, NOT serif. Keep it simple and readable.
+
+Bottom label: "Dynamic Safety Margin M(t)" in small text.
+
+Keep the flowchart elements SMALL and COMPACT. Use small diamonds, small boxes. Minimize vertical extent.
+
+RIGHT SECTION (Spatial Result — bird's-eye view, ~35% of width):
+Compact top-down view showing: red rectangle "Forbidden Zone", dashed orange border for M(t), dashed arrow (intended path) from left interrupted by red X at margin, small robot icon stopped at boundary, "Blocked!" in red.
+
+STYLE:
+- PANORAMIC BANNER shape: very wide, very short (like 2400×700 pixels)
+- Small text, small boxes, small diamonds — everything compact
+- Robot icon (not circle) for the robot
+- No formulas, only "M(t)" as label
+- Clean academic style for IEEE paper
+- Orange=geofence, gray=untrusted, red=danger, blue=robot
+- No gradients, no 3D, no shadows
+- Minimal text — visual flow tells the story

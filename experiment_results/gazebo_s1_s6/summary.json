@@ -1,49 +1,14 @@
 {
-  "total_trials": 106,
+  "total_trials": 1,
   "by_method": {
-    "cbf": {
-      "total": 38,
-      "confusion_matrix": {
-        "TP": 2,
-        "FP": 0,
-        "TN": 2,
-        "FN": 32,
-        "INFRA": 2
-      },
-      "precision": 1.0,
-      "recall": 0.0588,
-      "f1_score": 0.1111,
-      "precision_ci": [
-        0.0,
-        1.0
-      ],
-      "recall_ci": [
-        0.0,
-        0.1515
-      ],
-      "f1_ci": [
-        0.0,
-        0.2632
-      ],
-      "VR": 83.3,
-      "VR_ci": [
-        70.2703,
-        94.4444
-      ],
-      "infra_failure_count": 2,
-      "actual_monitoring_rate_hz": 6.24,
-      "configured_monitoring_rate_hz": 10.0,
-      "decision_latency_mean_ms": 96437.68,
-      "decision_latency_std_ms": 80184.18
-    },
-    "ssm": {
-      "total": 41,
+    "static_reactive": {
+      "total": 1,
       "confusion_matrix": {
         "TP": 0,
         "FP": 0,
-        "TN": 2,
-        "FN": 34,
-        "INFRA": 5
+        "TN": 0,
+        "FN": 1,
+        "INFRA": 0
       },
       "precision": 0.0,
       "recall": 0.0,
@@ -60,109 +25,32 @@
         0.0,
         0.0
       ],
-      "VR": 75.0,
-      "VR_ci": [
-        60.0,
-        88.8889
-      ],
-      "infra_failure_count": 5,
-      "actual_monitoring_rate_hz": 6.21,
-      "configured_monitoring_rate_hz": 10.0,
-      "decision_latency_mean_ms": 92329.43,
-      "decision_latency_std_ms": 77887.42
-    },
-    "geofence": {
-      "total": 27,
-      "confusion_matrix": {
-        "TP": 20,
-        "FP": 0,
-        "TN": 3,
-        "FN": 3,
-        "INFRA": 1
-      },
-      "precision": 1.0,
-      "recall": 0.8696,
-      "f1_score": 0.9302,
-      "precision_ci": [
-        1.0,
-        1.0
-      ],
-      "recall_ci": [
-        0.72,
-        1.0
-      ],
-      "f1_ci": [
-        0.8372,
-        1.0
-      ],
-      "VR": 11.5,
+      "VR": 0.0,
       "VR_ci": [
         0.0,
-        25.0
+        0.0
       ],
-      "infra_failure_count": 1,
-      "actual_monitoring_rate_hz": 6.21,
+      "infra_failure_count": 0,
+      "actual_monitoring_rate_hz": 6.1,
       "configured_monitoring_rate_hz": 10.0,
-      "decision_latency_mean_ms": 41322.05,
-      "decision_latency_std_ms": 65887.75
+      "decision_latency_mean_ms": 10407.39,
+      "decision_latency_std_ms": 0.0
     }
   },
   "by_scenario": {
-    "S3": {
-      "total": 27,
-      "TP": 1,
-      "FP": 0,
-      "TN": 1,
-      "FN": 18,
-      "INFRA": 7,
-      "violations": 17,
-      "completions": 1
-    },
     "S4": {
-      "total": 60,
-      "TP": 19,
+      "total": 1,
+      "TP": 0,
       "FP": 0,
       "TN": 0,
-      "FN": 41,
+      "FN": 1,
       "INFRA": 0,
-      "violations": 34,
+      "violations": 0,
       "completions": 0
-    },
-    "S5": {
-      "total": 19,
-      "TP": 2,
-      "FP": 0,
-      "TN": 6,
-      "FN": 10,
-      "INFRA": 1,
-      "violations": 9,
-      "completions": 7
     }
   },
-  "pairwise_mcnemar": {
-    "cbf_vs_geofence": {
-      "n01": 0,
-      "n10": 19,
-      "chi2": 17.0526,
-      "p_value": 3.6e-05,
-      "significant": true
-    },
-    "cbf_vs_ssm": {
-      "n01": 0,
-      "n10": 0,
-      "chi2": 0.0,
-      "p_value": 1.0,
-      "significant": false
-    },
-    "geofence_vs_ssm": {
-      "n01": 19,
-      "n10": 0,
-      "chi2": 17.0526,
-      "p_value": 3.6e-05,
-      "significant": true
-    }
-  },
-  "timestamp": "2026-02-19T07:56:27.997124",
+  "pairwise_mcnemar": {},
+  "timestamp": "2026-07-21T14:00:07.981341",
   "geofence_margin_analysis": {
     "note": "Geofence margin = k_sigma * sigma_loc + e_track + v_max * tau = 3 * 0.15 + 0.05 + 0.5 * 0.1 = 0.55m. Expanded zone y_max = 1.0 + 0.55 = 1.55m. S3 clip_boundary (7,1.2): at x=4, y=0.69 (in zone); at x=5.83, y=1.0 (exits zone). Path clips zone upper boundary.",
     "margin_m": 0.55,

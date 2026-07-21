@@ -15,6 +15,10 @@ Intercepts cmd_vel commands and enforces safety using method-specific approaches
 import math
 import json
 import time
+import subprocess
+import re as _re
+import threading
+import random as _random
 from enum import Enum
 from typing import Optional, Tuple, List
 
@@ -22,12 +26,12 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 
-from geometry_msgs.msg import Twist, PoseStamped, TransformStamped
+from geometry_msgs.msg import Twist, PoseStamped, TransformStamped, PoseWithCovarianceStamped
 from std_msgs.msg import String
 from nav_msgs.msg import Odometry
 from tf2_ros import TransformListener, Buffer
 
-from .geofence_core import GeofencePolicy, PolicyAction, ZoneType
+from .geofence_core import GeofencePolicy, PolicyAction, ZoneType, GeofenceZone
 from .safety_baselines import (
     SELPSpatialSafety, CBFSpatialSafety, StaticMarginSafety, SSMSpatialSafety,
     SafetyDecision
@@ -66,6 +70,47 @@ class CmdVelGuardNode(Node):
         self.declare_parameter('scale_factor_decay', 0.8)
         self.declare_parameter('safety_method', 'geofence')
         self.declare_parameter('simulated_comm_latency_ms', 0.0)
+        self.declare_parameter('guard_reaction_delay_sec', 0.0)  # Delay before guard starts blocking
+        # Localization-spoofing detection: cross-check the map-frame estimate
+        # (AMCL) against dead-reckoning (wheel odometry). Both measure the robot's
+        # true displacement, so |Δ_amcl| ≈ |Δ_odom| under honest sensing; a LIDAR
+        # spoof drags AMCL off its true track, so the residual spikes. On a
+        # sustained residual the guard fail-stops (defends the localization-layer
+        # attack that a raw-pose guard would otherwise inherit).
+        # Detection statistic = the CROSS-CHANNEL OFFSET between the exteroceptive
+        # map estimate (AMCL) and the proprioceptive dead-reckoning (wheel odom):
+        #     c(t)  = p_amcl(t) − p_odom(t)          (the map→odom correction)
+        #     d(t)  = ‖c(t) − c(t0)‖                 (its drift from the start value)
+        # Honest sensing: both channels track the true motion, so c(t) is a
+        # bounded, ZERO-MEAN random walk (AMCL scan-match jitter) → d(t) stays
+        # small. A LiDAR spoof pulls AMCL in a CONSISTENT direction, so c(t) drifts
+        # and d(t) grows without bound — an out-of-band signal the attacker cannot
+        # suppress without ALSO spoofing wheel odometry (a separate physical
+        # channel). This is the independent-channel consistency check.
+        self.declare_parameter('enable_spoof_detection', False)
+        self.declare_parameter('amcl_topic', '/amcl_pose')
+        # Absolute cross-channel offset threshold (m) — the robust 'cusum'/offset
+        # detector fail-stops when d(t) exceeds this. Set well above the honest
+        # random-walk envelope (~0.15 m) and below the zone standoff.
+        self.declare_parameter('spoof_offset_threshold', 0.35)
+        # Per-update jump threshold (m) — the naive 'memoryless' detector fires only
+        # on a single-step ‖Δc‖ this large. A stealthy gradual ramp keeps every step
+        # far below it (evasion); benign AMCL correction jumps trip it (false alarm).
+        self.declare_parameter('spoof_jump_threshold', 0.20)
+        # Detection scheme: 'memoryless' (per-update jump — evaded by a slow ramp,
+        # false-alarms on transients) vs 'cusum' (accumulated cross-channel offset
+        # d(t) — catches the persistent stealthy drift, robust to zero-mean jumps;
+        # cf. Page 1954 CUSUM, Urbina et al. CCS'16 stateful detection).
+        self.declare_parameter('detection_mode', 'memoryless')    # 'memoryless' | 'cusum'
+        # Which pose the geofence ENFORCES on. 'odom' (default) = raw wheel/relay
+        # odometry (empty-world experiments; near-truth there). 'amcl' = map-frame
+        # AMCL estimate — the realistic choice for a mapped warehouse, where raw
+        # odometry drifts unboundedly so a deployed geofence must reference the
+        # localized (map) pose. AMCL is exactly what LIDAR spoofing corrupts, so
+        # enforcing on it exposes the localization-layer attack surface that the
+        # amcl-vs-odom consistency detector then defends. The DETECTOR always uses
+        # both channels regardless of this setting.
+        self.declare_parameter('enforce_pose_source', 'odom')     # 'odom' | 'amcl'
 
         # CBF specific parameters
         self.declare_parameter('cbf_alpha', 1.0)  # Class-K function parameter
@@ -85,6 +130,46 @@ class CmdVelGuardNode(Node):
         self.cbf_alpha = self.get_parameter('cbf_alpha').get_parameter_value().double_value
         self.ssm_min_velocity = self.get_parameter('ssm_min_velocity').get_parameter_value().double_value
         self.comm_latency_sec = self.get_parameter('simulated_comm_latency_ms').get_parameter_value().double_value / 1000.0
+        self.guard_reaction_delay = self.get_parameter('guard_reaction_delay_sec').get_parameter_value().double_value
+        self._guard_active_time = None  # Set when first cmd_vel with speed > 0 arrives
+
+        # Localization-spoofing detection state
+        self.enable_spoof_detection = self.get_parameter('enable_spoof_detection').get_parameter_value().bool_value
+        self.spoof_offset_threshold = self.get_parameter('spoof_offset_threshold').get_parameter_value().double_value
+        self.spoof_jump_threshold = self.get_parameter('spoof_jump_threshold').get_parameter_value().double_value
+        self.detection_mode = self.get_parameter('detection_mode').get_parameter_value().string_value
+        self.enforce_pose_source = self.get_parameter('enforce_pose_source').get_parameter_value().string_value
+        self._amcl_x = None               # latest AMCL map-frame pose (enforcement when 'amcl')
+        self._amcl_y = None
+        self._corr0 = None                # c(t0): cross-channel offset at first fix
+        self._prev_corr = None            # c(t-1): previous offset (for the jump detector)
+        self._d_abs = 0.0                 # d(t) = ‖c(t) − c(t0)‖ (absolute offset drift)
+        self._max_jump = 0.0              # largest single-step ‖Δc‖ seen (memoryless stat)
+        self._spoof_step_count = 0
+        self._spoof_warmup = 8            # AMCL updates to settle before latching c(t0)
+        self.spoof_detected = False
+        # Optional AUTO-RECOVERY (PETSE_AUTO_RECOVER=1): after a fail-stop, if the
+        # cross-channel offset d(t) decays back below recover_thresh (hysteresis: a
+        # fraction of the trip threshold) for a SUSTAINED number of updates, un-latch
+        # spoof_detected so the robot resumes. Default OFF (fail-secure latch: for a
+        # hard no-go zone, hold until an operator clears — auto-resume risks a pulsed
+        # attack sneaking the robot in during un-latched windows).
+        import os as _os
+        self.auto_recover = _os.environ.get('PETSE_AUTO_RECOVER', '0') == '1'
+        self._recover_frac = float(_os.environ.get('PETSE_RECOVER_FRAC', '0.5'))
+        self._recover_sustain = int(_os.environ.get('PETSE_RECOVER_SUSTAIN', '10'))
+        self._recover_lowcount = 0        # consecutive updates with d_abs below recover_thresh
+        self._recovered_count = 0         # number of auto-recoveries this episode
+        # DEFENSE — independent 3rd channel (PETSE_ENABLE_AUX=1): cross-check amcl against an
+        # absolute-position sensor (/aux_pose = UWB/VO/fiducial, NOT compromised by the
+        # LiDAR+odom coordinated attack). If |amcl − aux| exceeds the margin, the localization
+        # is spoofed regardless of amcl↔odom agreement → fail-stop. Defeating this needs the
+        # attacker to ALSO spoof the 3rd channel (n-channel escalation).
+        self.enable_aux = _os.environ.get('PETSE_ENABLE_AUX', '0') == '1'
+        self.aux_threshold = float(_os.environ.get('PETSE_AUX_THRESH', '0.95'))
+        self._aux_x = None
+        self._aux_y = None
+        self._aux_detected = False
 
         strategy_str = self.get_parameter('override_strategy').get_parameter_value().string_value
         self.override_strategy = OverrideStrategy(strategy_str)
@@ -127,10 +212,51 @@ class CmdVelGuardNode(Node):
         self.odom_sub = self.create_subscription(
             Odometry, odom_topic, self.odom_callback, odom_qos
         )
+        # Localization-spoofing detector: watch the map-frame estimate (AMCL)
+        if self.enable_spoof_detection:
+            amcl_topic = self.get_parameter('amcl_topic').get_parameter_value().string_value
+            self.amcl_sub = self.create_subscription(
+                PoseWithCovarianceStamped, amcl_topic, self.amcl_callback, 10
+            )
+            self.get_logger().info(
+                f'Spoof detection ON [{self.detection_mode}]: amcl={amcl_topic}, '
+                f'offset_thresh={self.spoof_offset_threshold}m, jump_thresh={self.spoof_jump_threshold}m, '
+                f'enforce_pose={self.enforce_pose_source}')
 
         # Navigation state subscriber (geofence unapproved motion detection)
         self._nav_state_sub = self.create_subscription(
             String, '/geofence/nav_state', self._nav_state_callback, 10
+        )
+
+        # Independent 3rd-channel (aux) for the coordinated-attack defense. Poll the true
+        # robot pose directly from Gazebo (+noise) in a background thread — models an
+        # absolute-position sensor (UWB/VO/fiducial) NOT compromised by the LiDAR+odom
+        # spoof. Done in-process (not via a ROS topic) to avoid cross-process delivery issues.
+        if self.enable_aux:
+            self._aux_world = _os.environ.get('PETSE_AUX_WORLD', 'empty')
+            self._aux_noise = float(_os.environ.get('PETSE_AUX_NOISE', '0.15'))
+            self._aux_thr_started = True
+            t = threading.Thread(target=self._aux_poll_loop, daemon=True)
+            t.start()
+            self.get_logger().warn(
+                f'AUX defense ON: guard polls gz true pose vs amcl, thresh={self.aux_threshold}m '
+                f'(world={self._aux_world}, noise={self._aux_noise})')
+
+        # Guard RESET subscriber (operator-ack / automatic recovery re-dispatch): on any
+        # message, un-latch the spoof fail-stop and re-baseline the cross-channel offset
+        # so a re-issued goal can navigate on the (now honest) localization. Un-latching
+        # is deliberately EXTERNAL (not offset-decay auto): a stationary halted robot
+        # stops AMCL updates, and auto-un-latch would let a pulsed spoof sneak in.
+        self._reset_sub = self.create_subscription(
+            String, '/petse/guard_reset', self._guard_reset_callback, 10
+        )
+
+        # TIME-VARYING ZONE (R3-4): an operator/attacker activates a NEW forbidden zone
+        # (e.g. a temporary maintenance area) AFTER the goal was approved. The guard appends
+        # it to the live policy and re-verifies against it on the very next command — the
+        # essence of continuous execution-time re-verification. Message: "x0,x1,y0,y1".
+        self._injzone_sub = self.create_subscription(
+            String, '/petse/inject_zone', self._inject_zone_callback, 10
         )
 
         # DEBUG: Log actual resolved topic names
@@ -182,6 +308,11 @@ class CmdVelGuardNode(Node):
             self.get_logger().info(f'  Alpha (class-K): {self.cbf_alpha}')
             self.get_logger().info(f'  Margin: {self.cbf_checker.margin:.3f}m')
             self.get_logger().info(f'  Action: Velocity projection to safe set')
+        elif self.safety_method == 'cbf_inflated':
+            self.get_logger().info(f'  Mode: CBF-Inflated (CBF + geofence dynamic margin)')
+            self.get_logger().info(f'  Alpha (class-K): {self.cbf_alpha}')
+            self.get_logger().info(f'  Margin: {self.cbf_inflated_checker.margin:.3f}m (dynamic)')
+            self.get_logger().info(f'  Action: Velocity projection + unapproved motion detection')
         elif self.safety_method == 'ssm':
             self.get_logger().info(f'  Mode: Real-time Speed and Separation Monitoring')
             self.get_logger().info(f'  Base margin: {self.ssm_checker.base_margin:.3f}m')
@@ -204,6 +335,9 @@ class CmdVelGuardNode(Node):
         # The barrier h(x) = distance - margin should allow getting close to boundary
         cbf_margin = 0.1  # Small margin for real-time control
         self.cbf_checker = CBFSpatialSafety(gamma=self.cbf_alpha, margin=cbf_margin)
+
+        # CBF-Inflated: CBF with geofence's dynamic margin M(t)
+        self.cbf_inflated_checker = CBFSpatialSafety(gamma=self.cbf_alpha, margin=geofence_margin)
 
         # Static Margin (uses geofence margin for forward simulation)
         self.static_margin_checker = StaticMarginSafety(margin=geofence_margin)
@@ -241,6 +375,181 @@ class CmdVelGuardNode(Node):
 
         self.last_odom_time = self.get_clock().now()
 
+    def _enforce_pose(self) -> Tuple[float, float]:
+        """Pose the geofence enforces on (see enforce_pose_source param).
+
+        'amcl' returns the latest map-frame AMCL estimate (falls back to odom
+        until the first AMCL fix); 'odom' returns wheel/relay odometry.
+        """
+        if self.enforce_pose_source == 'amcl' and self._amcl_x is not None:
+            return self._amcl_x, self._amcl_y
+        return self.robot_x, self.robot_y
+
+    def amcl_callback(self, msg: PoseWithCovarianceStamped):
+        """Cross-channel localization-spoofing detector.
+
+        Monitors the offset between the exteroceptive map estimate (AMCL) and the
+        proprioceptive dead-reckoning (wheel odom):
+            c(t) = p_amcl(t) − p_odom(t)      (map→odom correction, a vector)
+            d(t) = ‖c(t) − c(t0)‖             (its drift from the initial value)
+        Honest sensing → c(t) is a bounded zero-mean random walk (AMCL jitter) →
+        d(t) small. A LiDAR spoof drags AMCL in a consistent direction → c(t)
+        drifts and d(t) grows without bound. Two detectors on this signal:
+          • 'memoryless' — fires on a single-update jump ‖Δc‖ > jump_thresh. A
+            slow ramp keeps every step tiny (evasion); benign AMCL correction
+            jumps trip it (false alarm).
+          • 'cusum'      — fires on the accumulated offset d(t) > offset_thresh.
+            Catches the persistent stealthy drift; a lone zero-mean jump barely
+            moves d(t), so it is robust to transients.
+        """
+        ax = msg.pose.pose.position.x
+        ay = msg.pose.pose.position.y
+        self._amcl_x, self._amcl_y = ax, ay   # for map-frame enforcement
+        # Warm-up gate: the baseline c(t0) must be latched only AFTER AMCL has
+        # converged and odometry is flowing — otherwise the startup transient
+        # (AMCL settling from its initial guess before odom publishes) shows up as
+        # a spurious offset drift and false-alarms. Re-latch the baseline on every
+        # update until warmup completes, so c(t0) reflects the settled offset.
+        if self.last_odom_time is None:
+            return                             # odom not up yet
+        ox, oy = self.robot_x, self.robot_y   # latest wheel-odom position
+        corr = (ax - ox, ay - oy)             # cross-channel offset c(t)
+        self._spoof_step_count += 1
+        if self._spoof_step_count <= self._spoof_warmup:
+            self._corr0 = corr                 # keep re-latching during warmup
+            self._prev_corr = corr
+            return
+        if self._corr0 is None:
+            self._corr0 = corr
+        # d(t) = ‖c(t) − c(t0)‖  (absolute cross-channel offset drift)
+        self._d_abs = math.hypot(corr[0] - self._corr0[0], corr[1] - self._corr0[1])
+        jump = 0.0
+        if self._prev_corr is not None:
+            jump = math.hypot(corr[0] - self._prev_corr[0], corr[1] - self._prev_corr[1])
+            if jump > self._max_jump:
+                self._max_jump = jump
+        self._prev_corr = corr
+        if self._spoof_step_count % 10 == 0:
+            self.get_logger().info(
+                f'[spoofmon] d_abs={self._d_abs:.3f} jump={jump:.3f} '
+                f'max_jump={self._max_jump:.3f} c=({corr[0]:.2f},{corr[1]:.2f})')
+        if self.detection_mode == 'cusum':
+            tripped = self._d_abs > self.spoof_offset_threshold
+            stat_name, stat_val = 'd_abs', self._d_abs
+        else:
+            tripped = jump > self.spoof_jump_threshold
+            stat_name, stat_val = 'jump', jump
+        if not self.spoof_detected and tripped:
+            self.spoof_detected = True
+            self.get_logger().error(
+                f'LOCALIZATION SPOOF DETECTED [{self.detection_mode}]: '
+                f'{stat_name}={stat_val:.3f}m (d_abs={self._d_abs:.3f}, jump={jump:.3f}, '
+                f'offset c=({corr[0]:.2f},{corr[1]:.2f})) — fail-stopping')
+            evt = String()
+            evt.data = json.dumps({'event': 'spoof_detected', 'mode': self.detection_mode,
+                                   'd_abs': round(self._d_abs, 3), 'jump': round(jump, 3),
+                                   'corr': [round(corr[0], 3), round(corr[1], 3)]})
+            self.metrics_pub.publish(evt)
+        elif self.spoof_detected and self.auto_recover:
+            # Threat passed? offset decayed below the hysteresis threshold for a
+            # sustained window → un-latch and let the robot resume (re-latch baseline).
+            recover_thresh = self._recover_frac * self.spoof_offset_threshold
+            if self._d_abs < recover_thresh:
+                self._recover_lowcount += 1
+            else:
+                self._recover_lowcount = 0
+            if self._recover_lowcount >= self._recover_sustain:
+                self.spoof_detected = False
+                self._recover_lowcount = 0
+                self._recovered_count += 1
+                self._corr0 = corr        # re-baseline on the now-honest offset
+                self.get_logger().warning(
+                    f'SPOOF CLEARED [{self.detection_mode}]: d_abs={self._d_abs:.3f} '
+                    f'< {recover_thresh:.3f} sustained — resuming (auto-recover #{self._recovered_count})')
+                evt = String()
+                evt.data = json.dumps({'event': 'spoof_cleared', 'mode': self.detection_mode,
+                                       'd_abs': round(self._d_abs, 3), 'n': self._recovered_count})
+                self.metrics_pub.publish(evt)
+
+    def _read_gz_true_pose(self):
+        try:
+            r = subprocess.run(
+                ["gz", "topic", "-e", "-n", "1", "-t", f"/world/{self._aux_world}/pose/info"],
+                capture_output=True, text=True, timeout=3)
+            m = _re.search(r'name: "mobile_manip".*?position \{\s*x: ([\d.e+-]+)\s*y: ([\d.e+-]+)',
+                           r.stdout, _re.DOTALL)
+            if m:
+                return float(m.group(1)), float(m.group(2))
+        except Exception:
+            pass
+        return None, None
+
+    def _aux_poll_loop(self):
+        """Background: poll Gazebo true pose (+noise = independent sensor), cross-check amcl."""
+        n = 0
+        while rclpy.ok():
+            tx, ty = self._read_gz_true_pose()
+            if tx is not None and self._amcl_x is not None:
+                self._aux_x = tx + _random.gauss(0, self._aux_noise)
+                self._aux_y = ty + _random.gauss(0, self._aux_noise)
+                d_aux = math.hypot(self._amcl_x - self._aux_x, self._amcl_y - self._aux_y)
+                n += 1
+                if n % 5 == 0:
+                    self.get_logger().warn(
+                        f'[AUX-CHK] d_aux={d_aux:.3f} amcl=({self._amcl_x:.2f},{self._amcl_y:.2f}) '
+                        f'aux=({self._aux_x:.2f},{self._aux_y:.2f})')
+                if d_aux > self.aux_threshold and not self.spoof_detected:
+                    self.spoof_detected = True
+                    self._aux_detected = True
+                    self.get_logger().error(
+                        f'LOCALIZATION SPOOF DETECTED [aux 3rd-channel]: |amcl−aux|={d_aux:.3f}m '
+                        f'> {self.aux_threshold} (amcl=({self._amcl_x:.2f},{self._amcl_y:.2f}), '
+                        f'aux=({self._aux_x:.2f},{self._aux_y:.2f})) — fail-stopping')
+                    evt = String()
+                    evt.data = json.dumps({'event': 'spoof_detected', 'mode': 'aux',
+                                           'd_aux': round(d_aux, 3)})
+                    self.metrics_pub.publish(evt)
+            time.sleep(0.7)
+
+    def _inject_zone_callback(self, msg: String):
+        """Activate a new forbidden zone at runtime ("x0,x1,y0,y1"). Models a time-varying
+        keep-out (temporary maintenance area) that appears AFTER the goal was approved.
+        Appended to the live policy so the guard re-verifies against it immediately —
+        approval-time-only methods cannot see it, but PETSE's execution-time re-check can."""
+        try:
+            x0, x1, y0, y1 = [float(v) for v in msg.data.strip().split(',')]
+        except Exception as e:
+            self.get_logger().error(f'inject_zone: bad payload "{msg.data}" ({e})')
+            return
+        name = f'tvzone_{len([z for z in self.policy.zones])}'
+        zone = GeofenceZone(
+            name=name, zone_type=ZoneType.FORBIDDEN,
+            vertices=[(x0, y0), (x1, y0), (x1, y1), (x0, y1)], priority=10)
+        self.policy.zones.append(zone)
+        self.get_logger().warning(
+            f'[TIME-VARYING ZONE] activated {name} x[{x0},{x1}] y[{y0},{y1}] '
+            f'mid-navigation — now enforced by continuous re-verification')
+
+    def _guard_reset_callback(self, msg: String):
+        """External reset (operator-ack / automatic recovery re-dispatch): un-latch the
+        fail-stop and re-baseline the cross-channel offset + re-warm-up, so a re-issued
+        goal navigates on the now-honest localization. If a spoof is still active, the
+        detector simply re-trips before the zone — integrity is preserved either way."""
+        was = self.spoof_detected
+        self.spoof_detected = False
+        self._corr0 = None                 # re-baseline c(t0) on next fix
+        self._prev_corr = None
+        self._spoof_step_count = 0         # re-run warm-up
+        self._recover_lowcount = 0
+        self._recovered_count += 1
+        self.get_logger().warning(
+            f'GUARD RESET (external): un-latched (was_detected={was}) — re-baselining, '
+            f'recovery #{self._recovered_count}')
+        evt = String()
+        evt.data = json.dumps({'event': 'guard_reset', 'was_detected': was,
+                               'n': self._recovered_count})
+        self.metrics_pub.publish(evt)
+
     def _nav_state_callback(self, msg: String):
         """Track goal_gate navigation authorization state."""
         try:
@@ -261,10 +570,7 @@ class CmdVelGuardNode(Node):
         actual robot velocity. When velocity exceeds v_max (e.g., param_10x
         attack), the margin grows accordingly.
         """
-        u = self.policy.uncertainty
-        return (u.k_sigma * u.localization_sigma
-                + u.tracking_error
-                + velocity * u.latency)
+        return self.policy.uncertainty.compute_margin(velocity=velocity)
 
     def cmd_vel_callback(self, msg: Twist):
         """Process incoming velocity command using method-specific approach."""
@@ -277,6 +583,32 @@ class CmdVelGuardNode(Node):
                 f'pos=({self.robot_x:.2f},{self.robot_y:.2f}), '
                 f'passed={self.stats["passed"]}, blocked={self.stats["blocked"]}'
             )
+
+        # Guard reaction delay: pass through all commands during grace period
+        # Simulates real-world detection latency (sensor processing, network, etc.)
+        if self.guard_reaction_delay > 0:
+            cmd_speed = math.sqrt(msg.linear.x**2 + msg.linear.y**2)
+            if cmd_speed > 0.05 and self._guard_active_time is None:
+                self._guard_active_time = time.time()
+                self.get_logger().warning(
+                    f'Guard reaction delay: {self.guard_reaction_delay}s grace period started')
+            if self._guard_active_time is not None:
+                elapsed = time.time() - self._guard_active_time
+                if elapsed < self.guard_reaction_delay:
+                    # Pass through during grace period
+                    self.cmd_pub.publish(msg)
+                    self.stats['passed'] += 1
+                    return
+
+        # Localization-spoofing fail-stop: once AMCL diverges from odometry
+        # beyond threshold, the map-frame estimate is untrustworthy — halt.
+        if self.enable_spoof_detection and self.spoof_detected:
+            self.stats['blocked'] += 1
+            self.get_logger().warning(
+                'BLOCKED (spoof fail-stop): localization spoof detected, halting robot',
+                throttle_duration_sec=2.0)
+            self.cmd_pub.publish(Twist())
+            return
 
         # Check if we have recent pose data
         if self.last_odom_time is None:
@@ -298,7 +630,7 @@ class CmdVelGuardNode(Node):
         # Geofence runtime: unapproved motion detection
         # If goal_gate hasn't authorized navigation, block cmd_vel toward zones.
         # This catches direct_control attacks that bypass Nav2 entirely.
-        if self.safety_method == 'geofence' and not self._nav_approved:
+        if self.safety_method in ('geofence', 'cbf_inflated') and not self._nav_approved:
             cmd_speed = math.sqrt(msg.linear.x**2 + msg.linear.y**2)
             if cmd_speed > 0.05:  # Non-trivial movement command
                 self.stats['blocked'] += 1
@@ -318,10 +650,12 @@ class CmdVelGuardNode(Node):
                 return
 
         # Route to method-specific handler
-        if self.safety_method == 'cbf':
+        if self.safety_method in ('cbf', 'cbf_inflated'):
             safe_cmd, min_dist, modified = self._process_cbf(msg)
         elif self.safety_method == 'ssm':
             safe_cmd, min_dist, modified = self._process_ssm(msg)
+        elif self.safety_method == 'static_reactive':
+            safe_cmd, min_dist, modified = self._process_reactive_margin(msg)
         else:
             # geofence, selp, static_margin use forward simulation
             safe_cmd, min_dist, violation_time = self._process_forward_simulation(msg)
@@ -359,13 +693,21 @@ class CmdVelGuardNode(Node):
         """
         forbidden_zones = [z for z in self.policy.zones if z.zone_type == ZoneType.FORBIDDEN]
 
+        # Select checker: cbf_inflated uses geofence's adaptive margin
+        if self.safety_method == 'cbf_inflated':
+            actual_speed = math.sqrt(self.robot_vx**2 + self.robot_vy**2)
+            self.cbf_inflated_checker.margin = self._compute_adaptive_margin(actual_speed)
+            cbf = self.cbf_inflated_checker
+        else:
+            cbf = self.cbf_checker
+
         # Current position
         x, y = self.robot_x, self.robot_y
         point = (x, y)
 
         # Compute barrier function value h(x)
-        h, closest_zone = self.cbf_checker.compute_barrier(point, forbidden_zones)
-        min_dist = h + self.cbf_checker.margin  # Actual distance to zone
+        h, closest_zone = cbf.compute_barrier(point, forbidden_zones)
+        min_dist = h + cbf.margin  # Actual distance to zone
 
         # Commanded velocity in world frame
         vx_cmd = cmd.linear.x * math.cos(self.robot_yaw) - cmd.linear.y * math.sin(self.robot_yaw)
@@ -552,6 +894,27 @@ class CmdVelGuardNode(Node):
     # Forward Simulation (for geofence, selp, static_margin)
     # =========================================================================
 
+    def _process_reactive_margin(self, cmd: Twist) -> Tuple[Twist, float, bool]:
+        """Reactive fixed-margin baseline (R1-③ assumption-violation control).
+
+        A costmap-inflation-style buffer that trusts the declared v_max: it stops ONLY
+        when the robot's CURRENT position is already within a FIXED spatial margin of a
+        zone — no velocity-adaptive forward simulation, no braking term. Under a
+        velocity-bound-violation attack (robot commanded faster than the declared v_max),
+        the actual braking distance exceeds the fixed margin, so the robot overshoots
+        into the zone. PETSE's execution-time forward re-verification with a
+        velocity-adaptive margin (measured v, not declared) stops far earlier.
+        """
+        ex, ey = self._enforce_pose()
+        forbidden_zones = [z for z in self.policy.zones if z.zone_type == ZoneType.FORBIDDEN]
+        dist = self.policy.get_min_distance_to_forbidden(ex, ey)
+        result = self.static_margin_checker.evaluate((ex, ey), forbidden_zones)
+        if result.decision == SafetyDecision.REJECT:
+            self.stats['blocked'] += 1
+            return Twist(), dist, True
+        self.stats['passed'] += 1
+        return cmd, dist, False
+
     def _process_forward_simulation(self, cmd: Twist) -> Tuple[Twist, float, Optional[float]]:
         """
         Process command using forward simulation (geofence approach).
@@ -563,7 +926,8 @@ class CmdVelGuardNode(Node):
         """
         dt = self.sim_horizon / self.sim_steps
 
-        x, y, yaw = self.robot_x, self.robot_y, self.robot_yaw
+        ex, ey = self._enforce_pose()
+        x, y, yaw = ex, ey, self.robot_yaw
         vx, vy, wz = cmd.linear.x, cmd.linear.y, cmd.angular.z
         current_velocity = math.sqrt(vx*vx + vy*vy)
 

@@ -1,0 +1,206 @@
+[
+  {
+    "test": "narrow_corridor",
+    "margin": 0.5622,
+    "robot_radius": 0.22,
+    "allow_threshold_gap": 1.1244,
+    "rows": [
+      {
+        "gap": 0.4,
+        "margin": 0.5622,
+        "centerline_clearance": 0.2,
+        "footprint_clearance": -0.02,
+        "petse_allows": false,
+        "genuinely_unsafe": true,
+        "reason": "Path segment intersects forbidden zone 'wall_L'"
+      },
+      {
+        "gap": 0.6,
+        "margin": 0.5622,
+        "centerline_clearance": 0.3,
+        "footprint_clearance": 0.08,
+        "petse_allows": false,
+        "genuinely_unsafe": false,
+        "reason": "Path segment intersects forbidden zone 'wall_L'"
+      },
+      {
+        "gap": 0.8,
+        "margin": 0.5622,
+        "centerline_clearance": 0.4,
+        "footprint_clearance": 0.18,
+        "petse_allows": false,
+        "genuinely_unsafe": false,
+        "reason": "Path segment intersects forbidden zone 'wall_L'"
+      },
+      {
+        "gap": 1.0,
+        "margin": 0.5622,
+        "centerline_clearance": 0.5,
+        "footprint_clearance": 0.28,
+        "petse_allows": false,
+        "genuinely_unsafe": false,
+        "reason": "Path segment intersects forbidden zone 'wall_L'"
+      },
+      {
+        "gap": 1.1,
+        "margin": 0.5622,
+        "centerline_clearance": 0.55,
+        "footprint_clearance": 0.33,
+        "petse_allows": false,
+        "genuinely_unsafe": false,
+        "reason": "Path segment intersects forbidden zone 'wall_L'"
+      },
+      {
+        "gap": 1.124,
+        "margin": 0.5622,
+        "centerline_clearance": 0.562,
+        "footprint_clearance": 0.342,
+        "petse_allows": false,
+        "genuinely_unsafe": false,
+        "reason": "Path segment intersects forbidden zone 'wall_L'"
+      },
+      {
+        "gap": 1.2,
+        "margin": 0.5622,
+        "centerline_clearance": 0.6,
+        "footprint_clearance": 0.38,
+        "petse_allows": true,
+        "genuinely_unsafe": false,
+        "reason": "Segment is safe"
+      },
+      {
+        "gap": 1.4,
+        "margin": 0.5622,
+        "centerline_clearance": 0.7,
+        "footprint_clearance": 0.48,
+        "petse_allows": true,
+        "genuinely_unsafe": false,
+        "reason": "Segment is safe"
+      },
+      {
+        "gap": 1.6,
+        "margin": 0.5622,
+        "centerline_clearance": 0.8,
+        "footprint_clearance": 0.58,
+        "petse_allows": true,
+        "genuinely_unsafe": false,
+        "reason": "Segment is safe"
+      },
+      {
+        "gap": 2.0,
+        "margin": 0.5622,
+        "centerline_clearance": 1.0,
+        "footprint_clearance": 0.78,
+        "petse_allows": true,
+        "genuinely_unsafe": false,
+        "reason": "Segment is safe"
+      },
+      {
+        "gap": 2.5,
+        "margin": 0.5622,
+        "centerline_clearance": 1.25,
+        "footprint_clearance": 1.03,
+        "petse_allows": true,
+        "genuinely_unsafe": false,
+        "reason": "Segment is safe"
+      }
+    ]
+  },
+  {
+    "test": "adjacent_zones",
+    "margin": 0.5622,
+    "zone_width": 1.0,
+    "rows": [
+      {
+        "separation": 0.2,
+        "margin": 0.5622,
+        "midpoint_rejected": true,
+        "midpoint_min_dist": 0.1,
+        "free_gap_measured": 0.0,
+        "free_gap_union_pred": 0.0,
+        "free_gap_sum_pred": 0.0
+      },
+      {
+        "separation": 0.5,
+        "margin": 0.5622,
+        "midpoint_rejected": true,
+        "midpoint_min_dist": 0.25,
+        "free_gap_measured": 0.0,
+        "free_gap_union_pred": 0.0,
+        "free_gap_sum_pred": 0.0
+      },
+      {
+        "separation": 0.9,
+        "margin": 0.5622,
+        "midpoint_rejected": true,
+        "midpoint_min_dist": 0.45,
+        "free_gap_measured": 0.0,
+        "free_gap_union_pred": 0.0,
+        "free_gap_sum_pred": 0.0
+      },
+      {
+        "separation": 1.0,
+        "margin": 0.5622,
+        "midpoint_rejected": true,
+        "midpoint_min_dist": 0.5,
+        "free_gap_measured": 0.0,
+        "free_gap_union_pred": 0.0,
+        "free_gap_sum_pred": 0.0
+      },
+      {
+        "separation": 1.124,
+        "margin": 0.5622,
+        "midpoint_rejected": true,
+        "midpoint_min_dist": 0.562,
+        "free_gap_measured": 0.0,
+        "free_gap_union_pred": 0.0,
+        "free_gap_sum_pred": 0.0
+      },
+      {
+        "separation": 1.2,
+        "margin": 0.5622,
+        "midpoint_rejected": false,
+        "midpoint_min_dist": 0.6,
+        "free_gap_measured": 0.075,
+        "free_gap_union_pred": 0.0756,
+        "free_gap_sum_pred": 0.0
+      },
+      {
+        "separation": 1.5,
+        "margin": 0.5622,
+        "midpoint_rejected": false,
+        "midpoint_min_dist": 0.75,
+        "free_gap_measured": 0.375,
+        "free_gap_union_pred": 0.3756,
+        "free_gap_sum_pred": 0.0
+      },
+      {
+        "separation": 2.0,
+        "margin": 0.5622,
+        "midpoint_rejected": false,
+        "midpoint_min_dist": 1.0,
+        "free_gap_measured": 0.875,
+        "free_gap_union_pred": 0.8756,
+        "free_gap_sum_pred": 0.0
+      },
+      {
+        "separation": 2.5,
+        "margin": 0.5622,
+        "midpoint_rejected": false,
+        "midpoint_min_dist": 1.25,
+        "free_gap_measured": 1.375,
+        "free_gap_union_pred": 1.3756,
+        "free_gap_sum_pred": 0.2511
+      },
+      {
+        "separation": 3.0,
+        "margin": 0.5622,
+        "midpoint_rejected": false,
+        "midpoint_min_dist": 1.5,
+        "free_gap_measured": 1.875,
+        "free_gap_union_pred": 1.8756,
+        "free_gap_sum_pred": 0.7511
+      }
+    ]
+  }
+]

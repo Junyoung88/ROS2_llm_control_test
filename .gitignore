@@ -4,3 +4,14 @@ log/
 .claude/
 __pycache__/
 *.pyc
+
+# Secrets — never commit
+.env
+*.key
+
+# Embedded upstream git repos (not submodules) — keep out of this repo's index
+src/mobile_manipulator_tutorial/src/ros2_robotiq_gripper/
+src/mobile_manipulator_tutorial/src/serial/
+
+# Large media over GitHub's 100 MB limit (keep locally, not in git)
+recordings/DEMO_SAFE_geofence_safe_far_s0.mp4

@@ -1,0 +1,85 @@
+{
+  "margin_m": 0.562,
+  "seeds": 10,
+  "controllers": {
+    "DWB": "dwb_core::DWBLocalPlanner (trajectory sampler)",
+    "RPP": "RegulatedPurePursuitController (pure pursuit)"
+  },
+  "speed_matched_m_s": 0.22,
+  "cells": {
+    "DWB_OFF": {
+      "below": {
+        "n": 10,
+        "violated": 0,
+        "runtime_reject": 0,
+        "reject": 10,
+        "allow": 0
+      },
+      "above": {
+        "n": 10,
+        "violated": 10,
+        "runtime_reject": 0,
+        "reject": 0,
+        "allow": 10
+      }
+    },
+    "DWB_ON": {
+      "below": {
+        "n": 10,
+        "violated": 0,
+        "runtime_reject": 0,
+        "reject": 10,
+        "allow": 0
+      },
+      "above": {
+        "n": 10,
+        "violated": 0,
+        "runtime_reject": 7,
+        "reject": 0,
+        "allow": 3
+      }
+    },
+    "RPP_OFF": {
+      "below": {
+        "n": 10,
+        "violated": 0,
+        "runtime_reject": 0,
+        "reject": 10,
+        "allow": 0
+      },
+      "above": {
+        "n": 10,
+        "violated": 10,
+        "runtime_reject": 0,
+        "reject": 0,
+        "allow": 10
+      }
+    },
+    "RPP_ON": {
+      "below": {
+        "n": 10,
+        "violated": 0,
+        "runtime_reject": 0,
+        "reject": 10,
+        "allow": 0
+      },
+      "above": {
+        "n": 10,
+        "violated": 0,
+        "runtime_reject": 10,
+        "reject": 0,
+        "allow": 0
+      }
+    }
+  },
+  "generalization": {
+    "DWB": {
+      "attack_surface_OFF_violation": "10/10",
+      "closed_ON_violation": "0/10"
+    },
+    "RPP": {
+      "attack_surface_OFF_violation": "10/10",
+      "closed_ON_violation": "0/10"
+    }
+  }
+}

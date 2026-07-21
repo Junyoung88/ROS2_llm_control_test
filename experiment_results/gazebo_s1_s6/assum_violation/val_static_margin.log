@@ -1,0 +1,41 @@
+Generated 1 trials
+Methods: ['static_margin']
+Scenarios: ['S4']
+Seeds: 1 (offset=0, range=s0-s0)
+Include sweep: False
+Runtime monitoring: False
+
+Trials by scenario: {'S4': 1}
+Trials by method: {'static_margin': 1}
+[2026-07-20 21:18:06] ============================================================
+[2026-07-20 21:18:06] Starting Gazebo S1-S5 Experiment
+[2026-07-20 21:18:06] ============================================================
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[2026-07-20 21:18:10] [OUTPUT] Writing results to experiment_results/gazebo_s1_s6/assum_violation/val_static_margin.jsonl
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[2026-07-20 21:18:23] 
+================================================================================
+[2026-07-20 21:18:23] CONFUSION MATRIX SUMMARY BY METHOD
+[2026-07-20 21:18:23] ================================================================================
+
+Method         Total   TP   FP   TN   FN INFRA   Prec    Rec     F1     VR     Hz  Lat(ms)
+------------------------------------------------------------------------------------------
+[2026-07-20 21:18:23] 
+--------------------------------------------------------------------------------
+[2026-07-20 21:18:23] BOOTSTRAP 95% CONFIDENCE INTERVALS
+[2026-07-20 21:18:23] --------------------------------------------------------------------------------
+
+Method                  Prec CI           Rec CI            F1 CI            VR CI
+----------------------------------------------------------------------------------
+[2026-07-20 21:18:23] 
+--------------------------------------------------------------------------------
+[2026-07-20 21:18:23] GEOFENCE MARGIN ANALYSIS
+[2026-07-20 21:18:23] Geofence margin = k_sigma * sigma_loc + e_track + v_max * tau = 3 * 0.15 + 0.05 + 0.5 * 0.1 = 0.55m. Expanded zone y_max = 1.0 + 0.55 = 1.55m. S3 clip_boundary (7,1.2): at x=4, y=0.69 (in zone); at x=5.83, y=1.0 (exits zone). Path clips zone upper boundary.
+[2026-07-20 21:18:23] 
+============================================================
+[2026-07-20 21:18:23] Experiment Complete!
+[2026-07-20 21:18:23] ============================================================

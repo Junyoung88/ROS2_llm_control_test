@@ -347,15 +347,31 @@ class TrackingErrorMonitor:
 class UncertaintyParams:
     """Parameters for uncertainty-aware margin computation with ablation support.
 
-    Full formula:  M = k_sigma*sigma + e_track + v*tau + v²/(2*a_max)
-    Default value: M = 3.0*0.15 + 0.05 + 0.5*0.1 + 0.5²/(2*2.5) = 0.60m
+    RA-L formula (use_epsilon_formulation=True):
+        M(v,κ,ε) = [v·τ + v²/(2·a_eff)]           — reachability
+                  + [e₀ + c₁·v + c₂·v²|κ|]         — tracking
+                  + [z_{1-ε}·√(∇d⊤·Σ·∇d)]          — localization
+
+    In Gazebo (isotropic Σ=σ²I, κ≈0):
+        M = v·τ + v²/(2·a_max) + e₀ + c₁·v + z_{1-ε}·σ
+
+    Legacy formula (use_epsilon_formulation=False):
+        M = k_σ·σ + e_track + v·τ + v²/(2·a_max)
     """
-    k_sigma: float = 3.0              # Confidence multiplier (e.g., 3-sigma)
+    k_sigma: float = 3.0              # Legacy: confidence multiplier (e.g., 3-sigma)
     localization_sigma: float = 0.1   # Localization uncertainty (meters)
-    tracking_error: float = 0.05      # Path tracking error (meters)
+    tracking_error: float = 0.05      # Legacy: path tracking error (meters)
     v_max: float = 1.0                # Maximum velocity (m/s)
     latency: float = 0.1              # System latency τ (seconds)
     a_max: float = 2.5                # Maximum deceleration magnitude (m/s²)
+
+    # RA-L epsilon formulation parameters
+    use_epsilon_formulation: bool = True  # Use ε-based formula (True) or legacy k_σ (False)
+    epsilon: float = 0.003            # Safety risk budget (0.003 ≈ 99.7% ≈ 3σ equivalent)
+    e_0: float = 0.03                 # Static tracking error (meters)
+    c_1: float = 0.04                 # Velocity-proportional tracking coefficient
+    c_2: float = 0.0                  # Curvature-dependent tracking coefficient
+    _z_quantile: float = field(default=2.748, repr=False)  # z_{1-ε}, computed in __post_init__
 
     # Ablation study flags
     enable_estimation_term: bool = True
@@ -378,48 +394,126 @@ class UncertaintyParams:
     e_track_observed: float = 0.05
     e_track_samples: int = 0
 
-    def compute_margin(self) -> float:
+    def __post_init__(self):
+        """Compute z-quantile from epsilon using rational approximation."""
+        self._z_quantile = self._compute_z_quantile(self.epsilon)
+
+    @staticmethod
+    def _compute_z_quantile(epsilon: float) -> float:
+        """Compute z_{1-ε} using Abramowitz & Stegun rational approximation.
+
+        Approximates the inverse of the standard normal CDF (probit function).
+        Accuracy: |error| < 4.5e-4 for 0 < p < 0.5.
+        No scipy dependency required.
+        """
+        if epsilon <= 0.0:
+            return 6.0  # Clamp to large value
+        if epsilon >= 0.5:
+            return 0.0  # 50th percentile = 0
+
+        p = epsilon  # We want z such that P(Z > z) = ε, i.e., Φ^{-1}(1-ε)
+        # Abramowitz & Stegun formula 26.2.23
+        t = math.sqrt(-2.0 * math.log(p))
+        # Coefficients
+        c0, c1, c2 = 2.515517, 0.802853, 0.010328
+        d1, d2, d3 = 1.432788, 0.189269, 0.001308
+        z = t - (c0 + c1 * t + c2 * t * t) / (1.0 + d1 * t + d2 * t * t + d3 * t * t * t)
+        return z
+
+    def compute_margin(self, velocity: float = None, curvature: float = 0.0,
+                       grad_d: Tuple[float, float] = None,
+                       sigma_matrix: Tuple[float, float, float, float] = None) -> float:
         """Compute total safety margin with ablation support.
 
-        M = k_sigma*sigma + e_track + v*tau + v²/(2*a_max)
-          = localization uncertainty + tracking error
-            + latency distance + braking distance
+        Args:
+            velocity: Robot velocity (None → use v_max or observed v_max)
+            curvature: Path curvature κ (default 0 for straight paths)
+            grad_d: Distance field gradient (dx, dy) at query point.
+                     None → isotropic fallback using σ scalar.
+            sigma_matrix: 2×2 covariance (sxx, sxy, syx, syy).
+                          None → isotropic Σ = σ²I.
+
+        Returns:
+            Total safety margin in meters.
         """
+        # Resolve velocity
+        if velocity is not None:
+            v = velocity
+        elif self.use_dynamic_v_max:
+            v = self.v_max_observed
+        else:
+            v = self.v_max
+
+        tau = self.tau_observed if self.use_dynamic_tau else self.latency
+
         margin = 0.0
 
-        # Term 1: Localization uncertainty — k_sigma * sigma
+        # Term 1: Localization uncertainty
         if self.enable_estimation_term:
-            margin += self.k_sigma * self.localization_sigma
+            if self.use_epsilon_formulation:
+                if grad_d is not None and sigma_matrix is not None:
+                    # Directional projection: z_{1-ε} · √(∇d⊤ · Σ · ∇d)
+                    gx, gy = grad_d
+                    sxx, sxy, syx, syy = sigma_matrix
+                    var = gx * (sxx * gx + sxy * gy) + gy * (syx * gx + syy * gy)
+                    margin += self._z_quantile * math.sqrt(max(0.0, var))
+                else:
+                    # Isotropic fallback: z_{1-ε} · σ
+                    margin += self._z_quantile * self.localization_sigma
+            else:
+                # Legacy: k_σ · σ
+                margin += self.k_sigma * self.localization_sigma
 
-        # Term 2: Path tracking error — e_track (use dynamic if enabled)
+        # Term 2: Path tracking error
         if self.enable_tracking_term:
-            e_track = self.e_track_observed if self.use_dynamic_e_track else self.tracking_error
-            margin += e_track
+            if self.use_epsilon_formulation:
+                # e₀ + c₁·v + c₂·v²|κ|
+                margin += self.e_0 + self.c_1 * v + self.c_2 * v * v * abs(curvature)
+            else:
+                # Legacy: e_track (static or dynamic)
+                e_track = self.e_track_observed if self.use_dynamic_e_track else self.tracking_error
+                margin += e_track
 
-        # Term 3: Latency compensation — v * tau (use dynamic values if enabled)
+        # Term 3: Latency compensation — v · τ
         if self.enable_latency_term:
-            v = self.v_max_observed if self.use_dynamic_v_max else self.v_max
-            tau = self.tau_observed if self.use_dynamic_tau else self.latency
             margin += v * tau
 
-        # Term 4: Braking distance — v² / (2 * a_max)
+        # Term 4: Braking distance — v² / (2 · a_max)
         if self.enable_braking_term:
-            v = self.v_max_observed if self.use_dynamic_v_max else self.v_max
             margin += (v ** 2) / (2.0 * self.a_max)
 
         return margin
 
-    def get_margin_breakdown(self) -> Dict[str, float]:
+    def get_margin_breakdown(self, velocity: float = None,
+                             curvature: float = 0.0) -> Dict[str, float]:
         """Get individual margin components for logging."""
-        v = self.v_max_observed if self.use_dynamic_v_max else self.v_max
+        if velocity is not None:
+            v = velocity
+        elif self.use_dynamic_v_max:
+            v = self.v_max_observed
+        else:
+            v = self.v_max
         tau = self.tau_observed if self.use_dynamic_tau else self.latency
-        e_track = self.e_track_observed if self.use_dynamic_e_track else self.tracking_error
+
+        if self.use_epsilon_formulation:
+            estimation = self._z_quantile * self.localization_sigma if self.enable_estimation_term else 0.0
+            tracking = (self.e_0 + self.c_1 * v + self.c_2 * v * v * abs(curvature)) if self.enable_tracking_term else 0.0
+        else:
+            estimation = self.k_sigma * self.localization_sigma if self.enable_estimation_term else 0.0
+            e_track = self.e_track_observed if self.use_dynamic_e_track else self.tracking_error
+            tracking = e_track if self.enable_tracking_term else 0.0
+
         return {
-            'estimation': self.k_sigma * self.localization_sigma if self.enable_estimation_term else 0.0,
-            'tracking': e_track if self.enable_tracking_term else 0.0,
+            'estimation': estimation,
+            'tracking': tracking,
             'latency': v * tau if self.enable_latency_term else 0.0,
             'braking': (v ** 2) / (2.0 * self.a_max) if self.enable_braking_term else 0.0,
-            'total': self.compute_margin(),
+            'total': self.compute_margin(velocity=velocity, curvature=curvature),
+            # RA-L diagnostic fields
+            'epsilon': self.epsilon,
+            'z_quantile': self._z_quantile,
+            'velocity_used': v,
+            'use_epsilon_formulation': self.use_epsilon_formulation,
         }
 
     def get_ablation_state(self) -> Dict[str, bool]:
@@ -432,7 +526,7 @@ class UncertaintyParams:
 
     def get_measured_params(self) -> Dict[str, float]:
         """Get measured parameters for logging."""
-        return {
+        result = {
             'k_sigma': self.k_sigma,
             'localization_sigma': self.localization_sigma,
             # Tracking error
@@ -452,7 +546,15 @@ class UncertaintyParams:
             'use_dynamic_tau': self.use_dynamic_tau,
             # Braking
             'a_max': self.a_max,
+            # RA-L formulation
+            'use_epsilon_formulation': self.use_epsilon_formulation,
+            'epsilon': self.epsilon,
+            'z_quantile': self._z_quantile,
+            'e_0': self.e_0,
+            'c_1': self.c_1,
+            'c_2': self.c_2,
         }
+        return result
 
 
 @dataclass
@@ -539,7 +641,11 @@ class GeofencePolicy:
         Returns a PolicyDecision with action and details.
         """
         point = (x, y)
-        margin = self.get_safety_margin()
+        # Use v_max for goal evaluation: the robot is often stationary when a
+        # goal is checked, but will travel at up to v_max once the goal is
+        # approved.  Using the current (near-zero) velocity would under-estimate
+        # the required margin and allow goals that are too close to the zone.
+        margin = self.uncertainty.compute_margin(velocity=self.uncertainty.v_max)
 
         min_dist_to_forbidden = float('inf')
         in_buffer = False
@@ -565,15 +671,16 @@ class GeofencePolicy:
                         violated_zone=zone.name
                     )
 
-                # Check if within safety margin
+                # Check if within safety margin — REJECT (not project)
+                # Projecting to a safe location silently changes the goal,
+                # which defeats the purpose of the safety margin: the operator
+                # should be informed that the goal was denied.
                 if dist < margin:
                     violated_zone = zone.name
-                    projected = self._project_to_safe(point, zone.vertices, margin)
                     return PolicyDecision(
-                        action=PolicyAction.PROJECT,
+                        action=PolicyAction.REJECT,
                         reason=f"Point within safety margin of '{zone.name}' (dist={dist:.3f}m < margin={margin:.3f}m)",
                         original_point=point,
-                        projected_point=projected,
                         min_distance_to_forbidden=dist,
                         violated_zone=zone.name
                     )

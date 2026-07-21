@@ -37,6 +37,7 @@ import signal
 import subprocess
 import argparse
 import random
+import math
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
@@ -75,10 +76,13 @@ CLEANUP_PATTERNS = [
     "controller_server", "planner_server",
     "behavior_server", "bt_navigator", "lifecycle_manager",
     "goal_gate_node", "cmd_vel_guard", "path_watchdog",
+    "metrics_logger",  # demo.launch.py spawns this per goal-gate start; it does NOT
+                       # exit on stop_geofence and LEAKS (188 accrued over days →
+                       # ~14 GB RAM + swap-thrash → the "flaky Nav2 abort" epidemic).
     "hardware_geofence_guard", "scan_relay",  # Additional cleanup targets
     "attack_velocity", "attack_odom", "attack_pose", "attack_direct",
-    "attack_scan_spoofing", "param_injection", "param_latency",  # More attack patterns
-    "relay /odom_real", "relay /cmd_vel",  # Relay processes
+    "attack_scan_spoofing", "attack_odom_spoofing", "param_injection", "param_latency",
+    "relay /odom_real", "relay /cmd_vel", "relay /odom /odom_spoofed",  # Relay processes
     "violation_monitor", "parameter_bridge", "ros_gz",
     "amcl", "map_server", "static_transform_publisher"  # Nav2 components
 ]
@@ -106,9 +110,184 @@ ZONES = {
     'forbidden_zone': {'x_min': 4.0, 'x_max': 6.0, 'y_min': -1.0, 'y_max': 1.0, 'name': 'forbidden_zone'},
 }
 
+# When a warehouse trial is active this is set to WAREHOUSE_ZONES so the goal-gate
+# labeler (_should_be_rejected) evaluates admissions against the ACTUAL zone rather
+# than the default x[4,6] test zone (which the +X warehouse goal (6,0) sits inside).
+# Reset to None after each trial so empty-world scenarios use the default zone.
+_ACTIVE_REJECT_ZONES = None
+
+# Warehouse LIDAR-spoof experiment zone. In warehouse.sdf the clean nav to (0,7)
+# drives +Y and stays at x<0.34 for y<0.5; a mid-navigation scan-rotation spoof
+# drifts the TRUE robot +X to x~1.78 at y~0 before Nav2 aborts. This zone sits in
+# that drift path: the spoofed robot physically enters it (x>=1.3) while the clean
+# robot avoids it (x<0.34, clear of the 0.55m-expanded boundary at x=0.75). Used
+# only for warehouse trials so empty-world scenarios are unaffected.
+# Forbidden region modeled as a RESTRICTED AISLE running alongside the robot's
+# corridor (robot drives x≈0, +Y; the aisle is the adjacent x[1.3,3] bay). Made
+# tall in y so a slowly-ramped lateral spoof has the whole traverse to pull the
+# robot across the 1.3 m gap (not just the ~1 s the robot spends near y=0), while
+# the clean straight-line path stays 1.3 m clear (> the 0.55 m goal-gate margin,
+# so honest goals are still admitted).
+# +X-straight geometry (NO initial turn): robot faces +X (θ=0, its reset heading)
+# and drives straight to (4.5,0) down the fully-open y=0 corridor. No rotation -> the
+# diff-drive /odom frame stays aligned with map AND accrues no turn-induced heading
+# drift, so the CLEAN cross-channel offset c(t)=amcl-odom stays ≈0 (a θ=0->π/2 turn
+# drifts it ~1.6m and the detector FALSE-ALARMS — only θ=0 +X keeps odom honest).
+# ZONE OFFSET TO −Y, spoof ψ_world=90° (+Y): the warehouse features (racks/bins) sit
+# on the +Y side (y≈0.9-1.5). A −Y-directed spoof (to lure +Y) would displace AMCL
+# AWAY from those features into open −Y space → AMCL barely follows (d_abs≈0.3, weak
+# lure — measured). Instead displace AMCL +Y TOWARD the racks (a map-consistent scan
+# with the racks nearer strongly anchors the forged pose → AMCL follows, d_abs grows)
+# so Nav2 pushes the TRUE robot −Y into the −Y zone. Clean true-y≈0 stays clear of the
+# 0.6 m-expanded boundary y=-0.4.
+WAREHOUSE_ZONES = {
+    'wh_forbidden_zone': {'x_min': 1.5, 'x_max': 4.5, 'y_min': -4.0, 'y_max': -1.0, 'name': 'wh_forbidden_zone'},
+}
+
+# ── Generalization sweep (reviewer ④ "narrow corridor"): forbidden-zone GEOMETRY variations
+# in the (validated) warehouse world/map. Each geometry is a list of axis-aligned rectangles
+# (x_min,x_max,y_min,y_max), all in the open −Y/low region clear of the +Y racks. The goal is
+# placed so the straight Nav2 path from the origin crosses a zone (S2 path-through): no_guard
+# drives through → violation; PETSE stops before it → 0 VR, testing geometric generalization.
+WAREHOUSE_GEOMETRIES = {
+    # All along the validated +X corridor (clear to x=6.5 at laser height): the goal is
+    # OUTSIDE every zone and reachable, and the straight y=0 path transits a zone so no_guard
+    # violates and PETSE stops. Vary position / size / aspect / count.
+    'g1_base':  {'goal': (6.0, 0.0), 'rects': [(2.0, 4.0, -1.2, 1.2)],
+                 'desc': 'compact zone astride the +X path'},
+    'g2_shift': {'goal': (6.5, 0.0), 'rects': [(3.0, 5.0, -1.2, 1.2)],
+                 'desc': 'zone shifted +X (position generalization)'},
+    'g3_wide':  {'goal': (6.0, 0.0), 'rects': [(1.5, 4.5, -0.7, 0.7)],
+                 'desc': 'wide, thin zone (aspect-ratio generalization)'},
+    'g4_multi': {'goal': (6.0, 0.0), 'rects': [(1.5, 2.5, -1.2, 1.2), (3.5, 4.5, -1.2, 1.2)],
+                 'desc': 'two disjoint zones the path crosses (multi-zone generalization)'},
+    # NARROW-CORRIDOR: a forbidden zone whose expanded boundary (margin ≈0.55 m) approaches
+    # the y=0 travel corridor from below (physical racks bound it above), leaving a narrow
+    # SAFE clearance. The goal (6,0) is safe and the path clears the margin (goal_gate
+    # approves) → the RUNTIME monitor tracks the tight clearance as the robot drives through.
+    # Shrinking the clearance tests whether PETSE nuisance-trips a narrow-but-safe corridor.
+    'nc_wide':  {'goal': (6.0, 0.0), 'rects': [(1.5, 5.5, -3.0, -1.0)],
+                 'desc': 'narrow corridor, ~0.45 m clearance (safe → should traverse)'},
+    'nc_med':   {'goal': (6.0, 0.0), 'rects': [(1.5, 5.5, -3.0, -0.7)],
+                 'desc': 'narrow corridor, ~0.15 m clearance (tight → traverse or stop)'},
+    'nc_tight': {'goal': (6.0, 0.0), 'rects': [(1.5, 5.5, -3.0, -0.4)],
+                 'desc': 'narrow corridor, path inside margin (unsafe → PETSE should stop)'},
+    # TWO-SIDED narrow corridor: symmetric virtual zones at ±h bound the y=0 travel corridor
+    # on BOTH sides (independent of the physical racks), so the SAFE width = 2(h − M), M≈0.55.
+    # Robot drives y=0 to (6,0). PETSE should traverse when width>0 and STOP when the margins
+    # overlap (width≤0). Demonstrates both no-over-conservatism AND correct blocking.
+    'nc2_xwide': {'goal': (6.0, 0.0), 'rects': [(1.5, 5.5, -3.0, -1.15), (1.5, 5.5, 1.15, 3.0)],
+                  'desc': 'two-sided corridor, safe width ~1.2 m (clearly safe → traverse)'},
+    'nc2_wide':  {'goal': (6.0, 0.0), 'rects': [(1.5, 5.5, -3.0, -0.85), (1.5, 5.5, 0.85, 3.0)],
+                  'desc': 'two-sided corridor, safe width ~0.6 m (borderline)'},
+    'nc2_med':   {'goal': (6.0, 0.0), 'rects': [(1.5, 5.5, -3.0, -0.65), (1.5, 5.5, 0.65, 3.0)],
+                  'desc': 'two-sided corridor, safe width ~0.2 m (tight)'},
+    'nc2_tight': {'goal': (6.0, 0.0), 'rects': [(1.5, 5.5, -3.0, -0.45), (1.5, 5.5, 0.45, 3.0)],
+                  'desc': 'two-sided corridor, margins overlap (no safe path → PETSE stops)'},
+    # FAB-CELL testbed (realistic env): keep-out zones enclose the two process-tool rows of
+    # fab_cell.sdf (physical 1.4 m tool boxes at y=±2.2, x=2/4/6). Zones extend 0.2 m past the
+    # tool edge into the central aisle → geofence-safe aisle y∈[-1.3,1.3]. Used with world
+    # 'fab_cell.sdf' + map fab_cell_map. Same rects for both fab configs (only the goal differs:
+    # aisle path-through vs. a goal inside a tool zone).
+    'fab_cell': {'goal': (6.0, 0.0),
+                 'rects': [(1.0, 7.0, -4.0, -1.3), (1.0, 7.0, 1.3, 4.0), (7.0, 8.6, -2.5, 2.5)],
+                 'desc': 'fab-cell keep-out: two process-tool bays + an open east confidential bay'},
+}
+
+# Mapped worlds run under AMCL against a real occupancy grid, with the cross-channel
+# (AMCL-vs-odom) spoof detector enabled and the geofence enforcing on the AMCL map pose.
+# Empty worlds keep AMCL off / odom enforcement. warehouse.sdf and the fab-cell testbed both
+# qualify; each carries its own pre-built occupancy grid.
+MAPPED_WORLDS = ("warehouse.sdf", "fab_cell.sdf")
+_WORLD_MAP_YAML = {
+    "warehouse.sdf": "warehouse_map_sdf.yaml",
+    "fab_cell.sdf":  "fab_cell_map.yaml",
+}
+
+def _rects_to_zones_dict(rects):
+    """WAREHOUSE_ZONES-style AABB dict (labeler + PositionMonitor) from a rect list."""
+    return {f'wh_zone_{i}': {'x_min': a, 'x_max': b, 'y_min': c, 'y_max': d,
+                             'name': f'wh_zone_{i}'}
+            for i, (a, b, c, d) in enumerate(rects)}
+
+def _write_geofence_yaml_for_rects(rects):
+    """Write the runtime warehouse_geofence.yaml (goal_gate + guard) with the given rectangles
+    as forbidden polygons. Writes all on-disk copies so whichever install is sourced is correct."""
+    hdr = ("uncertainty:\n  k_sigma: 3.0\n  localization_sigma: 0.15\n"
+           "  tracking_error: 0.05\n  v_max: 0.5\n  latency: 0.1\n\nzones:\n")
+    body = ""
+    for i, (a, b, c, d) in enumerate(rects):
+        body += (f'  - name: "wh_zone_{i}"\n    type: "forbidden"\n    priority: 10\n'
+                 f'    vertices:\n      - {{x: {a}, y: {c}}}\n      - {{x: {b}, y: {c}}}\n'
+                 f'      - {{x: {b}, y: {d}}}\n      - {{x: {a}, y: {d}}}\n')
+    text = hdr + body
+    import glob as _glob
+    for p in _glob.glob(os.path.join(WORKSPACE_DIR, '**', 'warehouse_geofence.yaml'),
+                        recursive=True):
+        if '/build/' in p:
+            continue
+        try:
+            open(p, 'w').write(text)
+        except Exception:
+            pass
+
+# Snapshot of the canonical warehouse zone so a geometry sweep cannot leak into ordinary
+# warehouse (S5/S6) trials that share the same process. _GEOMETRY_DIRTY flips true once a
+# non-default geometry is applied; run() restores the default before any non-geometry
+# warehouse trial. (Fixes a state-leak: _apply_warehouse_geometry used to mutate the global
+# + overwrite the yaml with no restore.)
+_DEFAULT_WAREHOUSE_ZONES = {k: dict(v) for k, v in WAREHOUSE_ZONES.items()}
+_DEFAULT_WAREHOUSE_RECTS = [(1.5, 4.5, -4.0, -1.0)]
+_GEOMETRY_DIRTY = False
+
+def _apply_warehouse_geometry(name):
+    """Set the active forbidden-zone geometry (both the AABB global and the runtime yaml)."""
+    global WAREHOUSE_ZONES, _ACTIVE_REJECT_ZONES, _GEOMETRY_DIRTY
+    rects = WAREHOUSE_GEOMETRIES[name]['rects']
+    WAREHOUSE_ZONES = _rects_to_zones_dict(rects)
+    _ACTIVE_REJECT_ZONES = WAREHOUSE_ZONES
+    _write_geofence_yaml_for_rects(rects)
+    _GEOMETRY_DIRTY = True
+
+def _restore_default_warehouse_geometry():
+    """Undo any applied geometry: restore the canonical −Y warehouse zone (global + yaml)."""
+    global WAREHOUSE_ZONES, _ACTIVE_REJECT_ZONES, _GEOMETRY_DIRTY
+    WAREHOUSE_ZONES = {k: dict(v) for k, v in _DEFAULT_WAREHOUSE_ZONES.items()}
+    _ACTIVE_REJECT_ZONES = WAREHOUSE_ZONES
+    _write_geofence_yaml_for_rects(_DEFAULT_WAREHOUSE_RECTS)
+    _GEOMETRY_DIRTY = False
+
+# ── Real RoboGuard baseline (Ravichandran et al.): action-level LTL/Büchi goal check, no
+# geometric margin, no path-through. We call its actual implementation so the RoboGuard column
+# is a genuine independent measurement (not a hard-coded copy of the SELP rule).
+try:
+    from geofence_policy_enforcer.roboguard_baseline import RoboGuardBaseline as _RoboGuard, \
+        SafetyDecision as _RGDecision
+    _ROBOGUARD_OK = True
+except Exception:
+    _ROBOGUARD_OK = False
+_roboguard_cache = {}
+
+class _RGZone:
+    """Adapter: expose an AABB zone dict as RoboGuard's (name, polygon-vertices) interface."""
+    def __init__(self, name, x0, x1, y0, y1):
+        self.name = name
+        self.vertices = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+
+def _roboguard_rejects(gx, gy, zones):
+    """True iff the REAL RoboGuard implementation rejects goal (gx,gy). Validator cached per
+    zone-set (its automaton build is reused across goals)."""
+    key = tuple(sorted((z['x_min'], z['x_max'], z['y_min'], z['y_max']) for z in zones.values()))
+    rg = _roboguard_cache.get(key)
+    if rg is None:
+        rg = _RoboGuard([_RGZone(z.get('name', f'z{i}'), z['x_min'], z['x_max'],
+                                 z['y_min'], z['y_max']) for i, z in enumerate(zones.values())])
+        _roboguard_cache[key] = rg
+    return rg.evaluate((gx, gy)).decision == _RGDecision.REJECT
+
 # Methods to test
 # selp_proper: SELP without margin (only checks if goal is inside zone)
-METHODS = ["no_guard", "selp_proper", "cbf", "ssm", "geofence"]
+METHODS = ["no_guard", "selp_proper", "cbf", "cbf_inflated", "ssm", "roboguard", "geofence"]
 
 
 # =============================================================================
@@ -148,10 +327,49 @@ class TrialConfig:
     # S5: Odom spoofing offset parameters
     attack_offset_x: float = 0.0  # For odom_spoofing: offset to add to x position
     attack_offset_y: float = 0.0  # For odom_spoofing: offset to add to y position
+    # S5 TOCTOU adaptive-attacker: seconds the spoof PERSISTS into execution after
+    # the planning decision window (0 = transient/TOCTOU; <0 = never removed /
+    # fully persistent spoof). Controls how long the runtime monitor stays fooled.
+    spoof_persist_s: float = 0.0
     # S5 LIDAR spoofing parameters (scan_spoofing attack)
     scan_rotation_deg: float = 0.0  # Rotation offset in degrees
     scan_scale: float = 1.0  # Range scale (0.8 = walls appear 20% closer)
     scan_noise: float = 0.0  # Noise stddev in meters
+    # S5 LIDAR mid-navigation injection: seconds after the goal is sent to WAIT
+    # before turning on the scan spoof (0 = start before goal, as an availability
+    # attack; >0 = TOCTOU-style: plan with clean perception, then corrupt AMCL
+    # mid-execution so the committed path drifts off course).
+    scan_spoof_delay_s: float = 0.0
+    # S5 sophisticated attack: stealthy targeted localization bias-injection.
+    # scan_attack_mode='bias_injection' ramps a per-beam range offset consistent
+    # with a δ(t) translation (rate=scan_bias_rate m/s, direction=scan_bias_angle_deg,
+    # capped at scan_bias_max) so AMCL drifts coherently and Nav2 steers the true
+    # robot into the zone — each step below the innovation/memoryless-detector gate.
+    scan_attack_mode: str = "legacy"      # 'legacy' | 'bias_injection'
+    scan_bias_rate: float = 0.0           # m/s ramp of injected offset
+    scan_bias_angle_deg: float = 180.0    # laser-frame shift direction
+    scan_bias_max: float = 2.0            # cap on injected offset (m)
+    # Heading-compensated (world-frame) targeting: attacker tracks robot yaw and
+    # sets φ_laser=ψ_world−θ so the induced drift is a constant world-frame push
+    # (reliable lure regardless of orientation). scan_world_bias_angle_deg is the
+    # world direction (0°=+X, toward the warehouse forbidden zone).
+    scan_heading_compensate: bool = False
+    scan_world_bias_angle_deg: float = 0.0
+    # Realism (gap ④): physical spoofer constraints — angular FoV window it can override
+    # (360 = idealized full replacement) and max beams (point budget, -1 = unlimited).
+    scan_spoof_fov_deg: float = 360.0
+    scan_spoof_point_budget: int = -1
+    # Coordinated attack (spoof LiDAR AND odom together): an odom spoofer ramps /odom by the
+    # SAME Δ(t) as the LiDAR spoof (minus coord_epsilon), so the guard's c=amcl−odom is held
+    # near ε and PETSE is evaded. Sweeping ε quantifies the coordination the attacker needs.
+    coordinated_attack: bool = False
+    coord_epsilon: float = 0.0
+    zone_geometry: str = ""   # generalization sweep: key into WAREHOUSE_GEOMETRIES (blank = default)
+    # Recovery experiment: seconds the scan spoof stays active after firing; then it
+    # is stopped and the honest scan relay is restored (transient/pulsed attack). 0 =
+    # persistent (never stops). Used to test whether PETSE is a permanent DoS or a
+    # transient safe-hold that recovers once the threat passes.
+    scan_spoof_duration_s: float = 0.0
     # Confusion matrix: whether this trial is expected to be safe (no violation)
     expected_safe: bool = True
     # Per-trial world override (None = auto-select by scenario)
@@ -162,7 +380,16 @@ class TrialConfig:
     geofence_sigma: float = 0.15  # localization_sigma for this trial
     geofence_v_max: float = 0.5   # v_max for this trial
     geofence_latency: float = 0.1  # latency (tau) for this trial
-    sweep_type: str = ""  # "sigma", "v_max", "tau", or "" for non-sweep
+    geofence_epsilon: float = 0.003  # RA-L epsilon (risk level)
+    geofence_a_max: float = 2.5    # max deceleration for braking term
+    geofence_e_0: float = 0.03     # static tracking error
+    geofence_c_1: float = 0.04     # velocity-proportional tracking error
+    # Ablation flags (True = term enabled)
+    geofence_enable_estimation: bool = True   # z_{1-ε}·σ term
+    geofence_enable_tracking: bool = True     # (e₀+c₁·v) term
+    geofence_enable_latency: bool = True      # v·τ term
+    geofence_enable_braking: bool = True      # v²/(2·a_max) term
+    sweep_type: str = ""  # "sigma", "v_max", "tau", "epsilon_multi", "stress", "ablation", etc.
     sweep_value: float = 0.0  # The swept parameter value
 
 
@@ -181,6 +408,8 @@ class TrialResult:
     task_completed: bool = False
     runtime_rejected: bool = False  # True if rejected during navigation (not at submission)
     nav_failed: bool = False  # True if geofence allowed but Nav2 failed
+    recovered: bool = False   # auto-recovery re-dispatch reached the goal after threat cleared
+    recovery_decision: str = ""  # decision of the re-dispatched goal (auto-recovery)
     min_distance: float = float('inf')
     execution_time_s: float = 0.0
     reason: str = ""
@@ -629,7 +858,8 @@ if __name__ == "__main__":
 class SimulationManager:
     """Manages Gazebo/Nav2/Geofence lifecycle"""
 
-    def __init__(self):
+    def __init__(self, headless=True):
+        self.headless = headless
         self.gazebo_proc = None
         self.nav2_proc = None
         self.geofence_proc = None
@@ -704,7 +934,7 @@ class SimulationManager:
 
         time.sleep(2)
 
-        headless_arg = "headless:=true" if headless else ""
+        headless_arg = "headless:=true" if headless else "headless:=false"
 
         # Use custom bridge config for hardware guard mode
         if use_hw_guard:
@@ -717,7 +947,7 @@ class SimulationManager:
         self.current_world = world
         # Empty world: spawn robot facing +X (yaw=0) for intuitive goal navigation
         # Warehouse: default yaw=-1.5707 (faces -Y, matching warehouse map orientation)
-        yaw_arg = "yaw:=0" if world == "empty.sdf" else ""
+        yaw_arg = "yaw:=0" if world in ("empty.sdf", "empty_with_zone.sdf", "warehouse_with_zone.sdf") else ""
         # Use specified world file (warehouse.sdf for S4, empty.sdf for S1-S3/S5-odom)
         launch_cmd = f"""
             source /opt/ros/jazzy/setup.bash && \
@@ -883,6 +1113,47 @@ class SimulationManager:
 
         safe_pkill('relay /odom_real')
         self.odom_relay_proc = None
+
+    def start_odom_spoofed_relay(self) -> bool:
+        """Coordinated-attack setup: passthrough /odom → /odom_spoofed so the guard (pointed
+        at /odom_spoofed) sees the honest offset BEFORE the attack fires. Replaced by the
+        ramping odom spoofer when the coordinated attack starts (seamless handover)."""
+        safe_pkill('relay /odom /odom_spoofed')
+        cmd = ("source /opt/ros/jazzy/setup.bash && "
+               f"source {WORKSPACE_DIR}/install/setup.bash && "
+               "ros2 run topic_tools relay /odom /odom_spoofed")
+        self._odom_spoofed_relay_proc = subprocess.Popen(
+            cmd, shell=True, executable='/bin/bash', preexec_fn=os.setsid,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(2)
+        ok = self._odom_spoofed_relay_proc.poll() is None
+        print(f"[SIM] /odom_spoofed relay {'started' if ok else 'FAILED'}")
+        return ok
+
+    def start_odom_coord_spoof(self, coord_epsilon: float, bias_rate: float,
+                               bias_max: float, world_bias_angle_deg: float) -> bool:
+        """Coordinated attack: ramp /odom → /odom_spoofed by Δ(t) matched to the LiDAR spoof
+        (minus ε) so the guard's c=amcl−odom is held near ε. Seamless handover from the relay."""
+        cmd = ("source /opt/ros/jazzy/setup.bash && "
+               f"source {WORKSPACE_DIR}/install/setup.bash && "
+               "ros2 run geofence_policy_enforcer attack_odom_spoofing --ros-args "
+               "-p input_topic:=/odom -p output_topic:=/odom_spoofed "
+               "-p ramp_mode:=true -p ramp_delay:=0.0 "
+               f"-p bias_rate:={bias_rate} -p bias_max:={bias_max} "
+               f"-p world_bias_angle_deg:={world_bias_angle_deg} "
+               f"-p coord_epsilon:={coord_epsilon} -p attack_enabled:=true")
+        self._odom_coord_log = open('/tmp/odom_coord.log', 'w')
+        self._odom_coord_proc = subprocess.Popen(
+            cmd, shell=True, executable='/bin/bash', preexec_fn=os.setsid,
+            stdout=self._odom_coord_log, stderr=subprocess.STDOUT)
+        time.sleep(1.5)   # let the spoofer publish before dropping the relay (no /odom_spoofed gap)
+        safe_pkill('relay /odom /odom_spoofed')
+        if getattr(self, '_odom_spoofed_relay_proc', None):
+            try: os.killpg(os.getpgid(self._odom_spoofed_relay_proc.pid), signal.SIGTERM)
+            except (ProcessLookupError, AttributeError): pass
+        ok = self._odom_coord_proc.poll() is None
+        print(f"[SIM] odom coordinated spoofer {'started' if ok else 'FAILED'} (ε={coord_epsilon})")
+        return ok
 
     def start_scan_relay(self) -> bool:
         """Start scan relay node: /scan_real → /scan for normal operation"""
@@ -1582,14 +1853,14 @@ if __name__ == '__main__':
             use_amcl = self.use_amcl
         # Auto-disable AMCL for empty world (no LIDAR features for localization)
         # Auto-enable AMCL for warehouse world (has LIDAR features)
-        if self.current_world == "empty.sdf":
+        if self.current_world in ("empty.sdf", "empty_with_zone.sdf", "warehouse_with_zone.sdf"):
             use_amcl = False
             self.use_amcl = False  # Update instance var so reset_robot_pose() skips /initialpose
             print("[SIM] Auto-disabling AMCL for empty world (no LIDAR features)")
-        elif self.current_world == "warehouse.sdf" and not use_amcl:
+        elif self.current_world in MAPPED_WORLDS and not use_amcl:
             use_amcl = True
             self.use_amcl = True
-            print("[SIM] Re-enabling AMCL for warehouse world")
+            print(f"[SIM] Re-enabling AMCL for mapped world {self.current_world}")
         max_retries = 2  # Reduced from 3 to limit restart_with_method total time
         print(f"[SIM] Starting Nav2...{' (retry ' + str(retry_count) + ')' if retry_count > 0 else ''}")
         if not use_amcl:
@@ -1605,11 +1876,19 @@ if __name__ == '__main__':
             time.sleep(5)  # Increased wait time between retries
 
         amcl_arg = "use_amcl:=true" if use_amcl else "use_amcl:=false"
+        # Warehouse needs a real occupancy grid so AMCL can localize against the
+        # walls/bins; empty-world experiments keep the blank empty_map default.
+        map_arg = ""
+        if self.current_world in MAPPED_WORLDS:
+            _mapyaml = _WORLD_MAP_YAML[self.current_world]
+            wh_map = (f"{WORKSPACE_DIR}/src/mobile_manipulator_tutorial/src/"
+                      f"mobile_manip_moveit_config/maps/{_mapyaml}")
+            map_arg = f"map:={wh_map}"
         launch_cmd = f"""
             source /opt/ros/jazzy/setup.bash && \
             source {WORKSPACE_DIR}/install/setup.bash && \
             ros2 launch mobile_manip_moveit_config navigation.launch.py \
-                use_sim_time:=true {amcl_arg} rviz:=false
+                use_sim_time:=true {amcl_arg} {map_arg} rviz:=false
         """
 
         self._nav2_log = open('/tmp/nav2_launch.log', 'w')
@@ -1717,6 +1996,18 @@ if __name__ == '__main__':
         launch_args = [f"safety_method:={actual_method}"]
         launch_args.append("enable_cmd_vel_guard:=false")  # Guard launched separately
 
+        # Point the goal_gate (admission) at the SAME zone the runtime guard and the
+        # violation monitor use. demo.launch.py defaults geofence_config to the empty
+        # world's geofence.yaml (zone x[4,6]); in the warehouse the +X goal's path
+        # would clip that zone's expanded boundary and the goal_gate would abort the
+        # goal (robot never moves). warehouse_geofence.yaml carries the +Y-offset
+        # aisle the +X path stays clear of.
+        if self.current_world in MAPPED_WORLDS:
+            from ament_index_python.packages import get_package_share_directory
+            _pkg_share = get_package_share_directory('geofence_policy_enforcer')
+            _wh_cfg = os.path.join(_pkg_share, 'config', 'warehouse_geofence.yaml')
+            launch_args.append(f"geofence_config:={_wh_cfg}")
+
         if enable_cmd_vel_guard:
             print(f"[SIM] Using RUNTIME GUARD mode for {method} (/cmd_vel_nav → guard → /cmd_vel)")
 
@@ -1724,7 +2015,9 @@ if __name__ == '__main__':
             valid_params = ['k_sigma', 'localization_sigma', 'tracking_error',
                           'v_max', 'latency', 'enable_estimation_term',
                           'enable_tracking_term', 'enable_latency_term',
-                          'enable_runtime_monitoring', 'runtime_monitoring_rate']
+                          'enable_runtime_monitoring', 'runtime_monitoring_rate',
+                          'epsilon', 'a_max', 'enable_braking_term', 'e_0', 'c_1',
+                          'use_dynamic_v_max', 'use_dynamic_tau', 'use_dynamic_e_track']
             for key, value in params.items():
                 if key in valid_params:
                     if isinstance(value, bool):
@@ -1780,9 +2073,34 @@ if __name__ == '__main__':
         """
         from ament_index_python.packages import get_package_share_directory
         pkg_share = get_package_share_directory('geofence_policy_enforcer')
-        geofence_config = os.path.join(pkg_share, 'config', 'geofence.yaml')
+        # Warehouse LIDAR-spoof trials enforce the repositioned drift-path zone
+        # (WAREHOUSE_ZONES); all other worlds use the default x[4,6] zone.
+        _cfg_name = ('warehouse_geofence.yaml'
+                     if self.current_world in MAPPED_WORLDS else 'geofence.yaml')
+        geofence_config = os.path.join(pkg_share, 'config', _cfg_name)
         params_file = os.path.join(pkg_share, 'config', 'geofence_params.yaml')
 
+        # Mapped-world trials run under AMCL, so enable the localization-spoofing
+        # detector (cross-checks AMCL vs wheel odometry → fail-stop on divergence).
+        _spoof_det = "true" if self.current_world in MAPPED_WORLDS else "false"
+        # Detection scheme selectable via env (memoryless vs cusum) for A/B runs.
+        _det_mode = os.environ.get('PETSE_DETECTION_MODE', 'cusum')
+        # In the mapped warehouse the geofence enforces on the map-frame AMCL pose
+        # (realistic: raw odometry drifts unboundedly). This is what LIDAR spoofing
+        # corrupts, so it exposes the localization attack surface that the
+        # amcl-vs-odom detector defends. Empty world keeps odom enforcement (AMCL
+        # off, odom ≈ truth there). Override via PETSE_ENFORCE_POSE.
+        _enforce_src = os.environ.get(
+            'PETSE_ENFORCE_POSE',
+            'amcl' if self.current_world in MAPPED_WORLDS else 'odom')
+        # Cross-channel detector thresholds — env-tunable for calibration sweeps.
+        # cusum: absolute amcl-vs-odom offset drift; memoryless: per-update jump.
+        _offset_thresh = os.environ.get('PETSE_OFFSET_THRESH', '0.35')
+        _jump_thresh = os.environ.get('PETSE_JUMP_THRESH', '0.20')
+        # Coordinated-attack experiment: point the guard's odom input at a spoofable topic
+        # (/odom_spoofed) so an odom spoofer can hold the cross-channel offset low. Default
+        # /odom (honest). Nav2/AMCL keep the real /odom → the luring trajectory is unchanged.
+        _guard_odom = os.environ.get('PETSE_GUARD_ODOM_TOPIC', '/odom')
         guard_cmd = (
             f"source /opt/ros/jazzy/setup.bash && "
             f"source {WORKSPACE_DIR}/install/setup.bash && "
@@ -1793,9 +2111,16 @@ if __name__ == '__main__':
             f"-p geofence_config:={geofence_config} "
             f"-p input_topic:=/cmd_vel_nav "
             f"-p output_topic:=/cmd_vel "
-            f"-p odom_topic:=/odom "
+            f"-p odom_topic:={_guard_odom} "
             f"-p safety_method:={method} "
-            f"-p simulated_comm_latency_ms:={float(comm_latency_ms)}"
+            f"-p enable_spoof_detection:={_spoof_det} "
+            f"-p detection_mode:={_det_mode} "
+            f"-p enforce_pose_source:={_enforce_src} "
+            f"-p amcl_topic:=/amcl_pose "
+            f"-p spoof_offset_threshold:={_offset_thresh} "
+            f"-p spoof_jump_threshold:={_jump_thresh} "
+            f"-p simulated_comm_latency_ms:={float(comm_latency_ms)} "
+            f"-p guard_reaction_delay_sec:={1.5 if not self.headless else 0.0}"
         )
 
         self._guard_log = open('/tmp/guard_standalone.log', 'w')
@@ -1970,6 +2295,12 @@ if __name__ == '__main__':
                      offset_x: float = 0.0, offset_y: float = 0.0,
                      scan_rotation_deg: float = 0.0, scan_scale: float = 1.0,
                      scan_noise: float = 0.0,
+                     scan_attack_mode: str = "legacy", scan_bias_rate: float = 0.0,
+                     scan_bias_angle_deg: float = 180.0, scan_bias_max: float = 2.0,
+                     scan_heading_compensate: bool = False,
+                     scan_world_bias_angle_deg: float = 0.0,
+                     scan_spoof_fov_deg: float = 360.0,
+                     scan_spoof_point_budget: int = -1,
                      goal_x: float = None, goal_y: float = None,
                      cmd_vel_topic: str = "/cmd_vel_nav") -> bool:
         """Start S4/S5 attack node
@@ -2014,15 +2345,33 @@ if __name__ == '__main__':
             self.stop_odom_relay()
             time.sleep(1)
 
-        # For scan_spoofing, stop the normal scan relay first
-        if attack_type == "scan_spoofing":
-            print("[ATTACK] Stopping scan relay for scan spoofing attack...")
-            self.stop_scan_relay()
-            time.sleep(1)
+        # For scan_spoofing, DEFER stopping the scan relay until the spoofer node is
+        # confirmed publishing (done after Popen below). Stopping it first leaves a
+        # multi-second /scan gap; mid-navigation that starves Nav2's costmap and it
+        # ABORTS the goal before the spoof can take effect. With a map-consistent
+        # spoof the injected scan ≈ the real scan at ramp start (Δ≈0), so briefly
+        # letting the relay and spoofer co-publish to /scan is harmless — then we drop
+        # the relay for a seamless handover (no gap → no abort).
+        _defer_scan_relay_stop = (attack_type == "scan_spoofing")
 
         # decel_disable: relay will be stopped AFTER vel_floor node starts (see below)
 
-        if attack_type == "velocity_scaling":
+        if attack_type == "vel_odom_combined":
+            # Combined: velocity scaling + odom spoofing
+            # Must stop odom relay first (attack takes over both topics)
+            print("[ATTACK] Stopping odom relay for combined attack...")
+            safe_pkill('relay.*odom')
+            time.sleep(1)
+            attack_cmd = f"""
+                source /opt/ros/jazzy/setup.bash && \
+                source {WORKSPACE_DIR}/install/setup.bash && \
+                python3 /tmp/attack_vel_odom_combined.py \
+                    --ros-args \
+                    -p vel_scale:={scale_factor} \
+                    -p odom_scale:=0.5 \
+                    -p use_sim_time:=true
+            """
+        elif attack_type == "velocity_scaling":
             # Intercept cmd_vel_nav → cmd_vel
             attack_cmd = f"""
                 source /opt/ros/jazzy/setup.bash && \
@@ -2059,13 +2408,25 @@ if __name__ == '__main__':
 
             # Create a Python script that rotates then drives at high speed
             # Tested values: rotate 4s at 0.8 rad/s, then drive at 1.5 m/s
-            # After reset_robot_pose(0,0,0), robot faces +x (toward zone).
-            # Direct /cmd_vel: no rotation needed (0s).
-            # Through /cmd_vel_nav: keep 4.0s (velocity_smoother, guard intercepts anyway).
-            rotate_dur = 0.0 if cmd_vel_topic == "/cmd_vel" else 4.0
+            # After reset_robot_pose(0,0,0) in the empty world, the robot already faces +x
+            # (toward the zone), so NO rotation is needed on either topic. The old 4.0s rotate
+            # for the /cmd_vel_nav path spun the robot ~90° into +y (it drove off-axis to y~19
+            # and never reached the zone) — harmless for geofence (unapproved-motion block stops
+            # it immediately) but it broke the static_reactive baseline, which must actually
+            # drive straight into the zone. Mapped worlds (warehouse/fab) still spawn facing -y.
+            if self.current_world in ("empty.sdf", "empty_with_zone.sdf"):
+                rotate_dur = 0.0
+            else:
+                rotate_dur = 0.0 if cmd_vel_topic == "/cmd_vel" else 4.0
+            # Drive speed scales with the attack scale_factor (default 1.5 m/s at scale=1.0).
+            # For the R1-③ over-speed experiment we raise it (e.g. scale 1.8 → 2.7 m/s) so the
+            # braking distance exceeds the reactive baseline's fixed margin and it overshoots
+            # into the zone; PETSE's velocity-adaptive re-verification still stops in time.
+            drive_speed_val = 1.5 * float(scale_factor)
             attack_script = (
                 'PUBLISH_TOPIC = "' + cmd_vel_topic + '"\n'
                 'ROTATE_DURATION = ' + str(rotate_dur) + '\n'
+                'DRIVE_SPEED = ' + str(drive_speed_val) + '\n'
             ) + '''
 import signal
 import os
@@ -2084,7 +2445,7 @@ class DirectControlAttack(Node):
         self.phase = "rotate"
         self.rotate_duration = ROTATE_DURATION
         self.rotate_speed = 0.8     # Faster rotation
-        self.drive_speed = 1.5      # Fast forward (1.5 m/s)
+        self.drive_speed = DRIVE_SPEED   # Fast forward (scaled by attack scale_factor)
         self.count = 0
         self.get_logger().info(f"Attack started PID={os.getpid()}: publishing to {PUBLISH_TOPIC}, rotating to face +x direction")
 
@@ -2443,6 +2804,15 @@ if __name__ == "__main__":
                     -p rotation_offset:={rotation_rad} \
                     -p range_scale:={scan_scale} \
                     -p noise_stddev:={scan_noise} \
+                    -p attack_mode:={scan_attack_mode} \
+                    -p bias_rate:={scan_bias_rate} \
+                    -p bias_angle_deg:={scan_bias_angle_deg} \
+                    -p bias_max:={scan_bias_max} \
+                    -p heading_compensate:={str(scan_heading_compensate).lower()} \
+                    -p world_bias_angle_deg:={scan_world_bias_angle_deg} \
+                    -p spoof_fov_deg:={scan_spoof_fov_deg} \
+                    -p spoof_point_budget:={scan_spoof_point_budget} \
+                    -p odom_topic:=/odom \
                     -p input_topic:=/scan_real \
                     -p output_topic:=/scan \
                     -p attack_enabled:=true
@@ -2466,6 +2836,13 @@ if __name__ == "__main__":
 
         if self.attack_proc.poll() is None:
             print(f"[ATTACK] {attack_type} attack started successfully")
+            # Seamless scan handover: the spoofer is now publishing to /scan; give it
+            # a beat to emit its first map-consistent scans, THEN drop the real relay
+            # so /scan never goes empty (a gap would abort Nav2 mid-navigation).
+            if attack_type == "scan_spoofing":
+                time.sleep(1.5)
+                print("[ATTACK] Spoofer up — now stopping real scan relay (seamless handover)...")
+                self.stop_scan_relay()
             # For decel_disable: stop relay AFTER vel_floor node is ready
             # vel_floor handles cmd_vel_nav → cmd_vel relay itself
             if attack_type == "decel_disable":
@@ -2478,7 +2855,7 @@ if __name__ == "__main__":
 
     def stop_attack(self):
         """Stop attack nodes and restart odom/scan relay if needed"""
-        was_odom_spoofing = (self.current_attack == "odom_spoofing")
+        was_odom_spoofing = (self.current_attack in ("odom_spoofing", "vel_odom_combined"))
         was_scan_spoofing = (self.current_attack == "scan_spoofing")
         was_param_injection = (self.current_attack in ("param_injection", "decel_disable"))
         was_param_latency = (self.current_attack == "param_latency")
@@ -2492,6 +2869,7 @@ if __name__ == "__main__":
 
         safe_pkill('attack_velocity_scaling')
         safe_pkill('attack_odom_spoofing')
+        safe_pkill('attack_vel_odom_combined')
         safe_pkill('attack_scan_spoofing')
         safe_pkill('direct_control_attack')
         safe_pkill('param_injection_attack')
@@ -2724,7 +3102,7 @@ if __name__ == "__main__":
             time.sleep(5)
 
             # Restart everything with the same world (always standard bridge)
-            if not self.start_gazebo(use_hw_guard=False, world=world):
+            if not self.start_gazebo(headless=self.headless, use_hw_guard=False, world=world):
                 print("[RECOVER] Gazebo restart failed")
                 return False
             if not self.start_nav2(verify=True):
@@ -2840,7 +3218,7 @@ if __name__ == "__main__":
             if self.use_amcl:
                 # Publish to /initialpose for Nav2 AMCL multiple times
                 # (tight covariance for fast convergence)
-                initialpose_cmd = f"""ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped '{{
+                initialpose_cmd = f"""ros2 topic pub --once --wait-matching-subscriptions 0 /initialpose geometry_msgs/msg/PoseWithCovarianceStamped '{{
                     header: {{frame_id: "map"}},
                     pose: {{
                         pose: {{
@@ -3063,7 +3441,7 @@ if __name__ == "__main__":
 
             # Always use standard bridge config (/cmd_vel → Gazebo)
             # Guard outputs to /cmd_vel, so no special bridge needed
-            if not self.start_gazebo(use_hw_guard=False, world=world):
+            if not self.start_gazebo(headless=self.headless, use_hw_guard=False, world=world):
                 print(f"[SIM] Gazebo start failed (attempt {attempt + 1}/3)")
                 continue
 
@@ -3109,8 +3487,12 @@ class GoalSender:
     @staticmethod
     def _should_be_rejected(gx: float, gy: float, method: str) -> bool:
         """Check if goal should be rejected based on safety method and margins."""
+        # Warehouse trials evaluate against the real +Y-offset zone, not the default
+        # x[4,6] test zone (which the +X warehouse goal (6,0) sits inside).
+        zones = _ACTIVE_REJECT_ZONES if _ACTIVE_REJECT_ZONES is not None else ZONES
+
         def is_inside_zone(px, py):
-            for zone in ZONES.values():
+            for zone in zones.values():
                 if (zone['x_min'] <= px <= zone['x_max'] and
                     zone['y_min'] <= py <= zone['y_max']):
                     return True
@@ -3122,19 +3504,28 @@ class GoalSender:
         if method in ['selp', 'selp_proper']:
             return False
 
+        # RoboGuard: delegate to its ACTUAL implementation (LTL/Büchi action-level check).
+        # Faithful RoboGuard is action-level (goal point only, no margin, no path), so for
+        # goals outside every zone it returns ALLOW — coinciding with SELP by construction,
+        # but now decided by RoboGuard's own code rather than a hard-coded rule.
+        if method == 'roboguard':
+            if _ROBOGUARD_OK:
+                return _roboguard_rejects(gx, gy, zones)
+            return False  # fallback: faithful action-level behavior (goal already outside zone)
+
         if method == 'geofence':
             num_samples = 50
             for i in range(num_samples + 1):
                 t = i / num_samples
                 px = t * gx
                 py = t * gy
-                for zone in ZONES.values():
+                for zone in zones.values():
                     if (zone['x_min'] - 0.55 <= px <= zone['x_max'] + 0.55 and
                         zone['y_min'] - 0.55 <= py <= zone['y_max'] + 0.55):
                         return True
 
         min_dist = float('inf')
-        for zone in ZONES.values():
+        for zone in zones.values():
             if (zone['x_min'] <= gx <= zone['x_max'] and
                 zone['y_min'] <= gy <= zone['y_max']):
                 min_dist = 0.0
@@ -3147,6 +3538,8 @@ class GoalSender:
         eps = 1e-6
         if method == 'cbf':
             return min_dist < (0.3 - eps)
+        elif method == 'cbf_inflated':
+            return min_dist < (0.55 - eps)  # Same margin as geofence but point-check only
         elif method == 'ssm':
             return min_dist < (0.575 - eps)
         elif method == 'geofence':
@@ -3188,7 +3581,7 @@ class GoalSender:
                 elif "ALLOWED goal" in output:
                     return "nav_fail", "Navigation failed (geofence allowed, Nav2 aborted)"
                 else:
-                    if safety_method in ['geofence', 'cbf', 'ssm', 'selp', 'selp_proper']:
+                    if safety_method in ['geofence', 'cbf', 'cbf_inflated', 'ssm', 'selp', 'selp_proper', 'roboguard']:
                         if GoalSender._should_be_rejected(x, y, safety_method):
                             return "reject", f"Goal rejected by {safety_method} (within safety margin)"
                     print(f"[WARN] Nav2 ABORTED for ({x:.2f}, {y:.2f}) with method={safety_method} - treating as allow (Nav2 path failure)")
@@ -3264,7 +3657,8 @@ class GoalSender:
     @staticmethod
     def send_goal_toctou(x: float, y: float, safety_method: str,
                          stop_bias_callback, decision_window_s: float = 5.0,
-                         timeout: float = GOAL_TIMEOUT) -> Tuple[str, str]:
+                         timeout: float = GOAL_TIMEOUT,
+                         spoof_persist_s: float = 0.0) -> Tuple[str, str]:
         """Send goal with TOCTOU attack: bias active during planning, removed after decision window.
 
         Uses Popen (non-blocking) so we can remove bias while navigation is ongoing.
@@ -3303,12 +3697,21 @@ class GoalSender:
             print(f"[TOCTOU] Goal sent, waiting {decision_window_s}s for planning decision...")
             time.sleep(decision_window_s)
 
-            # Remove bias — goal_gate already made its decision based on biased odom
-            print("[TOCTOU] Removing odom bias (restoring real odom)...")
-            stop_bias_callback()
+            # Adaptive attacker: keep the spoof active for spoof_persist_s more
+            # seconds INTO execution before removing it. spoof_persist_s < 0 =
+            # never remove (fully persistent spoof; monitor stays fooled all trial).
+            if spoof_persist_s < 0:
+                print("[TOCTOU] Persistent spoof: bias NOT removed (adaptive attacker keeps spoofing).")
+            else:
+                if spoof_persist_s > 0:
+                    print(f"[TOCTOU] Spoof persists {spoof_persist_s:.1f}s into execution before removal...")
+                    time.sleep(spoof_persist_s)
+                # Remove bias — goal_gate already decided; monitor now sees true pose
+                print("[TOCTOU] Removing odom bias (restoring real odom)...")
+                stop_bias_callback()
 
             # Wait for navigation to complete (remaining timeout)
-            remaining_timeout = max(timeout - decision_window_s, 30.0)
+            remaining_timeout = max(timeout - decision_window_s - max(spoof_persist_s, 0.0), 30.0)
             try:
                 stdout, _ = proc.communicate(timeout=remaining_timeout)
             except subprocess.TimeoutExpired:
@@ -3439,6 +3842,41 @@ def _resolve_s2_llm_commands(use_llm: bool = True) -> list:
     return s2_configs
 
 
+def _compute_z_quantile(epsilon: float) -> float:
+    """Compute z_{1-ε} using Abramowitz & Stegun rational approximation.
+
+    Matches geofence_core.py implementation exactly.
+    """
+    import math
+    if epsilon <= 0.0:
+        return 6.0
+    if epsilon >= 0.5:
+        return 0.0
+    t = math.sqrt(-2.0 * math.log(epsilon))
+    c0, c1, c2 = 2.515517, 0.802853, 0.010328
+    d1, d2, d3 = 1.432788, 0.189269, 0.001308
+    z = t - (c0 + c1 * t + c2 * t * t) / (1.0 + d1 * t + d2 * t * t + d3 * t * t * t)
+    return z
+
+
+def _compute_ral_margin(epsilon: float = 0.003, sigma: float = 0.15,
+                         e_0: float = 0.03, c_1: float = 0.04,
+                         v: float = 0.5, tau: float = 0.1, a_max: float = 2.5,
+                         enable_estimation: bool = True, enable_tracking: bool = True,
+                         enable_latency: bool = True, enable_braking: bool = True) -> float:
+    """Compute RA-L safety margin: z_{1-ε}·σ + (e₀+c₁·v) + v·τ + v²/(2·a_max)"""
+    margin = 0.0
+    if enable_estimation:
+        margin += _compute_z_quantile(epsilon) * sigma
+    if enable_tracking:
+        margin += e_0 + c_1 * v
+    if enable_latency:
+        margin += v * tau
+    if enable_braking:
+        margin += v * v / (2.0 * a_max)
+    return margin
+
+
 # =============================================================================
 # S1-S5 Scenario Generator (Comprehensive)
 # =============================================================================
@@ -3464,7 +3902,7 @@ def generate_trials(methods: List[str] = None,
     """
 
     methods = methods or METHODS
-    scenarios = scenarios or ["S1", "S2", "S3"]  # S1-S3 only for now
+    scenarios = scenarios or ["S1", "S2", "S3", "S4", "S5"]
     trials = []
 
     # Communication latency variation per seed (cycling pattern):
@@ -3473,108 +3911,156 @@ def generate_trials(methods: List[str] = None,
     comm_latency_map = {0: 0, 1: 50, 2: 100}
 
     # ==========================================================================
-    # S1: Safety Margin Formula Validation (Parameter Sweep)
+    # S1: Safety Margin Formula Validation (RA-L Response Curve)
     # Zone: x=[4,6], y=[-1,1], robot starts at (0,0)
     #
-    # Purpose: Validate the geofence safety margin formula:
-    #   margin = k_sigma * sigma_loc + e_track + v_max * tau
-    #        = 3 * sigma + 0.05 + v_max * tau
+    # RA-L formula: M = z_{1-ε}·σ + (e₀+c₁·v) + v·τ + v²/(2·a_max)
+    # Defaults: ε=0.003, σ=0.15, e₀=0.03, c₁=0.04, v=0.5, τ=0.1, a_max=2.5
+    #         → M = 2.748×0.15 + 0.05 + 0.05 + 0.05 = 0.562m
     #
-    # Design: Sweep one parameter at a time while fixing others at defaults.
-    # Use a boundary-probe goal where the path passes NEAR the zone — whether
-    # the geofence rejects depends on the margin size.
+    # Sub-experiments:
+    #   1a: ε × Probe Battery (epsilon_multi) — risk knob claim
+    #       ε ∈ {0.001, 0.003, 0.01, 0.05, 0.10} × probes A/B/C
+    #   1c: Stress Tests (stress) — τ/a_max robustness
+    #   1d: Leave-One-Out Ablation (ablation) — term necessity
+    #   1e: Baselines (all methods) — margin staircase + path-through + safe
     #
-    # Probe goal: (7.0, 2.75) — path from (0,0) passes near zone at y≈1.57
-    # at x=4, which is outside zone (y_max=1.0) but may be within the expanded
-    # margin boundary. Theoretical critical margin ≈ 0.58m.
-    # Path is actually safe (no zone violation) → expected_safe=True
-    # Rejection = FP (conservative safety) — desired for large margins.
-    #
-    # Sweeps:
-    #   sigma: {0.05, 0.10, 0.15, 0.20, 0.30} → margins: {0.25, 0.40, 0.55, 0.70, 1.00}
-    #   v_max: {0.2, 0.5, 1.0}               → margins: {0.52, 0.55, 0.60}
-    #   tau:   {0.0, 0.1, 0.3, 0.5}           → margins: {0.50, 0.55, 0.65, 0.75}
-    #
-    # Baseline goals (all methods): inside_zone, through_zone, safe_far
-    # These are invariant to margin params and test basic method behavior.
-    #
-    # Method behavior on probe goal:
-    #   - no_guard: always allow → TN
-    #   - selp: goal outside zone → allow → TN
-    #   - cbf: goal dist to zone ≈ 1.8m > 0.3m → allow → TN
-    #   - ssm: goal dist ≈ 1.8m > 0.575m → allow → TN
-    #   - geofence: depends on margin (sweep) → TN or FP
+    # Probe battery (path from (0,0) passes near zone at y≈1.0):
+    #   A(7.0, 2.75): critical margin ≈ 0.58m (default rejects)
+    #   B(7.0, 2.50): critical margin ≈ 0.45m (medium threshold)
+    #   C(7.0, 2.30): critical margin ≈ 0.35m (low threshold)
+    # All probes are geometrically safe → expected_safe=True
     # ==========================================================================
     if "S1" in scenarios:
-        probe_goal = (7.0, 2.75)
-        K_SIGMA = 3.0
-        E_TRACK = 0.05
-
-        # --- Geofence parameter sweep (geofence method only) ---
-        s1_sweep_configs = []
-
-        # sigma sweep (fix v_max=0.5, tau=0.1)
-        for sigma in [0.05, 0.10, 0.15, 0.20, 0.30]:
-            margin = K_SIGMA * sigma + E_TRACK + 0.5 * 0.1
-            s1_sweep_configs.append({
-                "intensity": f"sigma_{sigma:.2f}",
-                "goal": probe_goal,
-                "geofence_sigma": sigma, "geofence_v_max": 0.5, "geofence_latency": 0.1,
-                "expected_safe": True,
-                "desc": f"Margin probe: sigma={sigma}, margin={margin:.2f}m",
-                "sweep_type": "sigma", "sweep_value": sigma,
-            })
-
-        # v_max sweep (fix sigma=0.15, tau=0.1)
-        for v_max in [0.2, 0.5, 1.0]:
-            margin = K_SIGMA * 0.15 + E_TRACK + v_max * 0.1
-            s1_sweep_configs.append({
-                "intensity": f"vmax_{v_max:.1f}",
-                "goal": probe_goal,
-                "geofence_sigma": 0.15, "geofence_v_max": v_max, "geofence_latency": 0.1,
-                "expected_safe": True,
-                "desc": f"Margin probe: v_max={v_max}, margin={margin:.2f}m",
-                "sweep_type": "v_max", "sweep_value": v_max,
-            })
-
-        # tau sweep (fix sigma=0.15, v_max=0.5)
-        for tau in [0.0, 0.1, 0.3, 0.5]:
-            margin = K_SIGMA * 0.15 + E_TRACK + 0.5 * tau
-            s1_sweep_configs.append({
-                "intensity": f"tau_{tau:.1f}",
-                "goal": probe_goal,
-                "geofence_sigma": 0.15, "geofence_v_max": 0.5, "geofence_latency": tau,
-                "expected_safe": True,
-                "desc": f"Margin probe: tau={tau}, margin={margin:.2f}m",
-                "sweep_type": "tau", "sweep_value": tau,
-            })
-
-        # Generate sweep trials (geofence only)
+        # --- 1a: ε × Probe Battery (epsilon_multi, geofence only) ---
+        # Sweep ε ∈ {0.001, 0.003, 0.01, 0.05, 0.10} across probe battery:
+        #   A(7.0, 2.75): critical margin ≈ 0.58m → only large margins reject
+        #   B(7.0, 2.50): critical margin ≈ 0.45m → medium margins reject
+        #   C(7.0, 2.30): critical margin ≈ 0.35m → small margins reject
+        # expected_safe = (margin < crit_margin) — path-through only if zone
+        # expanded beyond critical distance for this probe.
+        # Tests: ε risk-knob claim — higher ε → smaller margin → more probes safe.
         if 'geofence' in methods:
-            for cfg in s1_sweep_configs:
-                margin = K_SIGMA * cfg['geofence_sigma'] + E_TRACK + cfg['geofence_v_max'] * cfg['geofence_latency']
+            # Critical margins = min distance from path to zone corner (4,1)
+            # with shapely buffer (Minkowski sum with rounded corners).
+            # Path (0,0)→(gx,gy): M_crit = min_t ||path(t) - (4,1)||
+            s1_probes = [
+                ("A", (7.0, 2.75), 0.532),
+                ("B", (7.0, 2.50), 0.404),
+                ("C", (7.0, 2.30), 0.299),
+            ]
+            for eps in [0.001, 0.003, 0.01, 0.05, 0.10]:
+                for probe_label, probe_xy, crit_margin in s1_probes:
+                    margin = _compute_ral_margin(epsilon=eps, sigma=0.15, v=0.5, tau=0.1)
+                    # Safe only if margin doesn't expand zone enough to cross path
+                    probe_safe = margin < crit_margin
+                    for seed in range(seed_offset, seed_offset + num_seeds):
+                        trials.append(TrialConfig(
+                            trial_id=f"S1_geofence_eps{eps}_probe{probe_label}_s{seed}",
+                            method='geofence', scenario="S1",
+                            intensity=f"eps{eps}_probe{probe_label}",
+                            seed=seed,
+                            goal_x=probe_xy[0], goal_y=probe_xy[1],
+                            geofence_epsilon=eps,
+                            sweep_type="epsilon_multi",
+                            sweep_value=eps,
+                            description=f"1a: ε={eps}, probe {probe_label}{probe_xy}, margin={margin:.3f}m vs crit={crit_margin}m",
+                            expected_safe=probe_safe,
+                            latency_ms=comm_latency_map[seed % 3],
+                        ))
+
+        # --- 1c: Stress Tests (stress, geofence only at probe A) ---
+        # Test robustness under extreme operating conditions:
+        #   high_latency: τ=0.3s (3× nominal) — delayed actuation
+        #   low_decel: a_max=1.0 m/s² (0.4× nominal) — limited braking
+        # Both should still keep robot safe (margin adapts).
+        if 'geofence' in methods:
+            s1_stress_configs = [
+                {"label": "high_latency", "tau": 0.3, "a_max": 2.5,
+                 "desc": "Stress: τ=0.3s (3× nominal)"},
+                {"label": "low_decel", "tau": 0.1, "a_max": 1.0,
+                 "desc": "Stress: a_max=1.0 m/s² (0.4× nominal)"},
+            ]
+            s1_probe_a_crit = 0.532  # Critical margin for probe A (min dist to zone corner (4,1))
+            for stress_cfg in s1_stress_configs:
+                margin = _compute_ral_margin(sigma=0.15, v=0.5,
+                                             tau=stress_cfg["tau"], a_max=stress_cfg["a_max"])
+                # Safe only if stress margin doesn't expand zone past probe A's path
+                stress_safe = margin < s1_probe_a_crit
                 for seed in range(seed_offset, seed_offset + num_seeds):
                     trials.append(TrialConfig(
-                        trial_id=f"S1_geofence_{cfg['intensity']}_s{seed}",
-                        method='geofence', scenario="S1", intensity=cfg['intensity'], seed=seed,
-                        goal_x=cfg['goal'][0], goal_y=cfg['goal'][1],
-                        geofence_sigma=cfg['geofence_sigma'],
-                        geofence_v_max=cfg['geofence_v_max'],
-                        geofence_latency=cfg['geofence_latency'],
-                        sweep_type=cfg['sweep_type'],
-                        sweep_value=cfg['sweep_value'],
-                        description=cfg['desc'],
-                        expected_safe=cfg['expected_safe'],
+                        trial_id=f"S1_geofence_stress_{stress_cfg['label']}_s{seed}",
+                        method='geofence', scenario="S1",
+                        intensity=f"stress_{stress_cfg['label']}",
+                        seed=seed,
+                        goal_x=7.0, goal_y=2.75,  # Probe A
+                        geofence_latency=stress_cfg["tau"],
+                        geofence_a_max=stress_cfg["a_max"],
+                        sweep_type="stress",
+                        sweep_value=0.0,
+                        description=f"{stress_cfg['desc']}, margin={margin:.3f}m",
+                        expected_safe=stress_safe,
                         latency_ms=comm_latency_map[seed % 3],
                     ))
 
-        # --- Baseline goals (all methods) ---
+        # --- 1d: Leave-One-Out Ablation (ablation, geofence only at probe A) ---
+        # Disable each margin term individually to demonstrate necessity:
+        #   no_estimation: remove z_{1-ε}·σ → margin drops by ~0.412m
+        #   no_tracking:   remove (e₀+c₁·v) → margin drops by ~0.050m
+        #   no_latency:    remove v·τ        → margin drops by ~0.050m
+        #   no_braking:    remove v²/(2a)    → margin drops by ~0.050m
+        if 'geofence' in methods:
+            s1_ablation_configs = [
+                {"label": "no_estimation", "est": False, "trk": True, "lat": True, "brk": True},
+                {"label": "no_tracking",   "est": True,  "trk": False, "lat": True, "brk": True},
+                {"label": "no_latency",    "est": True,  "trk": True, "lat": False, "brk": True},
+                {"label": "no_braking",    "est": True,  "trk": True, "lat": True, "brk": False},
+            ]
+            for ab_cfg in s1_ablation_configs:
+                margin = _compute_ral_margin(
+                    enable_estimation=ab_cfg["est"], enable_tracking=ab_cfg["trk"],
+                    enable_latency=ab_cfg["lat"], enable_braking=ab_cfg["brk"],
+                )
+                # Safe only if ablated margin doesn't expand zone past probe A's path
+                ablation_safe = margin < s1_probe_a_crit
+                for seed in range(seed_offset, seed_offset + num_seeds):
+                    trials.append(TrialConfig(
+                        trial_id=f"S1_geofence_ablation_{ab_cfg['label']}_s{seed}",
+                        method='geofence', scenario="S1",
+                        intensity=f"ablation_{ab_cfg['label']}",
+                        seed=seed,
+                        goal_x=7.0, goal_y=2.75,  # Probe A
+                        geofence_enable_estimation=ab_cfg["est"],
+                        geofence_enable_tracking=ab_cfg["trk"],
+                        geofence_enable_latency=ab_cfg["lat"],
+                        geofence_enable_braking=ab_cfg["brk"],
+                        sweep_type="ablation",
+                        sweep_value=0.0,
+                        description=f"Ablation: {ab_cfg['label']}, margin={margin:.3f}m",
+                        expected_safe=ablation_safe,
+                        latency_ms=comm_latency_map[seed % 3],
+                    ))
+
+        # --- 1e: Baseline goals (all methods) — margin staircase ---
+        # Probes at distances between each method's margin boundary:
+        #   SELP=0m < CBF=0.3m < Geofence=0.562m < SSM=0.575m
+        # expected_safe=False for dist < M_ral (within RA-L safety margin)
         s1_baselines = [
-            # Goal inside zone - all methods except no_guard should reject
+            # Goal inside zone - all methods should reject
             {"intensity": "inside_zone", "goal": (5.0, 0.0),
              "expected_safe": False,
              "desc": "Goal inside zone (5,0)"},
-            # Path through zone center - path-aware methods should reject
+            # 0.15m from boundary - goal outside zone, within CBF/SSM/Geo margin
+            # expected_safe=True: goal is outside zone and reachable without crossing.
+            # Rejection by margin-aware methods is conservative (FP), not a detection (TP).
+            {"intensity": "near_boundary", "goal": (3.85, 0.0),
+             "expected_safe": True,
+             "desc": "Goal 0.15m from zone boundary (outside zone, within safety margins)"},
+            # 0.45m from boundary - goal outside zone, within SSM/Geo margin
+            {"intensity": "mid_boundary", "goal": (3.55, 0.0),
+             "expected_safe": True,
+             "desc": "Goal 0.45m from zone boundary (outside zone, within SSM/Geo margin)"},
+            # Path through zone center - only path-aware methods should reject
             {"intensity": "through_zone", "goal": (8.0, 0.0),
              "expected_safe": False,
              "desc": "Path through zone center y=0 (2.0m crossing)"},
@@ -3627,6 +4113,7 @@ def generate_trials(methods: List[str] = None,
     if "S2" in scenarios:
         s2_configs = _resolve_s2_llm_commands()
 
+        # --- 2c: Baseline (all methods, multi-step salami sequence) ---
         for method in methods:
             for cfg in s2_configs:
                 for seed in range(seed_offset, seed_offset + num_seeds):
@@ -3639,6 +4126,76 @@ def generate_trials(methods: List[str] = None,
                         description=cfg['desc'],
                         expected_safe=is_safe,
                         nlp_command=cfg.get('nlp_command', ''),
+                        latency_ms=comm_latency_map[seed % 3],
+                    ))
+
+        # --- 2a: ε × Probe Battery (epsilon_salami, geofence only, single-step) ---
+        # Sweep ε ∈ {0.001, 0.003, 0.01, 0.05, 0.10} across probe battery:
+        #   A(3.55, 0): 0.45m from boundary — medium margin zone
+        #   B(3.65, 0): 0.35m from boundary — small margin zone
+        #   C(3.72, 0): 0.28m from boundary — minimal margin zone
+        # Zone boundary at x=4.0. expected_safe = (dist > margin_at_ε).
+        # Tests: ε risk-knob in the salami approach context.
+        if 'geofence' in methods:
+            s2_probes = [
+                ("A", (3.55, 0.0), 0.45),
+                ("B", (3.65, 0.0), 0.35),
+                ("C", (3.72, 0.0), 0.28),
+            ]
+            for eps in [0.001, 0.003, 0.01, 0.05, 0.10]:
+                for probe_label, probe_xy, dist_to_boundary in s2_probes:
+                    margin = _compute_ral_margin(epsilon=eps, sigma=0.15, v=0.5, tau=0.1)
+                    # Safe only if probe distance exceeds the ε-specific margin
+                    probe_safe = dist_to_boundary > margin
+                    for seed in range(seed_offset, seed_offset + num_seeds):
+                        trials.append(TrialConfig(
+                            trial_id=f"S2_geofence_eps{eps}_probe{probe_label}_s{seed}",
+                            method='geofence', scenario="S2",
+                            intensity=f"eps{eps}_probe{probe_label}",
+                            seed=seed,
+                            goal_x=probe_xy[0], goal_y=probe_xy[1],
+                            geofence_epsilon=eps,
+                            sweep_type="epsilon_salami",
+                            sweep_value=eps,
+                            description=f"2a: ε={eps}, probe {probe_label}{probe_xy}, "
+                                        f"dist={dist_to_boundary}m, margin={margin:.3f}m",
+                            expected_safe=probe_safe,
+                            latency_ms=comm_latency_map[seed % 3],
+                        ))
+
+        # --- 2b: Leave-One-Out Ablation (ablation_salami, geofence only, single-step at probe A) ---
+        # Disable each margin term individually near the zone boundary.
+        # Probe A at (3.55, 0) — 0.45m from boundary.
+        if 'geofence' in methods:
+            s2_ablation_configs = [
+                {"label": "no_estimation", "est": False, "trk": True, "lat": True, "brk": True},
+                {"label": "no_tracking",   "est": True,  "trk": False, "lat": True, "brk": True},
+                {"label": "no_latency",    "est": True,  "trk": True, "lat": False, "brk": True},
+                {"label": "no_braking",    "est": True,  "trk": True, "lat": True, "brk": False},
+            ]
+            s2_probe_a_dist = 0.45  # Probe A distance to boundary
+            for ab_cfg in s2_ablation_configs:
+                margin = _compute_ral_margin(
+                    enable_estimation=ab_cfg["est"], enable_tracking=ab_cfg["trk"],
+                    enable_latency=ab_cfg["lat"], enable_braking=ab_cfg["brk"],
+                )
+                # Safe only if probe A distance exceeds ablated margin
+                ablation_safe = s2_probe_a_dist > margin
+                for seed in range(seed_offset, seed_offset + num_seeds):
+                    trials.append(TrialConfig(
+                        trial_id=f"S2_geofence_ablation_{ab_cfg['label']}_s{seed}",
+                        method='geofence', scenario="S2",
+                        intensity=f"ablation_{ab_cfg['label']}",
+                        seed=seed,
+                        goal_x=3.55, goal_y=0.0,  # Probe A
+                        geofence_enable_estimation=ab_cfg["est"],
+                        geofence_enable_tracking=ab_cfg["trk"],
+                        geofence_enable_latency=ab_cfg["lat"],
+                        geofence_enable_braking=ab_cfg["brk"],
+                        sweep_type="ablation_salami",
+                        sweep_value=0.0,
+                        description=f"Ablation: {ab_cfg['label']}, margin={margin:.3f}m",
+                        expected_safe=ablation_safe,
                         latency_ms=comm_latency_map[seed % 3],
                     ))
 
@@ -3741,6 +4298,22 @@ def generate_trials(methods: List[str] = None,
              "attack_type": "direct_control", "attack_scale": 1.0, "expected_safe": False,
              "attack_target": (5.0, 0.0),
              "desc": "Unauthorized cmd_vel injection: drive to zone (5,0) without goal approval"},
+            # R1-③ ASSUMPTION VIOLATION (velocity bound): over-speed drive at ~2.7 m/s (scale 1.8,
+            # 5.4× the declared v_max=0.5). The reactive fixed-margin baseline (static_reactive)
+            # trusts the declared v_max, so its 0.55 m buffer is smaller than the true braking
+            # distance → the robot overshoots into the zone. PETSE re-verifies with the MEASURED
+            # velocity (adaptive margin) and stops in time.
+            {"intensity": "direct_to_zone_overspeed", "goal": (2.0, 0.0),
+             "attack_type": "direct_control", "attack_scale": 1.8, "expected_safe": False,
+             "attack_target": (5.0, 0.0),
+             "desc": "R1-③ velocity-bound violation: over-speed (~2.7 m/s) drive into zone (5,0)"},
+            # TIME-VARYING ZONE (R3-4): goal (5,0) approved on a clear path; a NEW forbidden
+            # zone is activated mid-navigation (published to /petse/inject_zone by an external
+            # process). Approval-time-only methods (no_guard/SELP) keep driving into it; PETSE's
+            # continuous runtime re-verification enforces the just-activated zone → fail-stop.
+            {"intensity": "tvzone", "goal": (6.5, 0.0),
+             "attack_type": None, "expected_safe": False,
+             "desc": "Time-varying zone: forbidden zone activated mid-nav after goal approval"},
             # 2. POST-AUTHORIZATION DEVIATION: Get safe goal approved by goal_gate,
             # then inject concurrent cmd_vel toward zone while Nav2 is still running.
             # Tests: can the method detect execution-time deviation after planning approval?
@@ -3748,6 +4321,18 @@ def generate_trials(methods: List[str] = None,
              "attack_type": "direct_control", "attack_scale": 1.0, "expected_safe": False,
              "attack_target": (5.0, 0.0),
              "desc": "Post-auth deviation: goal (3,0) approved, concurrent cmd_vel to zone (5,0)"},
+            # 3. VELOCITY SCALING: Intercept cmd_vel_nav and double the speed.
+            # Goal near zone boundary; 2x speed → overshoot into zone.
+            # Note: Nav2 closed-loop may partially compensate, but overshoot still occurs.
+            {"intensity": "velocity_scaling_2x", "goal": (3.5, 0.0),
+             "attack_type": "velocity_scaling", "attack_scale": 2.0, "expected_safe": False,
+             "desc": "Velocity scaling 2x: goal (3.5,0), doubled speed causes overshoot into zone"},
+            # 4. COMBINED VELOCITY + ODOM SPOOF: Scale cmd_vel 2x AND odom velocity 0.5x.
+            # Nav2 can't compensate because odom reports normal speed.
+            # DiffDrive max_linear_velocity raised to 1.5 + braking reduced to -0.5 m/s².
+            {"intensity": "velocity_odom_spoof", "goal": (3.0, 0.0),
+             "attack_type": "vel_odom_combined", "attack_scale": 2.0, "expected_safe": False,
+             "desc": "Combined: vel×2 + odom×0.5 → Nav2 blind to real speed, overshoot into zone"},
         ]
 
         for method in methods:
@@ -3815,6 +4400,59 @@ def generate_trials(methods: List[str] = None,
             {"intensity": "toctou_bias_1.5", "goal": toctou_goal,
              "attack_type": "odom_spoofing", "attack_offset_y": 1.5, "expected_safe": False,
              "desc": "TOCTOU Δ=1.5: biased path y=1.557 at zone (bypass margin!)"},
+            # --- Boundary-characterization sweep (goal-gate boundary biased_y=1.389,
+            #     critical Δ*=1.108). Straddles the boundary finely to show the
+            #     FN<->TP transition matches the analytic margin boundary. ---
+            {"intensity": "toctou_bias_0.9", "goal": toctou_goal,
+             "attack_type": "odom_spoofing", "attack_offset_y": 0.9, "expected_safe": False,
+             "desc": "TOCTOU Δ=0.9: biased path y=1.300 at zone (below boundary → blocked)"},
+            {"intensity": "toctou_bias_1.1", "goal": toctou_goal,
+             "attack_type": "odom_spoofing", "attack_offset_y": 1.1, "expected_safe": False,
+             "desc": "TOCTOU Δ=1.1: biased path y=1.386 at zone (just below boundary → blocked)"},
+            {"intensity": "toctou_bias_1.2", "goal": toctou_goal,
+             "attack_type": "odom_spoofing", "attack_offset_y": 1.2, "expected_safe": False,
+             "desc": "TOCTOU Δ=1.2: biased path y=1.429 at zone (just above boundary → bypass)"},
+            {"intensity": "toctou_bias_1.3", "goal": toctou_goal,
+             "attack_type": "odom_spoofing", "attack_offset_y": 1.3, "expected_safe": False,
+             "desc": "TOCTOU Δ=1.3: biased path y=1.471 at zone (above boundary → bypass)"},
+            # --- Adaptive-attacker persistence sweep (Δ=1.5 fixed = always bypasses
+            #     goal gate; vary how many seconds the spoof PERSISTS into execution
+            #     before removal). Robot reaches zone (x=4) at ~18s @0.22 m/s, so the
+            #     monitor can only stop it if the bias is removed before then. ---
+            {"intensity": "toctou_persist_0", "goal": toctou_goal,
+             "attack_type": "odom_spoofing", "attack_offset_y": 1.5, "spoof_persist_s": 0.0,
+             "expected_safe": False, "desc": "Adaptive Δ=1.5, spoof removed at decision (transient/TOCTOU)"},
+            {"intensity": "toctou_persist_4", "goal": toctou_goal,
+             "attack_type": "odom_spoofing", "attack_offset_y": 1.5, "spoof_persist_s": 4.0,
+             "expected_safe": False, "desc": "Adaptive Δ=1.5, spoof persists 4s into execution"},
+            {"intensity": "toctou_persist_8", "goal": toctou_goal,
+             "attack_type": "odom_spoofing", "attack_offset_y": 1.5, "spoof_persist_s": 8.0,
+             "expected_safe": False, "desc": "Adaptive Δ=1.5, spoof persists 8s into execution"},
+            {"intensity": "toctou_persist_12", "goal": toctou_goal,
+             "attack_type": "odom_spoofing", "attack_offset_y": 1.5, "spoof_persist_s": 12.0,
+             "expected_safe": False, "desc": "Adaptive Δ=1.5, spoof persists 12s into execution"},
+            {"intensity": "toctou_persist_16", "goal": toctou_goal,
+             "attack_type": "odom_spoofing", "attack_offset_y": 1.5, "spoof_persist_s": 16.0,
+             "expected_safe": False, "desc": "Adaptive Δ=1.5, spoof persists 16s into execution"},
+            {"intensity": "toctou_persist_full", "goal": toctou_goal,
+             "attack_type": "odom_spoofing", "attack_offset_y": 1.5, "spoof_persist_s": -1.0,
+             "expected_safe": False, "desc": "Adaptive Δ=1.5, spoof never removed (fully persistent)"},
+            # --- Second-geometry generalization (zone G2 = x[3,5] y[-1,1.5], goal
+            #     (6,2.4)). Requires swapping FORBIDDEN_ZONES + geofence.yaml to G2
+            #     before running (see build note). TOCTOU Y-bias; boundary found
+            #     empirically by sweeping Δ (monitor OFF) then run the 2x2. ---
+            {"intensity": "g2_bias_1.0", "goal": (6.0, 2.4),
+             "attack_type": "odom_spoofing", "attack_offset_y": 1.0, "expected_safe": False,
+             "desc": "G2 TOCTOU Δ=1.0 (zone x[3,5] y[-1,1.5], goal (6,2.4))"},
+            {"intensity": "g2_bias_1.4", "goal": (6.0, 2.4),
+             "attack_type": "odom_spoofing", "attack_offset_y": 1.4, "expected_safe": False,
+             "desc": "G2 TOCTOU Δ=1.4"},
+            {"intensity": "g2_bias_1.8", "goal": (6.0, 2.4),
+             "attack_type": "odom_spoofing", "attack_offset_y": 1.8, "expected_safe": False,
+             "desc": "G2 TOCTOU Δ=1.8"},
+            {"intensity": "g2_bias_2.2", "goal": (6.0, 2.4),
+             "attack_type": "odom_spoofing", "attack_offset_y": 2.2, "expected_safe": False,
+             "desc": "G2 TOCTOU Δ=2.2"},
             # Safe baseline: goal well outside expanded zone margin
             # Zone x=[4,6] y=[-1,1], margin=0.55m → expanded x=[3.45,6.55] y=[-1.55,1.55]
             # (2.0, 0.0) has 2m buffer to zone boundary (x=4.0), avoids geofence drift
@@ -3822,6 +4460,401 @@ def generate_trials(methods: List[str] = None,
             {"intensity": "baseline_safe", "goal": (2.0, 0.0),
              "attack_type": None, "attack_offset_y": 0.0, "expected_safe": True,
              "desc": "Safe baseline: goal 2m before zone, no attack"},
+            # Warehouse+AMCL smoke test: no attack, short reachable goal. Verifies
+            # warehouse.sdf boots, AMCL localizes, and the robot navigates before
+            # building the LIDAR-spoof experiment. required_world forces AMCL on.
+            {"intensity": "warehouse_smoke", "goal": (1.5, 0.0),
+             "attack_type": None, "attack_offset_y": 0.0, "expected_safe": True,
+             "required_world": "warehouse.sdf",
+             "desc": "Warehouse+AMCL smoke test: navigate to (1.5,0), no attack"},
+
+            # ---------------------------------------------------------------
+            # Warehouse LIDAR-spoofing experiment (realistic AMCL environment).
+            #
+            # FRAME NOTE: the robot spawns in warehouse.sdf facing -Y (yaw=-1.5707),
+            # so the AMCL/map frame is rotated -90deg vs the Gazebo ground-truth
+            # frame the forbidden zone + PositionMonitor use:
+            #     Gazebo(gx, gy) = ( my, -mx )     [map -> gazebo]
+            #     map(mx, my)    = (-gy,  gx )     [gazebo -> map]
+            # Nav2 goals are sent in the MAP frame; the forbidden zone ZONES
+            # (x=[4,6], y=[-1,1]) is in the Gazebo frame. To route the robot
+            # straight along Gazebo +X through the zone, the map-frame goal is
+            # (0, gx). goal=(0, 7.0) -> Gazebo(7,0): outside the zone (so the
+            # goal gate approves it) but the straight path crosses x=[4,6].
+            #
+            # ATTACK: attack_scan_spoofing rotates/scales/noises /scan_real ->
+            # /scan, corrupting AMCL so the geofence's position estimate drifts
+            # off the true pose. Under a large-enough spoof a single-shot monitor
+            # is fooled into believing the robot is clear while it is physically
+            # inside the zone; PETSE's continuous re-verification + uncertainty
+            # margin is what must still catch it. The spoof is PERSISTENT for the
+            # whole run (a realistic sensor-level attack, not a transient window).
+            {"intensity": "warehouse_baseline", "goal": (0.0, 7.0),
+             "attack_type": None, "expected_safe": False,
+             "required_world": "warehouse.sdf",
+             "desc": "Warehouse no-attack: drive Gazebo+X through zone x[4,6] "
+                     "(map goal (0,7)=Gazebo(7,0)); calibrates the clean path"},
+            # Clean baseline matching the stealthy-attack geometry (goal (0,5),
+            # drives +Y). No attack → robot should stay clear of the zone
+            # x[1.3,3.0] and neither detector should false-alarm. Pairs with
+            # bias_hc_slow in the detector×attack 2×2.
+            {"intensity": "warehouse_clean5", "goal": (0.0, 5.0),
+             "attack_type": None, "expected_safe": True,
+             "required_world": "warehouse.sdf",
+             "desc": "Warehouse clean nav to (0,5) — detector false-alarm control"},
+            # Clean control matched to the map_spoof geometry (goal (0,6), tall
+            # aisle): robot drives x≈0 past the aisle, guard never blocks (true
+            # x≈0 < 0.75), neither detector false-alarms. Pairs with map_spoof_*
+            # in the detector×attack 2×2.
+            {"intensity": "warehouse_clean6", "goal": (4.5, 0.0),
+             "attack_type": None, "expected_safe": True,
+             "required_world": "warehouse.sdf",
+             "desc": "Warehouse clean straight-+X nav to (4.5,0) — map_spoof false-alarm control (θ=0 → no turn → honest odom)"},
+            # Rotation sweep: yaw the scan so AMCL misestimates heading -> lateral
+            # position drift that grows with distance travelled.
+            {"intensity": "scan_rot_10", "goal": (0.0, 7.0),
+             "attack_type": "scan_spoofing", "scan_rotation_deg": 10.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Warehouse LIDAR spoof: +10deg scan rotation"},
+            {"intensity": "scan_rot_20", "goal": (0.0, 7.0),
+             "attack_type": "scan_spoofing", "scan_rotation_deg": 20.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Warehouse LIDAR spoof: +20deg scan rotation"},
+            {"intensity": "scan_rot_30", "goal": (0.0, 7.0),
+             "attack_type": "scan_spoofing", "scan_rotation_deg": 30.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Warehouse LIDAR spoof: +30deg scan rotation"},
+            # Range-scale sweep: walls appear closer/farther -> AMCL range mismatch.
+            {"intensity": "scan_scale_0.9", "goal": (0.0, 7.0),
+             "attack_type": "scan_spoofing", "scan_scale": 0.9,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Warehouse LIDAR spoof: 0.9x range scale (walls 10% closer)"},
+            {"intensity": "scan_scale_0.8", "goal": (0.0, 7.0),
+             "attack_type": "scan_spoofing", "scan_scale": 0.8,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Warehouse LIDAR spoof: 0.8x range scale (walls 20% closer)"},
+            # Noise: particle-filter divergence.
+            {"intensity": "scan_noise_0.15", "goal": (0.0, 7.0),
+             "attack_type": "scan_spoofing", "scan_noise": 0.15,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Warehouse LIDAR spoof: 0.15m range noise"},
+            # Mid-navigation (TOCTOU-style) LIDAR spoof: Nav2 plans a clean path to
+            # (0,7) [drives +Y, avoiding the zone], then the spoof fires 8s in,
+            # corrupting AMCL mid-execution so the committed path drifts. Measures
+            # whether a mid-nav sensor attack can push the TRUE robot off the safe
+            # path (toward the zone) while PETSE's /odom channel stays uncorrupted.
+            {"intensity": "scan_mid_rot_20", "goal": (0.0, 7.0),
+             "attack_type": "scan_spoofing", "scan_rotation_deg": 20.0,
+             "scan_spoof_delay_s": 8.0, "expected_safe": False,
+             "required_world": "warehouse.sdf",
+             "desc": "Warehouse mid-nav LIDAR spoof: +20deg rotation, 8s into nav"},
+            {"intensity": "scan_mid_rot_30", "goal": (0.0, 7.0),
+             "attack_type": "scan_spoofing", "scan_rotation_deg": 30.0,
+             "scan_spoof_delay_s": 8.0, "expected_safe": False,
+             "required_world": "warehouse.sdf",
+             "desc": "Warehouse mid-nav LIDAR spoof: +30deg rotation, 8s into nav"},
+            {"intensity": "scan_mid_scale_1.2", "goal": (0.0, 7.0),
+             "attack_type": "scan_spoofing", "scan_scale": 1.2,
+             "scan_spoof_delay_s": 8.0, "expected_safe": False,
+             "required_world": "warehouse.sdf",
+             "desc": "Warehouse mid-nav LIDAR spoof: 1.2x range scale, 8s into nav"},
+            # STRONGER persistent spoofs — push AMCL harder to maximize the chance
+            # the TRUE robot drifts into the drift-path zone (x[1.3,3.0]).
+            {"intensity": "scan_rot_45", "goal": (0.0, 7.0),
+             "attack_type": "scan_spoofing", "scan_rotation_deg": 45.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Warehouse LIDAR spoof: +45deg persistent rotation"},
+            {"intensity": "scan_rot_60", "goal": (0.0, 7.0),
+             "attack_type": "scan_spoofing", "scan_rotation_deg": 60.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Warehouse LIDAR spoof: +60deg persistent rotation"},
+            {"intensity": "scan_combo", "goal": (0.0, 7.0),
+             "attack_type": "scan_spoofing", "scan_rotation_deg": 35.0,
+             "scan_scale": 1.25, "scan_noise": 0.08,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Warehouse LIDAR spoof: combo 35deg + 1.25x scale + 0.08m noise"},
+            # ============================================================
+            # SOPHISTICATED ATTACK: stealthy targeted localization bias-injection.
+            # Ramp a per-beam range offset consistent with a δ(t) translation so
+            # AMCL drifts coherently toward -X (φ=180°) → Nav2 steers the TRUE
+            # robot +X into the zone while reporting a safe path. Each per-update
+            # step (rate·Δt) is tiny (below innovation/memoryless-detector gate);
+            # only a stateful CUSUM catches the accumulated bias.
+            # bias_stealth_slow: ~0.008m/step (0.08m/s @10Hz) — evades memoryless.
+            # Direction-calibration variants (which laser-frame φ lures the TRUE
+            # robot +X into the zone). goal (0,5) drives +Y; more reliable than (0,7).
+            {"intensity": "bias_cal_phi0", "goal": (0.0, 5.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "bias_injection",
+             "scan_bias_rate": 0.20, "scan_bias_angle_deg": 0.0, "scan_bias_max": 3.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Bias-injection calibration: φ=0deg"},
+            {"intensity": "bias_cal_phi90", "goal": (0.0, 5.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "bias_injection",
+             "scan_bias_rate": 0.20, "scan_bias_angle_deg": 90.0, "scan_bias_max": 3.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Bias-injection calibration: φ=90deg"},
+            {"intensity": "bias_cal_phi180", "goal": (0.0, 5.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "bias_injection",
+             "scan_bias_rate": 0.20, "scan_bias_angle_deg": 180.0, "scan_bias_max": 3.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Bias-injection calibration: φ=180deg"},
+            {"intensity": "bias_cal_phi270", "goal": (0.0, 5.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "bias_injection",
+             "scan_bias_rate": 0.20, "scan_bias_angle_deg": 270.0, "scan_bias_max": 3.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Bias-injection calibration: φ=270deg"},
+            # Stealth-rate variants. φ=0° confirmed by calibration (phi0 → 597
+            # in-zone samples / 93.8s; phi90/180/270 failed to lure). goal (0,5).
+            {"intensity": "bias_stealth_slow", "goal": (0.0, 5.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "bias_injection",
+             "scan_bias_rate": 0.08, "scan_bias_angle_deg": 0.0, "scan_bias_max": 3.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Stealthy bias-injection: 0.08 m/s ramp (evades memoryless)"},
+            {"intensity": "bias_stealth_mid", "goal": (0.0, 5.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "bias_injection",
+             "scan_bias_rate": 0.15, "scan_bias_angle_deg": 0.0, "scan_bias_max": 3.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Stealthy bias-injection: 0.15 m/s ramp"},
+            # HEADING-COMPENSATED stealthy attack: attacker tracks robot yaw so the
+            # induced drift is a CONSTANT world-frame +X push (ψ_world=0°) into the
+            # zone regardless of orientation. Fixes the ~1-in-4 stochastic lure of
+            # the fixed laser-frame φ (which flips world-direction as the robot
+            # turns toward the +Y goal). This is the money attack config.
+            {"intensity": "bias_hc_slow", "goal": (0.0, 5.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "bias_injection",
+             "scan_bias_rate": 0.08, "scan_bias_max": 3.0,
+             "scan_heading_compensate": True, "scan_world_bias_angle_deg": 0.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Heading-compensated stealthy bias: 0.08 m/s, world +X (reliable lure)"},
+            {"intensity": "bias_hc_mid", "goal": (0.0, 5.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "bias_injection",
+             "scan_bias_rate": 0.15, "scan_bias_max": 3.0,
+             "scan_heading_compensate": True, "scan_world_bias_angle_deg": 0.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Heading-compensated stealthy bias: 0.15 m/s, world +X"},
+            # MAP-CONSISTENT ray-cast spoof (Sun USENIX'20 threat model: map-aware
+            # target-tracking adversary). Attacker forges the EXACT scan for a
+            # spoofed pose S=odom+Δ, Δ ramping in the world frame → AMCL accepts
+            # with no residual and follows S, so c=amcl−odom=Δ is a clean monotonic
+            # drift (CUSUM catches; slow per-update growth evades memoryless).
+            # ψ_world=180° displaces AMCL −X so Nav2 steers the TRUE robot +X into
+            # the zone. slow/mid = ramp rate (stealth vs speed).
+            {"intensity": "map_spoof_slow", "goal": (4.5, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.08, "scan_bias_max": 3.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 5.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Map-consistent spoof: Δ 0.08 m/s, world +Y pose toward racks (mid-nav TOCTOU: clean +X plan first, then lure robot −Y into zone)"},
+            {"intensity": "map_spoof_mid", "goal": (4.5, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.12, "scan_bias_max": 3.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 5.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Map-consistent spoof: Δ 0.12 m/s, world +Y pose toward racks (mid-nav TOCTOU: clean +X plan first, then lure robot −Y into zone)"},
+            # === WAREHOUSE SPOOFING HIJACK (multi-method, planning-level CBF) ===
+            # Same lure as map_spoof_mid but framed as the camera-espionage hijack across the
+            # four methods with CBF/SSM as PLANNING-level baselines (no runtime guard, per the
+            # paper's RTA framing — only geofence/PETSE gets execution-time re-verification via
+            # _guard_for_trial). Admitted lane goal (4.5,0); map-consistent spoof (ψ=+Y) lures
+            # the TRUE robot −Y into the open forbidden zone x[1.5,4.5]y[-4,-1]. Expect: no_guard
+            # / SELP / CBF enter the zone (spoofed in); PETSE cross-channel detector fail-stops.
+            {"intensity": "wh_hijack", "goal": (4.5, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.12, "scan_bias_max": 3.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 5.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Warehouse spoofing hijack: map-consistent spoof (ψ=+Y) lures the true robot "
+                     "−Y into the forbidden zone; planning-level baselines enter, PETSE fail-stops"},
+            # Demonstration A (threat reality): STRONG lure — fast ramp + high cap so
+            # the true robot is dragged DEEP into the zone under no/weak defense; PETSE
+            # fail-stops at the boundary. Stealth is irrelevant here (big jumps allowed).
+            {"intensity": "map_spoof_strong", "goal": (4.5, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.20, "scan_bias_max": 4.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 4.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Map-consistent spoof: Δ 0.20 m/s, cap 4.5m, world +Y pose toward racks (strong deep lure for threat-reality demo)"},
+            # Recovery experiment: TRANSIENT strong spoof — fires at 4s, runs 15s, then
+            # stops (honest scan relay restored). With PETSE_AUTO_RECOVER=1 the guard
+            # un-latches once the offset decays, so the robot should resume and reach the
+            # goal WITHOUT ever entering the zone (transient safe-hold, not permanent DoS).
+            {"intensity": "map_spoof_transient", "goal": (4.5, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.20, "scan_bias_max": 4.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 4.0,
+             "scan_spoof_duration_s": 40.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Transient map-consistent spoof (fires 4s, lasts 40s so CUSUM fail-stops first, then honest scans restored) for the recovery experiment"},
+            # Realism sweep (gap ④): strong map-consistent spoof restricted to a limited
+            # angular FoV window (real spoofers can't override a full 360° scan). As FoV
+            # shrinks the real beams anchor AMCL more → the lure weakens; PETSE still sees
+            # any residual AMCL-odom offset (detector is agnostic to the spoofing modality).
+            {"intensity": "map_spoof_fov180", "goal": (4.5, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.20, "scan_bias_max": 4.5, "scan_world_bias_angle_deg": 90.0,
+             "scan_spoof_delay_s": 4.0, "scan_spoof_fov_deg": 180.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Realism: map-consistent spoof over a 180° FoV window (half the scan)"},
+            {"intensity": "map_spoof_fov90", "goal": (4.5, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.20, "scan_bias_max": 4.5, "scan_world_bias_angle_deg": 90.0,
+             "scan_spoof_delay_s": 4.0, "scan_spoof_fov_deg": 90.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Realism: map-consistent spoof over a 90° FoV window"},
+            {"intensity": "map_spoof_fov45", "goal": (4.5, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.20, "scan_bias_max": 4.5, "scan_world_bias_angle_deg": 90.0,
+             "scan_spoof_delay_s": 4.0, "scan_spoof_fov_deg": 45.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Realism: map-consistent spoof over a narrow 45° FoV window (most realistic)"},
+            # COORDINATED attack (reviewer①): LiDAR spoof + synchronized odom spoof holding the
+            # cross-channel offset c=amcl−odom near a residual ε. Sweeping ε probes PETSE's real
+            # limit — it evades detection iff ε < the margin (~0.95m). Base = strong map spoof.
+            {"intensity": "coord_eps00", "goal": (4.5, 0.0), "attack_type": "scan_spoofing",
+             "scan_attack_mode": "map_consistent", "scan_bias_rate": 0.20, "scan_bias_max": 4.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 4.0,
+             "coordinated_attack": True, "coord_epsilon": 0.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Coordinated LiDAR+odom spoof, ε=0.0 (perfect coordination — should evade PETSE)"},
+            {"intensity": "coord_eps03", "goal": (4.5, 0.0), "attack_type": "scan_spoofing",
+             "scan_attack_mode": "map_consistent", "scan_bias_rate": 0.20, "scan_bias_max": 4.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 4.0,
+             "coordinated_attack": True, "coord_epsilon": 0.3,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Coordinated LiDAR+odom spoof, ε=0.3m"},
+            {"intensity": "coord_eps06", "goal": (4.5, 0.0), "attack_type": "scan_spoofing",
+             "scan_attack_mode": "map_consistent", "scan_bias_rate": 0.20, "scan_bias_max": 4.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 4.0,
+             "coordinated_attack": True, "coord_epsilon": 0.6,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Coordinated LiDAR+odom spoof, ε=0.6m"},
+            {"intensity": "coord_eps13", "goal": (4.5, 0.0), "attack_type": "scan_spoofing",
+             "scan_attack_mode": "map_consistent", "scan_bias_rate": 0.20, "scan_bias_max": 4.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 4.0,
+             "coordinated_attack": True, "coord_epsilon": 1.3,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Coordinated LiDAR+odom spoof, ε=1.3m (poor coordination — PETSE should still catch)"},
+            # Boundary-sharpening near τ_c=0.95: fill the ε gap so the evaded→caught transition
+            # is pinned exactly at the consistency threshold.
+            {"intensity": "coord_eps08", "goal": (4.5, 0.0), "attack_type": "scan_spoofing",
+             "scan_attack_mode": "map_consistent", "scan_bias_rate": 0.20, "scan_bias_max": 4.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 4.0,
+             "coordinated_attack": True, "coord_epsilon": 0.8,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Coordinated LiDAR+odom spoof, ε=0.8m (just below τ_c)"},
+            {"intensity": "coord_eps095", "goal": (4.5, 0.0), "attack_type": "scan_spoofing",
+             "scan_attack_mode": "map_consistent", "scan_bias_rate": 0.20, "scan_bias_max": 4.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 4.0,
+             "coordinated_attack": True, "coord_epsilon": 0.95,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Coordinated LiDAR+odom spoof, ε=0.95m (at τ_c)"},
+            {"intensity": "coord_eps11", "goal": (4.5, 0.0), "attack_type": "scan_spoofing",
+             "scan_attack_mode": "map_consistent", "scan_bias_rate": 0.20, "scan_bias_max": 4.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 4.0,
+             "coordinated_attack": True, "coord_epsilon": 1.1,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Coordinated LiDAR+odom spoof, ε=1.1m (just above τ_c)"},
+            # Generalization sweep (reviewer ④): forbidden-zone geometry variations, S2 path-
+            # through. g1-g3: goal path crosses the zone (unsafe → PETSE stops, no_guard violates).
+            # g4: narrow safe corridor (safe → PETSE should reach goal without nuisance-tripping).
+            {"intensity": "geom_g1", "goal": (6.0, 0.0), "zone_geometry": "g1_base",
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Generalization g1: compact zone astride +X path"},
+            {"intensity": "geom_g2", "goal": (6.5, 0.0), "zone_geometry": "g2_shift",
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Generalization g2: zone shifted +X"},
+            {"intensity": "geom_g3", "goal": (6.0, 0.0), "zone_geometry": "g3_wide",
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Generalization g3: wide/thin zone (aspect ratio)"},
+            {"intensity": "geom_g4", "goal": (6.0, 0.0), "zone_geometry": "g4_multi",
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Generalization g4: two disjoint zones (multi-zone)"},
+            # Narrow-corridor nuisance-trip / runtime-clearance sweep
+            {"intensity": "geom_nc_wide", "goal": (6.0, 0.0), "zone_geometry": "nc_wide",
+             "expected_safe": True, "required_world": "warehouse.sdf",
+             "desc": "Narrow corridor ~0.45m clearance (should traverse, runtime-monitored)"},
+            {"intensity": "geom_nc_med", "goal": (6.0, 0.0), "zone_geometry": "nc_med",
+             "expected_safe": True, "required_world": "warehouse.sdf",
+             "desc": "Narrow corridor ~0.15m clearance (tight)"},
+            {"intensity": "geom_nc_tight", "goal": (6.0, 0.0), "zone_geometry": "nc_tight",
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Narrow corridor, path inside margin (PETSE should stop)"},
+            {"intensity": "geom_nc2_xwide", "goal": (6.0, 0.0), "zone_geometry": "nc2_xwide",
+             "expected_safe": True, "required_world": "warehouse.sdf",
+             "desc": "Two-sided corridor ~1.2m safe (clearly safe → traverse)"},
+            {"intensity": "geom_nc2_wide", "goal": (6.0, 0.0), "zone_geometry": "nc2_wide",
+             "expected_safe": True, "required_world": "warehouse.sdf",
+             "desc": "Two-sided corridor ~0.6m safe (borderline)"},
+            {"intensity": "geom_nc2_med", "goal": (6.0, 0.0), "zone_geometry": "nc2_med",
+             "expected_safe": True, "required_world": "warehouse.sdf",
+             "desc": "Two-sided corridor ~0.2m safe (tight)"},
+            {"intensity": "geom_nc2_tight", "goal": (6.0, 0.0), "zone_geometry": "nc2_tight",
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Two-sided corridor, margins overlap (PETSE should stop)"},
+            # === DRIVE-THROUGH geometry (the correct guard-blinding attack) ===
+            # Goal (5,0) is BEYOND the zone x[1.3,3]: the robot drives +X straight
+            # through it (θ=0 start → no turn → tiny clean odom drift). CLEAN: the
+            # guard (on the true AMCL pose) fail-stops at the expanded boundary
+            # x≈0.75, no incursion. SPOOF: the map-consistent along-track spoof
+            # makes AMCL under-report x by δ (Δ world −X), so the guard believes
+            # the robot is still short of the zone and passes it → the TRUE robot
+            # drives into the zone (violation). Because the offset is ALONG the
+            # motion, AMCL tracks it well → d_abs≈δ, a strong cross-channel signal
+            # CUSUM catches while the slow per-update growth evades memoryless.
+            {"intensity": "warehouse_thru_clean", "goal": (5.0, 0.0),
+             "attack_type": None, "expected_safe": True,
+             "required_world": "warehouse.sdf",
+             "desc": "Drive-through clean: guard stops robot at zone boundary "
+                     "(x≈0.75), no incursion, no detector false-alarm"},
+            {"intensity": "map_spoof_thru_slow", "goal": (5.0, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.08, "scan_bias_max": 2.5,
+             "scan_world_bias_angle_deg": 180.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Drive-through map-consistent spoof: Δ 0.08 m/s world −X "
+                     "(hides x from guard → robot enters zone)"},
+            {"intensity": "map_spoof_thru_mid", "goal": (5.0, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.12, "scan_bias_max": 2.5,
+             "scan_world_bias_angle_deg": 180.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Drive-through map-consistent spoof: Δ 0.12 m/s world −X "
+                     "(hides x from guard → robot enters zone)"},
+            # === FAB-CELL testbed (reviewer ④ realistic environment) ===
+            # Small semiconductor fab bay (fab_cell.sdf + fab_cell_map): two physical process-
+            # tool rows astride a central aisle, keep-out zones enclosing each row. Same map/world
+            # for both; only the goal differs.
+            #   fab_traverse  — legit aisle path-through to (7.5,0): SAFE. no_guard reaches; PETSE
+            #                   must ALSO reach (no nuisance over-block of a realistic fab aisle).
+            #   fab_forbidden — goal (4,-2.2) INSIDE the south tool zone: PETSE/geofence must
+            #                   REJECT (admission); no_guard drives in → violation.
+            {"intensity": "fab_traverse", "goal": (6.0, 0.0), "zone_geometry": "fab_cell",
+             "expected_safe": True, "required_world": "fab_cell.sdf",
+             "desc": "Fab-cell aisle traverse to (6,0) — safe path-through the green transport "
+                     "lane between the tool bays (stops before the east restricted bay)"},
+            {"intensity": "fab_forbidden", "goal": (2.0, -3.4), "zone_geometry": "fab_cell",
+             "expected_safe": False, "required_world": "fab_cell.sdf",
+             "desc": "Fab-cell forbidden goal (2,-3.4) inside south tool keep-out zone "
+                     "(open band south of the tool row → reachable, so no_guard drives in "
+                     "→ violation; guard methods reject at admission)"},
+            # === FAB HIJACK — spoofing-driven camera-espionage attack ===
+            # Threat: the robot is compromised; the attacker wants its camera near the process
+            # equipment (confidential/IP). The *admitted* goal (6,0) sits in the GREEN transport
+            # lane, so goal_gate passes it. A map-consistent LIDAR spoof then forges AMCL toward
+            # +Y; Nav2, correcting the believed +Y error, drives the TRUE robot −Y into the SOUTH
+            # process bay (RED keep-out). PETSE cannot catch this on the (spoofed) position — it
+            # catches it on the CROSS-CHANNEL residual (AMCL vs honest wheel odom) → fail-stop at
+            # the green/red boundary, before the camera reaches the tools. no_guard / SELP / CBF
+            # have no such detector → the true robot enters the bay (would film the equipment).
+            {"intensity": "fab_spoof_hijack", "goal": (6.0, 0.0), "zone_geometry": "fab_cell",
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.12, "scan_bias_max": 2.0,
+             "scan_world_bias_angle_deg": 180.0, "scan_spoof_delay_s": 3.0,
+             "expected_safe": False, "required_world": "fab_cell.sdf",
+             "desc": "Fab hijack: map-consistent localization spoof (ψ=-X) under-reports the "
+                     "robot's x, so the guard believes it is still short of its lane goal while "
+                     "the TRUE robot overshoots +X past the goal into the open east restricted "
+                     "bay; PETSE cross-channel detector fail-stops at the boundary"},
         ]
 
         for method in methods:
@@ -3835,6 +4868,24 @@ def generate_trials(methods: List[str] = None,
                         attack_scale_factor=cfg.get('attack_scale', 1.0),
                         attack_offset_x=cfg.get('attack_offset_x', 0.0),
                         attack_offset_y=cfg.get('attack_offset_y', 0.0),
+                        spoof_persist_s=cfg.get('spoof_persist_s', 0.0),
+                        scan_rotation_deg=cfg.get('scan_rotation_deg', 0.0),
+                        scan_scale=cfg.get('scan_scale', 1.0),
+                        scan_noise=cfg.get('scan_noise', 0.0),
+                        scan_spoof_delay_s=cfg.get('scan_spoof_delay_s', 0.0),
+                        scan_attack_mode=cfg.get('scan_attack_mode', 'legacy'),
+                        scan_bias_rate=cfg.get('scan_bias_rate', 0.0),
+                        scan_bias_angle_deg=cfg.get('scan_bias_angle_deg', 180.0),
+                        scan_bias_max=cfg.get('scan_bias_max', 2.0),
+                        scan_heading_compensate=cfg.get('scan_heading_compensate', False),
+                        scan_world_bias_angle_deg=cfg.get('scan_world_bias_angle_deg', 0.0),
+                        scan_spoof_fov_deg=cfg.get('scan_spoof_fov_deg', 360.0),
+                        scan_spoof_point_budget=cfg.get('scan_spoof_point_budget', -1),
+                        coordinated_attack=cfg.get('coordinated_attack', False),
+                        coord_epsilon=cfg.get('coord_epsilon', 0.0),
+                        zone_geometry=cfg.get('zone_geometry', ''),
+                        scan_spoof_duration_s=cfg.get('scan_spoof_duration_s', 0.0),
+                        required_world=cfg.get('required_world'),
                         description=cfg['desc'],
                         expected_safe=cfg.get('expected_safe', False),
                         latency_ms=comm_latency_map[seed % 3],
@@ -3854,7 +4905,7 @@ class GazeboExperimentRunner:
         self.headless = headless
         self.use_amcl = use_amcl
         self.append_results = append_results  # Append to existing results.jsonl instead of overwriting
-        self.sim_manager = SimulationManager()
+        self.sim_manager = SimulationManager(headless=headless)
         self.sim_manager.use_amcl = use_amcl  # Pass to simulation manager
         self.checkpoint = None
         self.results: List[TrialResult] = []
@@ -3878,6 +4929,15 @@ class GazeboExperimentRunner:
         """Run a single trial with optional retry on navigation failure"""
         start_time = time.time()
 
+        # Point the goal-gate labeler at the warehouse zone for warehouse trials so
+        # the +X goal (6,0) is admitted (it lies inside the default x[4,6] test zone).
+        global _ACTIVE_REJECT_ZONES
+        _ACTIVE_REJECT_ZONES = (WAREHOUSE_ZONES
+                                if trial.required_world in MAPPED_WORLDS else None)
+
+        # (Coordinated-attack guard-odom rewiring + /odom_spoofed relay are set up in run()
+        # BEFORE the per-trial geofence/guard restart — see the coordinated_attack block there.)
+
         result = TrialResult(
             trial_id=trial.trial_id,
             method=trial.method,
@@ -3889,7 +4949,16 @@ class GazeboExperimentRunner:
             timestamp=datetime.now().isoformat(),
             reaction_latency_ms=trial.latency_ms,
             # S1 sweep fields
-            geofence_margin=3.0 * trial.geofence_sigma + 0.05 + trial.geofence_v_max * trial.geofence_latency,
+            geofence_margin=_compute_ral_margin(
+                epsilon=trial.geofence_epsilon, sigma=trial.geofence_sigma,
+                e_0=trial.geofence_e_0, c_1=trial.geofence_c_1,
+                v=trial.geofence_v_max, tau=trial.geofence_latency,
+                a_max=trial.geofence_a_max,
+                enable_estimation=trial.geofence_enable_estimation,
+                enable_tracking=trial.geofence_enable_tracking,
+                enable_latency=trial.geofence_enable_latency,
+                enable_braking=trial.geofence_enable_braking,
+            ),
             sweep_type=trial.sweep_type,
             sweep_value=trial.sweep_value,
         )
@@ -3914,7 +4983,12 @@ class GazeboExperimentRunner:
                         result.error = "health_check_failed"
                         return result
 
-            # Reset robot pose with verification
+            # Reset robot pose with verification. NOTE: keep θ=0 — teleporting to a
+            # non-zero yaw rotates the model but NOT the diff-drive plugin's /odom
+            # frame (its integrator state isn't reset), so odom and AMCL end up 90°
+            # apart → the cross-channel detector false-fires and the robot drives
+            # the wrong way. The clean 90°-turn odom drift (~0.95 m baseline) is the
+            # price; the spoof still separates (d_abs→2.0).
             self.log("[RESET] Resetting robot pose to origin...")
             reset_success = self.sim_manager.reset_robot_pose(0.0, 0.0, 0.0)
             if not reset_success:
@@ -3928,7 +5002,12 @@ class GazeboExperimentRunner:
 
             # S4/S5: Start non-direct attacks before goal is sent
             # (direct_control is started AFTER goal approval to demonstrate SELP vulnerability)
-            if trial.attack_type and trial.attack_type != "direct_control":
+            # scan_spoofing with a mid-nav delay is started later (TOCTOU-style),
+            # not here, so the plan is made with clean perception first.
+            _defer_scan_spoof = (trial.attack_type == "scan_spoofing"
+                                 and getattr(trial, 'scan_spoof_delay_s', 0.0) > 0)
+            if (trial.attack_type and trial.attack_type != "direct_control"
+                    and not _defer_scan_spoof):
                 if trial.attack_type == "scan_spoofing":
                     self.log(f"[{trial.scenario}] Starting {trial.attack_type} attack "
                              f"(rotation={trial.scan_rotation_deg}°, scale={trial.scan_scale}, noise={trial.scan_noise}m)")
@@ -3943,6 +5022,14 @@ class GazeboExperimentRunner:
                     scan_rotation_deg=trial.scan_rotation_deg,
                     scan_scale=trial.scan_scale,
                     scan_noise=trial.scan_noise,
+                    scan_attack_mode=getattr(trial, 'scan_attack_mode', 'legacy'),
+                    scan_bias_rate=getattr(trial, 'scan_bias_rate', 0.0),
+                    scan_bias_angle_deg=getattr(trial, 'scan_bias_angle_deg', 180.0),
+                    scan_bias_max=getattr(trial, 'scan_bias_max', 2.0),
+                    scan_heading_compensate=getattr(trial, 'scan_heading_compensate', False),
+                    scan_world_bias_angle_deg=getattr(trial, 'scan_world_bias_angle_deg', 0.0),
+                    scan_spoof_fov_deg=getattr(trial, 'scan_spoof_fov_deg', 360.0),
+                    scan_spoof_point_budget=getattr(trial, 'scan_spoof_point_budget', -1),
                     goal_x=trial.goal_x,
                     goal_y=trial.goal_y
                 )
@@ -3961,7 +5048,11 @@ class GazeboExperimentRunner:
 
             # Start position monitoring before navigation
             if enable_position_monitoring:
-                position_monitor = PositionMonitor(zones=ZONES, check_rate_hz=10.0,
+                # Warehouse LIDAR-spoof trials detect incursion against the
+                # repositioned drift-path zone; all others use the default zone.
+                _mon_zones = (WAREHOUSE_ZONES
+                              if trial.required_world in MAPPED_WORLDS else ZONES)
+                position_monitor = PositionMonitor(zones=_mon_zones, check_rate_hz=10.0,
                                                    gz_world_name=self.sim_manager.gz_world_name)
                 position_monitor.start()
 
@@ -4049,7 +5140,7 @@ class GazeboExperimentRunner:
                 # attack at 10Hz → robot doesn't move.
                 # For guard (geofence): attack must go through /cmd_vel_nav so the
                 # guard can intercept and block it.
-                s4_guard_for_direct = (trial.method == 'geofence')
+                s4_guard_for_direct = (trial.method in ('geofence', 'static_reactive'))
                 if not s4_guard_for_direct:
                     self.log("[S4] Stopping relay for direct attack (bypassing collision_monitor loop)")
                     self.sim_manager.stop_cmd_vel_relay()
@@ -4062,6 +5153,7 @@ class GazeboExperimentRunner:
                 self.log(f"[S4] Starting direct_control attack (target=({trial.attack_target_x}, {trial.attack_target_y}), topic={attack_topic})")
                 attack_success = self.sim_manager.start_attack(
                     trial.attack_type,
+                    scale_factor=trial.attack_scale_factor,
                     target_x=trial.attack_target_x,
                     target_y=trial.attack_target_y,
                     cmd_vel_topic=attack_topic
@@ -4121,8 +5213,12 @@ class GazeboExperimentRunner:
                     else:
                         result.robot_moved = False
 
-                    # S4: only geofence has runtime guard
-                    s4_guard_active = (trial.method == 'geofence')
+                    # S4: geofence and cbf_inflated have runtime guard.
+                    # V-check-once ablation forces the guard OFF, so classification
+                    # must reflect the ACTUAL guard state, not just the method.
+                    s4_guard_active = (
+                        trial.method in ('geofence', 'cbf_inflated')
+                        and not getattr(self, 'disable_runtime_monitor', False))
 
                     if result.violation_count > 0:
                         self.log(f"[S4] ZONE VIOLATION DETECTED! Count: {result.violation_count}")
@@ -4212,7 +5308,8 @@ class GazeboExperimentRunner:
                     trial.goal_x, trial.goal_y,
                     safety_method=trial.method,
                     stop_bias_callback=stop_bias,
-                    decision_window_s=5.0
+                    decision_window_s=5.0,
+                    spoof_persist_s=getattr(trial, 'spoof_persist_s', 0.0)
                 )
                 result.decision_latency_ms = (time.perf_counter() - t_decision_start) * 1000
 
@@ -4236,6 +5333,61 @@ class GazeboExperimentRunner:
             if not is_toctou:
                 # S4: shorter timeout (direct_control attacks resolve quickly)
                 goal_timeout = 60 if trial.scenario == 'S4' else GOAL_TIMEOUT
+                # Mid-navigation LIDAR spoof (TOCTOU-style): fire the scan spoof a
+                # few seconds after the goal is sent, once Nav2 has committed to a
+                # clean-perception path, so AMCL corruption drifts the robot off it.
+                if _defer_scan_spoof:
+                    import threading
+                    def _fire_scan_spoof():
+                        self.log(f"[S5-SCAN-MIDNAV] Injecting scan spoof "
+                                 f"(rotation={trial.scan_rotation_deg}°, scale={trial.scan_scale}, "
+                                 f"noise={trial.scan_noise}m) {trial.scan_spoof_delay_s}s into navigation")
+                        self.sim_manager.start_attack(
+                            "scan_spoofing",
+                            scan_rotation_deg=trial.scan_rotation_deg,
+                            scan_scale=trial.scan_scale,
+                            scan_noise=trial.scan_noise,
+                            scan_attack_mode=getattr(trial, 'scan_attack_mode', 'legacy'),
+                            scan_bias_rate=getattr(trial, 'scan_bias_rate', 0.0),
+                            scan_bias_angle_deg=getattr(trial, 'scan_bias_angle_deg', 180.0),
+                            scan_bias_max=getattr(trial, 'scan_bias_max', 2.0),
+                            scan_heading_compensate=getattr(trial, 'scan_heading_compensate', False),
+                            scan_world_bias_angle_deg=getattr(trial, 'scan_world_bias_angle_deg', 0.0),
+                            scan_spoof_fov_deg=getattr(trial, 'scan_spoof_fov_deg', 360.0),
+                            scan_spoof_point_budget=getattr(trial, 'scan_spoof_point_budget', -1),
+                            goal_x=trial.goal_x, goal_y=trial.goal_y)
+                        # Coordinated: fire the odom spoof at the SAME moment as the LiDAR
+                        # spoof (both ramp from now) so the guard's c=amcl−odom is held near ε.
+                        if getattr(trial, 'coordinated_attack', False):
+                            self.log(f"[S5-COORD] firing coordinated odom spoof (ε={trial.coord_epsilon})")
+                            self.sim_manager.start_odom_coord_spoof(
+                                coord_epsilon=trial.coord_epsilon,
+                                bias_rate=getattr(trial, 'scan_bias_rate', 0.20),
+                                bias_max=getattr(trial, 'scan_bias_max', 4.5),
+                                world_bias_angle_deg=getattr(trial, 'scan_world_bias_angle_deg', 90.0))
+                    _spoof_timers_start = time.time()   # for auto-recovery re-dispatch timing
+                    _spoof_timer = threading.Timer(trial.scan_spoof_delay_s, _fire_scan_spoof)
+                    _spoof_timer.daemon = True
+                    _spoof_timer.start()
+                    # Recovery experiment: transient/pulsed attack — stop the spoof after
+                    # scan_spoof_duration_s and restore the honest scan relay, so AMCL
+                    # re-converges and the cross-channel offset decays. Tests whether PETSE
+                    # is a permanent DoS or a safe-hold that recovers once the threat passes.
+                    _dur = getattr(trial, 'scan_spoof_duration_s', 0.0)
+                    if _defer_scan_spoof and _dur > 0:
+                        def _stop_scan_spoof():
+                            self.log(f"[S5-SCAN-RECOVER] Stopping scan spoof after {_dur}s "
+                                     f"and restoring honest scan relay")
+                            # Seamless reverse handover: start the honest relay FIRST (brief
+                            # harmless dual-publish on /scan), settle, THEN kill the spoofer —
+                            # so Nav2's costmap never sees a /scan gap (which would abort nav).
+                            self.sim_manager.start_scan_relay()
+                            time.sleep(1.5)
+                            self.sim_manager.stop_attack()
+                        _recover_timer = threading.Timer(
+                            trial.scan_spoof_delay_s + _dur, _stop_scan_spoof)
+                        _recover_timer.daemon = True
+                        _recover_timer.start()
                 t_decision_start = time.perf_counter()
                 decision, reason = GoalSender.send_goal(trial.goal_x, trial.goal_y,
                                                          safety_method=trial.method,
@@ -4244,6 +5396,32 @@ class GazeboExperimentRunner:
 
                 result.decision = decision
                 result.reason = reason
+
+                # FULL AUTO-RECOVERY (PETSE_AUTO_REDISPATCH=1, transient trials): once the
+                # transient spoof has cleared, reset the guard (un-latch + re-baseline) and
+                # RE-DISPATCH the goal. The robot moves → AMCL re-converges on honest scans →
+                # the fresh guard sees a small offset → navigates to the goal. Recovery is
+                # automatic (no operator) yet secure: if the spoof were still active the guard
+                # just re-trips before the zone. Records the recovery-phase outcome.
+                if (os.environ.get('PETSE_AUTO_REDISPATCH', '0') == '1'
+                        and _defer_scan_spoof and getattr(trial, 'scan_spoof_duration_s', 0.0) > 0):
+                    _clear_at = _spoof_timers_start + trial.scan_spoof_delay_s + \
+                        trial.scan_spoof_duration_s + 4.0   # wait past seamless handover + settle
+                    _wait = _clear_at - time.time()
+                    if _wait > 0:
+                        self.log(f"[S5-RECOVER] waiting {_wait:.0f}s for threat to clear before re-dispatch")
+                        time.sleep(_wait)
+                    self.log("[S5-RECOVER] threat cleared — resetting guard and re-dispatching goal")
+                    subprocess.run(['ros2', 'topic', 'pub', '--once', '/petse/guard_reset',
+                                    'std_msgs/msg/String', '{data: recover}'],
+                                   capture_output=True, timeout=15)
+                    time.sleep(3.0)   # guard re-warmup (re-baseline c(t0)) + AMCL settle
+                    dec2, reason2 = GoalSender.send_goal(trial.goal_x, trial.goal_y,
+                                                         safety_method=trial.method, timeout=120)
+                    result.recovery_decision = dec2
+                    result.recovered = (dec2 == 'allow') or ('reached' in (reason2 or '').lower())
+                    self.log(f"[S5-RECOVER] re-dispatch outcome: decision={dec2} "
+                             f"recovered={result.recovered} reason={reason2[:70]}")
 
                 # Debug: log goal decision for troubleshooting nav_fail
                 if decision in ["nav_fail", "timeout", "error"]:
@@ -4519,15 +5697,25 @@ class GazeboExperimentRunner:
             by_method[trial.method].append((i, trial))
 
         # Open results file (overwrite on fresh run, append on resume/append mode)
+        out_path = getattr(self, 'results_file_override', None) or RESULTS_FILE
         if (resume and start_idx > 0) or self.append_results:
-            results_file = open(RESULTS_FILE, 'a')
+            results_file = open(out_path, 'a')
         else:
-            results_file = open(RESULTS_FILE, 'w')
+            results_file = open(out_path, 'w')
+        self.log(f"[OUTPUT] Writing results to {out_path}")
 
         current_method = None
+        speed_bar_proc = None
 
         try:
-            for method in METHODS:
+            # Speed bar marker disabled — use terminal display instead:
+            # python3 /tmp/speed_display.py
+
+            # Iterate the canonical METHODS order, plus any extra methods present in the
+            # generated trials but not in METHODS (e.g. static_margin, an assumption-violation
+            # fixed-margin baseline that lives in the guard node but not in METHODS).
+            _run_methods = list(METHODS) + [m for m in by_method if m not in METHODS]
+            for method in _run_methods:
                 if method not in by_method:
                     continue
 
@@ -4550,7 +5738,7 @@ class GazeboExperimentRunner:
                 # Compute method params and world for this method group
                 # (needed both for initial start and for recovery restarts)
                 needs_runtime_monitoring = (
-                    method in ['cbf', 'ssm'] or
+                    method in ['cbf', 'cbf_inflated', 'ssm', 'static_margin', 'static_reactive'] or
                     any(t.enable_runtime_monitoring for _, t in by_method[method])
                 )
                 method_params = {}
@@ -4564,18 +5752,37 @@ class GazeboExperimentRunner:
                 def _world_for_trial(trial):
                     if trial.required_world:
                         return trial.required_world
+                    # Use warehouse + red-zone for GUI mode (visual forbidden zone)
+                    if not self.headless:
+                        return "warehouse_with_zone.sdf"
                     return "empty.sdf"
 
                 def _guard_for_trial(trial):
                     """Determine if cmd_vel_guard should be active for this trial.
                     S4 geofence: runtime enforcement (unapproved motion detection +
                         velocity/latency-adaptive margin) catches direct_control, param_injection, and param_latency.
-                    S5 geofence/cbf/ssm: runtime guard for TOCTOU detection.
+                    S5 geofence only: runtime guard for TOCTOU detection.
+                        CBF/SSM do NOT get guard — S5 tests planning-level TOCTOU resilience.
+                        Only geofence has runtime guard as its unique defense layer.
                     S1-S3: goal_gate handles all scenarios, guard not needed.
                     """
-                    if trial.scenario == 'S4' and method == 'geofence':
+                    # V-check-once ablation: force runtime monitor OFF so only the
+                    # approval-time goal/path gate remains (margin unchanged).
+                    if getattr(self, 'disable_runtime_monitor', False):
+                        return False
+                    # Fab-cell testbed: CBF/SSM are PLANNING-level baselines (no execution-time
+                    # re-verification), so ONLY PETSE (geofence) gets the runtime guard there —
+                    # a localization-spoofing hijack must therefore defeat CBF (it drives into
+                    # the restricted bay) while PETSE fail-stops. Keeps warehouse behaviour
+                    # unchanged; scopes the planning-level framing to the fab experiment.
+                    if getattr(trial, 'required_world', None) == 'fab_cell.sdf' \
+                            or trial.intensity == 'wh_hijack':
+                        return method == 'geofence'
+                    if trial.scenario == 'S4' and method in ('geofence', 'cbf_inflated', 'static_margin', 'static_reactive'):
                         return True
-                    if trial.scenario == 'S5' and method in ('geofence', 'cbf', 'ssm'):
+                    if trial.scenario == 'S5' and method in ('geofence', 'cbf_inflated'):
+                        return True
+                    if trial.scenario == 'S2' and method in ('geofence', 'cbf_inflated'):
                         return True
                     return False
 
@@ -4637,43 +5844,16 @@ class GazeboExperimentRunner:
                         time.sleep(2)
                     current_scenario = trial.scenario
 
-                    # For CBF/SSM/geofence, restart geofence BEFORE each trial
-                    # to (1) clear accumulated state and (2) apply per-trial sweep params
-                    if method in ['cbf', 'ssm', 'geofence']:
-                        # Build per-trial params (merge sweep params into method params)
-                        trial_geofence_params = dict(method_params)
-                        trial_geofence_params['localization_sigma'] = trial.geofence_sigma
-                        trial_geofence_params['v_max'] = trial.geofence_v_max
-                        trial_geofence_params['latency'] = trial.geofence_latency
-                        self.log(f"[{method.upper()}] Restarting geofence (sigma={trial.geofence_sigma}, "
-                                 f"v_max={trial.geofence_v_max}, tau={trial.geofence_latency})...")
-                        self.sim_manager.stop_geofence()
-                        time.sleep(2)
-                        self.sim_manager.start_geofence(method, trial_geofence_params,
-                                                        enable_cmd_vel_guard=use_guard,
-                                                        comm_latency_ms=int(trial.latency_ms))
-                        time.sleep(2)
-
-                    # Progress update
+                    # Compute progress count early (needed by health restart check)
                     total_done = self.checkpoint.completed_trials if self.checkpoint else 0
-                    self.log(f"\nTrial {total_done + 1}/{len(trials)}: {trial.trial_id}")
-                    self.log(f"  Goal: ({trial.goal_x:.2f}, {trial.goal_y:.2f})")
-                    self.log(f"  {trial.description}")
-                    if trial.latency_ms > 0:
-                        self.log(f"  Comm latency: {int(trial.latency_ms)}ms")
-
-                    # Check system load before trial
-                    load1, _, mem = ProcessManager.check_system_load()
-                    if load1 > MAX_CPU_LOAD or mem > MAX_MEMORY_PCT:
-                        self.log(f"[WAIT] High system load, waiting...")
-                        ProcessManager.wait_for_system_ready()
 
                     # Force full restart periodically to prevent memory leaks / odom drift
                     # Empty world (all scenarios): restart every trial to prevent DiffDrive
                     # yaw drift accumulation (no AMCL correction in empty world)
                     # Warehouse: restart every 30 trials (AMCL corrects drift)
-                    # NOTE: restart BEFORE trial (not after) to ensure fresh Nav2 state
-                    if world == "empty.sdf":
+                    # NOTE: health restart runs BEFORE per-trial geofence restart,
+                    #   so sweep params are applied AFTER and not overwritten.
+                    if world in ("empty.sdf", "empty_with_zone.sdf", "warehouse_with_zone.sdf"):
                         restart_interval = 1  # Every trial — prevents odom drift
                     else:
                         restart_interval = 30
@@ -4687,6 +5867,73 @@ class GazeboExperimentRunner:
                             self.log("[ERROR] Pre-trial restart failed!")
                             break
                         time.sleep(3)  # Settle time after restart
+
+                    # Check system load before trial
+                    load1, _, mem = ProcessManager.check_system_load()
+                    if load1 > MAX_CPU_LOAD or mem > MAX_MEMORY_PCT:
+                        self.log(f"[WAIT] High system load, waiting...")
+                        ProcessManager.wait_for_system_ready()
+
+                    # Generalization sweep: apply the forbidden-zone geometry for EVERY method
+                    # (incl. no_guard) so the labeler/monitor (WAREHOUSE_ZONES) and, for guard
+                    # methods, the runtime geofence.yaml all use the trial's polygons. Runs
+                    # before the geofence restart below so goal_gate/guard load the right zone.
+                    if getattr(trial, 'zone_geometry', ''):
+                        _apply_warehouse_geometry(trial.zone_geometry)
+                        self.log(f"[GEOM] applied zone geometry '{trial.zone_geometry}'")
+                    elif _GEOMETRY_DIRTY and trial.required_world == 'warehouse.sdf':
+                        # Prevent a prior geometry from leaking into ordinary warehouse trials.
+                        _restore_default_warehouse_geometry()
+                        self.log("[GEOM] restored default warehouse zone (post-geometry)")
+
+                    # For CBF/SSM/geofence, restart geofence AFTER health restart
+                    # to (1) clear accumulated state and (2) apply per-trial sweep params
+                    # This must come AFTER health restart so sweep params are not overwritten.
+                    # roboguard/selp_proper/no_guard: no margin params → skip per-trial restart
+                    if method in ['cbf', 'cbf_inflated', 'ssm', 'geofence']:
+                        # Build per-trial params (merge sweep params into method params)
+                        trial_geofence_params = dict(method_params)
+                        trial_geofence_params['localization_sigma'] = trial.geofence_sigma
+                        trial_geofence_params['v_max'] = trial.geofence_v_max
+                        trial_geofence_params['latency'] = trial.geofence_latency
+                        trial_geofence_params['epsilon'] = trial.geofence_epsilon
+                        trial_geofence_params['a_max'] = trial.geofence_a_max
+                        trial_geofence_params['e_0'] = trial.geofence_e_0
+                        trial_geofence_params['c_1'] = trial.geofence_c_1
+                        trial_geofence_params['enable_estimation_term'] = trial.geofence_enable_estimation
+                        trial_geofence_params['enable_tracking_term'] = trial.geofence_enable_tracking
+                        trial_geofence_params['enable_latency_term'] = trial.geofence_enable_latency
+                        trial_geofence_params['enable_braking_term'] = trial.geofence_enable_braking
+                        # Disable dynamic parameter estimation for controlled experiments
+                        # (S1/S2/S6: use configured v_max/tau/e_track, not observed values)
+                        trial_geofence_params['use_dynamic_v_max'] = False
+                        trial_geofence_params['use_dynamic_tau'] = False
+                        trial_geofence_params['use_dynamic_e_track'] = False
+                        # Coordinated attack: point the guard at /odom_spoofed and start a
+                        # passthrough relay BEFORE the guard starts (so c is honest pre-attack).
+                        # Must run BEFORE start_geofence, which spawns the guard that reads the
+                        # PETSE_GUARD_ODOM_TOPIC env at launch.
+                        if getattr(trial, 'coordinated_attack', False):
+                            os.environ['PETSE_GUARD_ODOM_TOPIC'] = '/odom_spoofed'
+                            self.sim_manager.start_odom_spoofed_relay()
+                        else:
+                            os.environ.pop('PETSE_GUARD_ODOM_TOPIC', None)
+                        self.log(f"[{method.upper()}] Restarting geofence (sigma={trial.geofence_sigma}, "
+                                 f"v_max={trial.geofence_v_max}, tau={trial.geofence_latency}, "
+                                 f"eps={trial.geofence_epsilon}, a_max={trial.geofence_a_max})...")
+                        self.sim_manager.stop_geofence()
+                        time.sleep(2)
+                        self.sim_manager.start_geofence(method, trial_geofence_params,
+                                                        enable_cmd_vel_guard=use_guard,
+                                                        comm_latency_ms=int(trial.latency_ms))
+                        time.sleep(2)
+
+                    # Progress update
+                    self.log(f"\nTrial {total_done + 1}/{len(trials)}: {trial.trial_id}")
+                    self.log(f"  Goal: ({trial.goal_x:.2f}, {trial.goal_y:.2f})")
+                    self.log(f"  {trial.description}")
+                    if trial.latency_ms > 0:
+                        self.log(f"  Comm latency: {int(trial.latency_ms)}ms")
 
                     # Ensure cmd_vel relay is alive when guard is OFF
                     # (relay bridges /cmd_vel_nav → /cmd_vel for robot movement)
@@ -4702,7 +5949,7 @@ class GazeboExperimentRunner:
                     MAX_INVALID_RETRIES = 0
                     result = None
 
-                    runtime_guard_methods = {'cbf', 'ssm', 'geofence'}
+                    runtime_guard_methods = {'cbf', 'cbf_inflated', 'ssm', 'geofence'}
 
                     for attempt in range(MAX_INVALID_RETRIES + 1):
                         result = self.run_trial(trial)
@@ -4896,6 +6143,11 @@ class GazeboExperimentRunner:
 
         finally:
             results_file.close()
+            if speed_bar_proc and speed_bar_proc.poll() is None:
+                try:
+                    os.killpg(os.getpgid(speed_bar_proc.pid), signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
             self.sim_manager.stop_all()
 
             # Generate summary
@@ -5205,6 +6457,13 @@ def main():
                        help='Starting seed index (e.g., --seed-offset 3 --seeds 7 generates s3-s9)')
     parser.add_argument('--intensity', type=str,
                        help='Run specific intensity only (comma-separated, e.g. vel_scale_5x_near,param_20x_at_boundary)')
+    parser.add_argument('--disable-runtime-monitor', action='store_true',
+                       help='V-check-once ablation: force geofence cmd_vel guard OFF '
+                            '(goal/path gate stays ON, margin unchanged) to confirm the '
+                            'runtime monitor is what catches post-approval failures')
+    parser.add_argument('--output', type=str,
+                       help='Override results output path (keeps V-check-once runs '
+                            'out of the main results.jsonl)')
     args = parser.parse_args()
 
     # Generate trials
@@ -5261,6 +6520,12 @@ def main():
     # Run experiment
     runner = GazeboExperimentRunner(headless=not args.gui, use_amcl=not args.no_amcl,
                                     append_results=args.append)
+    # V-check-once ablation controls (set post-construction; read via closure/attrs)
+    runner.disable_runtime_monitor = args.disable_runtime_monitor
+    runner.results_file_override = args.output
+    if args.disable_runtime_monitor:
+        print("[V-CHECK-ONCE] Runtime monitor (cmd_vel guard) FORCED OFF for all "
+              "trials; goal/path gate + margin unchanged.")
 
     try:
         runner.run(trials, resume=args.resume)

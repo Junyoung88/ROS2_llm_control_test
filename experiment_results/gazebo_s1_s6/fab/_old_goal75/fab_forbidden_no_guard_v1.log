@@ -1,0 +1,37 @@
+Generated 1 trials
+Methods: ['no_guard']
+Scenarios: ['S5']
+Seeds: 1 (offset=3, range=s3-s3)
+Include sweep: False
+Runtime monitoring: False
+
+Trials by scenario: {'S5': 1}
+Trials by method: {'no_guard': 1}
+[2026-07-19 23:02:34] ============================================================
+[2026-07-19 23:02:34] Starting Gazebo S1-S5 Experiment
+[2026-07-19 23:02:34] ============================================================
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[2026-07-19 23:02:38] [OUTPUT] Writing results to experiment_results/gazebo_s1_s6/fab/res_fab_forbidden_no_guard_v1.jsonl
+[2026-07-19 23:02:38] 
+============================================================
+[2026-07-19 23:02:38] Method: no_guard
+[2026-07-19 23:02:38] ============================================================
+[2026-07-19 23:02:38] [WORLD] Starting with fab_cell.sdf for scenarios: ['S5']
+[DEBUG] restart_with_method called: method=no_guard, params={}, world=fab_cell.sdf, guard=False
+[SIM] Full restart for method: no_guard (world: fab_cell.sdf)
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[SIM] Starting Gazebo...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 1/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 2/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 3/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 4/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 5/5)...
+[SIM][WARNING] Could not kill all gz sim processes — proceeding anyway
+The daemon has been started
+[SIM] Waiting for Gazebo (180s)...

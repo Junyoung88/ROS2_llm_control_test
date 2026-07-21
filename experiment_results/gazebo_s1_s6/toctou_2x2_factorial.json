@@ -1,0 +1,47 @@
+{
+  "experiment": "PETSE runtime re-verification 2x2 paired factorial (S5 TOCTOU)",
+  "margin_m": 0.562,
+  "seeds": 10,
+  "goal_gate_boundary_biased_y": 1.389,
+  "critical_delta": 1.108,
+  "factor1": "runtime_monitor {OFF=check-once, ON=full PETSE}",
+  "factor2": "attack magnitude {bias_1.0 below boundary, bias_1.5 above boundary}",
+  "cells": {
+    "OFF_below(bias1.0)": {
+      "n": 10,
+      "violated": 0,
+      "runtime_reject": 0,
+      "reject": 10,
+      "allow": 0
+    },
+    "OFF_above(bias1.5)": {
+      "n": 10,
+      "violated": 10,
+      "runtime_reject": 0,
+      "reject": 0,
+      "allow": 10
+    },
+    "ON_below(bias1.0)": {
+      "n": 10,
+      "violated": 0,
+      "runtime_reject": 0,
+      "reject": 10,
+      "allow": 0
+    },
+    "ON_above(bias1.5)": {
+      "n": 10,
+      "violated": 0,
+      "runtime_reject": 7,
+      "reject": 0,
+      "allow": 3
+    }
+  },
+  "headline": {
+    "violation_rate_OFF_above": "10/10 (100%)",
+    "violation_rate_ON_above": "0/10 (0%)",
+    "paired_discordant": 10,
+    "mcnemar_exact_p": "2^-10 = 9.8e-4",
+    "causal_claim": "margin identical across all cells; the ONLY variable differing between (OFF,above)=100% violation and (ON,above)=0% violation is the runtime monitor. Isolates continuous runtime re-verification (not margin width) as the mechanism that closes the post-approval TOCTOU attack surface."
+  },
+  "note_FN_labeling": "ON_above: 7/10 explicit runtime_reject; 3/10 dec=allow but violated=False (labeled cls=FN by decision, but continuous cmd_vel guard shaped the trajectory around the zone corner -> 0 actual violation). Safety metric = violation rate (0/10). Seed-paired: same 3 seeds violate in OFF, do not in ON."
+}

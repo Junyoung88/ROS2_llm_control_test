@@ -1,0 +1,165 @@
+[INFO] [1783951711.192872144] [cmd_vel_guard]: Zones loaded: 2
+[INFO] [1783951711.193078634] [cmd_vel_guard]: CBF margin: 0.1m (real-time control)
+[INFO] [1783951711.193211926] [cmd_vel_guard]: SSM base margin: 0.05m (velocity-dependent)
+[INFO] [1783951711.197506026] [cmd_vel_guard]: Spoof detection ON: amcl=/amcl_pose, cum_thresh=0.25m, step_thresh=0.3m
+[INFO] [1783951711.197955706] [cmd_vel_guard]: DEBUG subscriptions:
+[INFO] [1783951711.198184979] [cmd_vel_guard]:   cmd_sub topic: /cmd_vel_nav
+[INFO] [1783951711.198393743] [cmd_vel_guard]:   odom_sub topic: /odom
+[INFO] [1783951711.198613478] [cmd_vel_guard]:   nav_state_sub topic: /geofence/nav_state
+[INFO] [1783951711.199167565] [cmd_vel_guard]: ============================================================
+[INFO] [1783951711.199420593] [cmd_vel_guard]: Cmd Vel Guard node initialized
+[INFO] [1783951711.199650447] [cmd_vel_guard]: Safety method: geofence
+[INFO] [1783951711.199886493] [cmd_vel_guard]: Input: /cmd_vel_nav -> Output: /cmd_vel
+[INFO] [1783951711.199978166] [cmd_vel_guard]:   Mode: Forward Simulation
+[INFO] [1783951711.200073286] [cmd_vel_guard]:   Horizon: 1.0s, Steps: 10
+[INFO] [1783951711.200177693] [cmd_vel_guard]:   Margin: 0.562m
+[INFO] [1783951711.200413699] [cmd_vel_guard]: ============================================================
+[INFO] [1783951712.644833186] [cmd_vel_guard]: [HEARTBEAT #1] cmds=0, odom=no, nav_approved=False, pos=(0.00,0.00)
+[INFO] [1783951715.925309715] [cmd_vel_guard]: [HEARTBEAT #2] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1783951720.866824754] [cmd_vel_guard]: Guard status: cmds=1, nav_approved=False, odom=yes, pos=(-0.00,0.00), passed=0, blocked=0
+[INFO] [1783951720.934205266] [cmd_vel_guard]: [HEARTBEAT #3] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1783951725.946978793] [cmd_vel_guard]: [HEARTBEAT #4] cmds=43, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1783951730.950460358] [cmd_vel_guard]: [HEARTBEAT #5] cmds=45, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1783951736.054117861] [cmd_vel_guard]: [HEARTBEAT #6] cmds=46, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1783951741.063185288] [cmd_vel_guard]: [HEARTBEAT #7] cmds=46, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1783951746.069694332] [cmd_vel_guard]: [HEARTBEAT #8] cmds=46, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1783951751.079553766] [cmd_vel_guard]: [HEARTBEAT #9] cmds=46, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1783951756.088306790] [cmd_vel_guard]: [HEARTBEAT #10] cmds=46, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1783951761.094815385] [cmd_vel_guard]: [HEARTBEAT #11] cmds=46, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1783951764.420762219] [cmd_vel_guard]: Navigation authorized
+[INFO] [1783951764.544841425] [cmd_vel_guard]: Guard status: cmds=51, nav_approved=True, odom=yes, pos=(0.00,0.00), passed=50, blocked=0
+[INFO] [1783951765.795056611] [cmd_vel_guard]: Guard status: cmds=101, nav_approved=True, odom=yes, pos=(0.26,0.00), passed=100, blocked=0
+[INFO] [1783951766.103362412] [cmd_vel_guard]: [HEARTBEAT #12] cmds=113, odom=yes, nav_approved=True, pos=(0.32,0.00)
+[INFO] [1783951767.044880358] [cmd_vel_guard]: Guard status: cmds=151, nav_approved=True, odom=yes, pos=(0.52,0.00), passed=150, blocked=0
+[WARN] [1783951767.445482441] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.90s, min_dist=0.477m
+[WARN] [1783951767.481422656] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.90s, min_dist=0.469m
+[WARN] [1783951767.495265563] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.90s, min_dist=0.480m
+[WARN] [1783951767.545402444] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.90s, min_dist=0.465m
+[WARN] [1783951767.551414489] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.90s, min_dist=0.465m
+[WARN] [1783951767.581599394] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.90s, min_dist=0.465m
+[WARN] [1783951767.595099183] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.90s, min_dist=0.470m
+[WARN] [1783951767.621793724] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.90s, min_dist=0.470m
+[WARN] [1783951767.645028090] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.80s, min_dist=0.463m
+[WARN] [1783951767.681266829] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.480m
+[WARN] [1783951767.694999067] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.480m
+[WARN] [1783951767.745238301] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.80s, min_dist=0.461m
+[WARN] [1783951767.751442350] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.472m
+[WARN] [1783951767.781376110] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.472m
+[WARN] [1783951767.795215139] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.479m
+[WARN] [1783951767.821234927] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.479m
+[WARN] [1783951767.845389942] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.477m
+[WARN] [1783951767.881367918] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951767.895146614] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951767.911260190] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951767.945254309] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951767.981376669] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951767.995162638] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.021192975] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.045267087] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.081326147] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.095292577] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.111314470] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.145129120] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.181425839] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.195071073] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.221279236] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.245286872] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.281381730] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[INFO] [1783951768.294820904] [cmd_vel_guard]: Guard status: cmds=201, nav_approved=True, odom=yes, pos=(0.66,0.00), passed=166, blocked=34
+[WARN] [1783951768.295601028] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.321134246] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.345222555] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.381677342] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.395213570] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.421239949] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.445163908] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.481270678] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.495116460] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.521253419] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.545502632] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.581374528] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.595156069] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.621282868] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.644951304] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.681284702] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.694965002] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.721217218] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.745054012] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.781311316] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.795421899] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.821179551] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.845325288] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.881273478] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.895320441] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.921239818] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.945314301] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.981461478] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951768.995288815] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.021337677] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.045493173] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.081332969] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.095229737] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.121299058] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.145218749] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.181256368] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.195102361] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.221070681] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.245007433] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.281257804] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.295477523] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.321306039] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.345548189] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.381331948] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.395291095] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.421290263] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.445368693] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.481317685] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.495102973] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.521519951] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[INFO] [1783951769.544833075] [cmd_vel_guard]: Guard status: cmds=251, nav_approved=True, odom=yes, pos=(0.66,0.00), passed=166, blocked=84
+[WARN] [1783951769.545333941] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.581178787] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.595264272] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.621148763] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.645240919] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.691560810] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.695074517] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.721467579] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.745236235] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.781270548] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.795090421] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.821028374] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.845239675] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.891325133] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.895063053] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.921082710] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.945075208] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.981160217] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951769.995278213] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.021264517] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.045880052] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.091254257] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.095005372] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.121571391] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.145363640] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.181225297] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.195139459] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.221137806] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.245040724] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.291455494] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.295011922] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.321430843] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.345031421] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.381307751] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.395351467] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.421296653] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.445396544] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.491399436] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.494988896] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.521323548] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.544963380] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[WARN] [1783951770.581395354] [cmd_vel_guard]: BLOCKED (geofence): violation at t=0.70s, min_dist=0.476m
+[INFO] [1783951770.631152136] [cmd_vel_guard]: Navigation completed
+[WARN] [1783951770.691274708] [cmd_vel_guard]: BLOCKED (unapproved): cmd_vel without goal_gate authorization (speed=0.08m/s, pos=(0.66, 0.00))
+[INFO] [1783951770.910793874] [cmd_vel_guard]: Guard status: cmds=301, nav_approved=False, odom=yes, pos=(0.66,0.00), passed=170, blocked=130
+[INFO] [1783951771.112007554] [cmd_vel_guard]: [HEARTBEAT #13] cmds=304, odom=yes, nav_approved=False, pos=(0.66,0.00)

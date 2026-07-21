@@ -1,0 +1,98 @@
+{
+  "scenario": "S5 TOCTOU bias_1.5 (above goal-gate boundary)",
+  "seeds": 20,
+  "rows": [
+    {
+      "method": "no_guard",
+      "label": "No Guard",
+      "category": "none",
+      "note": "no check",
+      "n": 19,
+      "violated": 19,
+      "violation_rate": 1.0,
+      "vr_ci": [
+        0.832,
+        1.0
+      ]
+    },
+    {
+      "method": "selp_proper",
+      "label": "SELP",
+      "category": "planning",
+      "note": "LTL at planning only",
+      "n": 20,
+      "violated": 20,
+      "violation_rate": 1.0,
+      "vr_ci": [
+        0.839,
+        1.0
+      ]
+    },
+    {
+      "method": "cbf",
+      "label": "CBF",
+      "category": "runtime_partial",
+      "note": "per-cycle QP, goal-only",
+      "n": 20,
+      "violated": 18,
+      "violation_rate": 0.9,
+      "vr_ci": [
+        0.699,
+        0.972
+      ]
+    },
+    {
+      "method": "ssm",
+      "label": "SSM",
+      "category": "runtime_partial",
+      "note": "per-cycle speed scaling",
+      "n": 20,
+      "violated": 19,
+      "violation_rate": 0.95,
+      "vr_ci": [
+        0.764,
+        0.991
+      ]
+    },
+    {
+      "method": "roboguard",
+      "label": "RoboGuard",
+      "category": "runtime_partial",
+      "note": "action/goal-level only",
+      "n": 20,
+      "violated": 20,
+      "violation_rate": 1.0,
+      "vr_ci": [
+        0.839,
+        1.0
+      ]
+    },
+    {
+      "method": "cbf_inflated",
+      "label": "CBF-Adaptive",
+      "category": "continuous",
+      "note": "CBF + PETSE margin + pos.",
+      "n": 20,
+      "violated": 1,
+      "violation_rate": 0.05,
+      "vr_ci": [
+        0.009,
+        0.236
+      ]
+    },
+    {
+      "method": "geofence",
+      "label": "PETSE",
+      "category": "continuous",
+      "note": "continuous path re-verification",
+      "n": 20,
+      "violated": 0,
+      "violation_rate": 0.0,
+      "vr_ci": [
+        0.0,
+        0.161
+      ]
+    }
+  ],
+  "headline": "A per-cycle runtime check is not sufficient: CBF, SSM and RoboGuard all run one yet violate 90-100% of TOCTOU trials, because none continuously re-verifies the path against the spatial constraint. Only continuous path re-verification (PETSE; CBF-Adaptive uses PETSE's margin) closes the attack."
+}

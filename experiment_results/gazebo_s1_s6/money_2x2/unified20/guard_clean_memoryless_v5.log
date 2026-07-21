@@ -1,0 +1,41 @@
+[INFO] [1784266922.293141372] [cmd_vel_guard]: Zones loaded: 2
+[INFO] [1784266922.293354947] [cmd_vel_guard]: CBF margin: 0.1m (real-time control)
+[INFO] [1784266922.293487638] [cmd_vel_guard]: SSM base margin: 0.05m (velocity-dependent)
+[INFO] [1784266922.298303922] [cmd_vel_guard]: Spoof detection ON [memoryless]: amcl=/amcl_pose, offset_thresh=0.95m, jump_thresh=0.45m, enforce_pose=amcl
+[INFO] [1784266922.298951930] [cmd_vel_guard]: DEBUG subscriptions:
+[INFO] [1784266922.299207053] [cmd_vel_guard]:   cmd_sub topic: /cmd_vel_nav
+[INFO] [1784266922.299431058] [cmd_vel_guard]:   odom_sub topic: /odom
+[INFO] [1784266922.299651846] [cmd_vel_guard]:   nav_state_sub topic: /geofence/nav_state
+[INFO] [1784266922.300590614] [cmd_vel_guard]: ============================================================
+[INFO] [1784266922.300855757] [cmd_vel_guard]: Cmd Vel Guard node initialized
+[INFO] [1784266922.301105269] [cmd_vel_guard]: Safety method: geofence
+[INFO] [1784266922.301351446] [cmd_vel_guard]: Input: /cmd_vel_nav -> Output: /cmd_vel
+[INFO] [1784266922.301604816] [cmd_vel_guard]: Simulated comm latency: 100ms
+[INFO] [1784266922.301701078] [cmd_vel_guard]:   Mode: Forward Simulation
+[INFO] [1784266922.301799013] [cmd_vel_guard]:   Horizon: 1.0s, Steps: 10
+[INFO] [1784266922.301910274] [cmd_vel_guard]:   Margin: 0.562m
+[INFO] [1784266922.302162262] [cmd_vel_guard]: ============================================================
+[INFO] [1784266923.027392135] [cmd_vel_guard]: [HEARTBEAT #1] cmds=0, odom=no, nav_approved=False, pos=(0.00,0.00)
+[INFO] [1784266923.371614615] [cmd_vel_guard]: [HEARTBEAT #2] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784266928.378545508] [cmd_vel_guard]: [HEARTBEAT #3] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784266930.999679017] [cmd_vel_guard]: Guard status: cmds=1, nav_approved=False, odom=yes, pos=(-0.00,0.00), passed=0, blocked=0
+[INFO] [1784266933.386658969] [cmd_vel_guard]: [HEARTBEAT #4] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784266938.488082640] [cmd_vel_guard]: [HEARTBEAT #5] cmds=2, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784266943.495215458] [cmd_vel_guard]: [HEARTBEAT #6] cmds=2, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784266948.502625396] [cmd_vel_guard]: [HEARTBEAT #7] cmds=2, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784266953.509609673] [cmd_vel_guard]: [HEARTBEAT #8] cmds=2, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784266957.781882869] [cmd_vel_guard]: Navigation authorized
+[INFO] [1784266958.738879080] [cmd_vel_guard]: [HEARTBEAT #9] cmds=9, odom=yes, nav_approved=True, pos=(0.07,-0.00)
+[INFO] [1784266960.660163205] [cmd_vel_guard]: [spoofmon] d_abs=0.111 jump=0.054 max_jump=0.058 c=(0.11,0.03)
+[INFO] [1784266962.878037367] [cmd_vel_guard]: Guard status: cmds=51, nav_approved=True, odom=yes, pos=(0.85,-0.22), passed=50, blocked=0
+[INFO] [1784266963.686974639] [cmd_vel_guard]: [HEARTBEAT #10] cmds=58, odom=yes, nav_approved=True, pos=(1.02,-0.22)
+[INFO] [1784266965.001788964] [cmd_vel_guard]: [spoofmon] d_abs=0.262 jump=0.011 max_jump=0.058 c=(0.26,0.06)
+[INFO] [1784266967.929698434] [cmd_vel_guard]: Guard status: cmds=101, nav_approved=True, odom=yes, pos=(1.91,-0.15), passed=100, blocked=0
+[INFO] [1784266968.638312210] [cmd_vel_guard]: [HEARTBEAT #11] cmds=107, odom=yes, nav_approved=True, pos=(2.06,-0.16)
+[INFO] [1784266970.054237057] [cmd_vel_guard]: [spoofmon] d_abs=0.243 jump=0.011 max_jump=0.058 c=(0.24,0.08)
+[INFO] [1784266972.986886515] [cmd_vel_guard]: Guard status: cmds=151, nav_approved=True, odom=yes, pos=(2.98,-0.20), passed=150, blocked=0
+[INFO] [1784266973.694838850] [cmd_vel_guard]: [HEARTBEAT #12] cmds=157, odom=yes, nav_approved=True, pos=(3.12,-0.21)
+[INFO] [1784266975.007420317] [cmd_vel_guard]: [spoofmon] d_abs=0.218 jump=0.016 max_jump=0.058 c=(0.19,0.15)
+[INFO] [1784266978.038038553] [cmd_vel_guard]: Guard status: cmds=201, nav_approved=True, odom=yes, pos=(4.04,-0.23), passed=200, blocked=0
+[INFO] [1784266978.240026750] [cmd_vel_guard]: Navigation completed
+[WARN] [1784266978.240757364] [cmd_vel_guard]: BLOCKED (unapproved): cmd_vel without goal_gate authorization (speed=0.15m/s, pos=(4.08, -0.23))

@@ -1,0 +1,26 @@
+{
+  "experiment": "V-check-once Gazebo confirmation (S5 TOCTOU, larger sample)",
+  "runtime_monitor": "DISABLED (check-once counterfactual)",
+  "margin_m": 0.562,
+  "seeds": 10,
+  "goal_gate_boundary_y": 1.389,
+  "bias_1.0": {
+    "intensity": "toctou_bias_1.0",
+    "n": 10,
+    "decision_reject": 10,
+    "decision_allow": 0,
+    "violated": 0,
+    "TP": 10,
+    "FN": 0
+  },
+  "bias_1.5": {
+    "intensity": "toctou_bias_1.5",
+    "n": 10,
+    "decision_reject": 0,
+    "decision_allow": 10,
+    "violated": 10,
+    "TP": 0,
+    "FN": 10
+  },
+  "interpretation": "bias_1.0 (biased y=1.343 < 1.389) caught pre-motion by goal gate -> 10/10 TP even with runtime monitor off (check-once retains). bias_1.5 (biased y=1.557 > 1.389) fools goal gate -> 10/10 allow, robot follows true path y=0.914 into zone -> violated -> FN. Full PETSE (runtime monitor ON) catches these via runtime TOCTOU guard -> TP. Confirms runtime-only detections flip to FN when runtime monitor disabled with margin unchanged."
+}

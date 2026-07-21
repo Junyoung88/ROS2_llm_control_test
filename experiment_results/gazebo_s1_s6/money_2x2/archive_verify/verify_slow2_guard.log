@@ -1,0 +1,26 @@
+[INFO] [1784182285.430225446] [cmd_vel_guard]: Zones loaded: 2
+[INFO] [1784182285.430529532] [cmd_vel_guard]: CBF margin: 0.1m (real-time control)
+[INFO] [1784182285.430773370] [cmd_vel_guard]: SSM base margin: 0.05m (velocity-dependent)
+[INFO] [1784182285.445067626] [cmd_vel_guard]: Spoof detection ON [cusum]: amcl=/amcl_pose, offset_thresh=0.95m, jump_thresh=0.45m, enforce_pose=amcl
+[INFO] [1784182285.446608576] [cmd_vel_guard]: DEBUG subscriptions:
+[INFO] [1784182285.447068558] [cmd_vel_guard]:   cmd_sub topic: /cmd_vel_nav
+[INFO] [1784182285.447465736] [cmd_vel_guard]:   odom_sub topic: /odom
+[INFO] [1784182285.447797587] [cmd_vel_guard]:   nav_state_sub topic: /geofence/nav_state
+[INFO] [1784182285.455868776] [cmd_vel_guard]: ============================================================
+[INFO] [1784182285.456402532] [cmd_vel_guard]: Cmd Vel Guard node initialized
+[INFO] [1784182285.456884997] [cmd_vel_guard]: Safety method: geofence
+[INFO] [1784182285.457386210] [cmd_vel_guard]: Input: /cmd_vel_nav -> Output: /cmd_vel
+[INFO] [1784182285.457557806] [cmd_vel_guard]:   Mode: Forward Simulation
+[INFO] [1784182285.460884065] [cmd_vel_guard]:   Horizon: 1.0s, Steps: 10
+[INFO] [1784182285.461801533] [cmd_vel_guard]:   Margin: 0.562m
+[INFO] [1784182285.462526695] [cmd_vel_guard]: ============================================================
+[INFO] [1784182300.476091855] [cmd_vel_guard]: [HEARTBEAT #1] cmds=0, odom=no, nav_approved=False, pos=(0.00,0.00)
+[INFO] [1784182313.470169158] [cmd_vel_guard]: [HEARTBEAT #2] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784182319.746590675] [cmd_vel_guard]: [HEARTBEAT #3] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784182320.735998253] [cmd_vel_guard]: [HEARTBEAT #4] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784182323.705677085] [cmd_vel_guard]: [HEARTBEAT #5] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784182327.383780513] [cmd_vel_guard]: [HEARTBEAT #6] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784182374.813879544] [cmd_vel_guard]: Navigation authorized
+[INFO] [1784182374.873747493] [cmd_vel_guard]: Guard status: cmds=1, nav_approved=True, odom=yes, pos=(-0.00,0.00), passed=0, blocked=0
+[INFO] [1784182377.621047649] [cmd_vel_guard]: Guard status: cmds=51, nav_approved=True, odom=yes, pos=(-0.00,0.00), passed=50, blocked=0
+[INFO] [1784182379.319255841] [cmd_vel_guard]: Navigation completed

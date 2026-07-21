@@ -1,0 +1,13 @@
+[INFO] [1784554892.030615152] [robot_base_controller]: victim up: subscribing /cmd_vel (no auth configured)
+VICTIM_RECEIVED linear.x=1.50 angular.z=0.00
+VICTIM_RECEIVED linear.x=1.50 angular.z=0.00
+VICTIM_RECEIVED linear.x=1.50 angular.z=0.00
+VICTIM_RECEIVED linear.x=1.50 angular.z=0.00
+VICTIM_RECEIVED linear.x=1.50 angular.z=0.00
+VICTIM_RECEIVED linear.x=1.50 angular.z=0.00
+VICTIM_RECEIVED linear.x=1.50 angular.z=0.00
+VICTIM_RECEIVED linear.x=1.50 angular.z=0.00
+VICTIM_RECEIVED linear.x=1.50 angular.z=0.00
+VICTIM_RECEIVED linear.x=1.50 angular.z=0.00
+VICTIM_RECEIVED linear.x=1.50 angular.z=0.00
+VICTIM_RECEIVED linear.x=1.50 angular.z=0.00

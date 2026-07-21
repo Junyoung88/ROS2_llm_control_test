@@ -1,0 +1,112 @@
+The daemon has been started
+Generated 1 trials
+Methods: ['geofence_hw']
+Scenarios: ['S4']
+Seeds: 1 (offset=0, range=s0-s0)
+Include sweep: True
+Runtime monitoring: False
+
+Trials by scenario: {'S4': 1}
+Trials by method: {'geofence_hw': 1}
+[2026-02-09 21:30:05] ============================================================
+[2026-02-09 21:30:05] Starting Gazebo S1-S5 Experiment
+[2026-02-09 21:30:05] ============================================================
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[2026-02-09 21:30:08] 
+============================================================
+[2026-02-09 21:30:08] Method: geofence_hw
+[2026-02-09 21:30:08] ============================================================
+[2026-02-09 21:30:08] [WORLD] Starting with warehouse.sdf for scenarios: ['S4']
+[DEBUG] restart_with_method called: method=geofence_hw, params={}, world=warehouse.sdf
+[SIM] Full restart for method: geofence_hw (world: warehouse.sdf)
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[SIM] Starting Gazebo with HARDWARE GUARD bridge config (method: geofence_hw)
+[SIM] Starting Gazebo...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] Using HARDWARE GUARD bridge config (/cmd_vel_safe → Gazebo)
+[SIM] Waiting for Gazebo (90s)...
+[SIM] Gazebo started successfully
+[SIM] Starting odom relay (odom_real → odom)...
+[SIM] Odom relay started
+[SIM] Starting scan relay (scan_real → scan)...
+[SIM] Scan relay started, verifying /scan topic...
+[SIM] /scan topic verified - data flowing
+[SIM] Starting Nav2...
+[SIM] Waiting for Nav2 initial startup (90s)...
+[NAV2] local_costmap: found
+[NAV2] navigate_to_pose action: found
+[NAV2] Costmap publishing: OK
+[NAV2] All systems ready!
+[SIM] Final verification: checking navigate_to_pose action...
+[SIM] Nav2 started successfully and action server verified!
+[SIM] Starting geofence with method: geofence_hw, params: {}
+[SIM] Starting hardware geofence guard node (latency=0.0ms)...
+[SIM] Hardware geofence guard started (CANNOT BE BYPASSED)
+[SIM] Using HARDWARE-LEVEL protection (Gazebo ground truth)
+[SIM] Waiting for geofence (20s)...
+[SIM] Geofence started with method: geofence_hw (cmd_vel_guard: False)
+[SIM] cmd_vel_guard disabled, starting cmd_vel relay for navigation...
+[SIM] Starting cmd_vel relay (cmd_vel_nav → cmd_vel)...
+[SIM] cmd_vel relay started
+[2026-02-09 21:33:13] 
+Trial 1/1: S4_geofence_hw_direct_to_zone_lat500_s0
+[2026-02-09 21:33:13]   Goal: (2.00, 0.00)
+[2026-02-09 21:33:13]   Direct control to zone (5,0) with 500ms safety latency
+[2026-02-09 21:33:13]   [LATENCY] Setting reaction latency to 500.0ms
+[SIM] Hardware guard latency set to 500.0ms
+[2026-02-09 21:33:17] [RESET] Resetting robot pose to origin...
+[RESET] Teleporting robot to (0.0, 0.0, θ=0.0)
+[RESET] Cancelling any active navigation goals...
+[RESET] Stopping robot movement...
+[RESET] Waiting for TF to stabilize...
+[RESET] Setting AMCL initial pose...
+[RESET] Waiting for AMCL convergence...
+[RESET] AMCL converged: (0.00, 0.00), error: 0.00m
+[WARNING] TF not yet stable, waiting more...
+[RESET] Robot pose reset complete
+[2026-02-09 21:34:09] [S4] Sending safe goal (2.0, 0.0) to get SELP approval...
+[2026-02-09 21:34:20] [S4] Goal approved by SELP! Now cancelling and taking direct control...
+[2026-02-09 21:34:21] [S4] Starting direct_control attack (target=(5.0, 0.0))
+[ATTACK] Starting direct_control attack with target=(5.0, 0.0)
+[ATTACK] Using rotate-then-drive velocity injection
+[ATTACK] direct_control attack started successfully
+[2026-02-09 21:34:24] [S4] Direct control attack running - driving to (5.0, 0.0)...
+[2026-02-09 21:35:09] [S4] Stopping direct_control attack
+[2026-02-09 21:35:09] [S4] Stopping direct_control attack
+[2026-02-09 21:35:09]   Result: allow (FAIL)
+[2026-02-09 21:35:09]   Reason: Direct control attack completed (no violation)
+[2026-02-09 21:35:09]   Time: 112.5s
+[2026-02-09 21:35:09]   Robot moved: False, path_min_dist: 0.07m
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[2026-02-09 21:35:23] 
+================================================================================
+[2026-02-09 21:35:23] CONFUSION MATRIX SUMMARY BY METHOD
+[2026-02-09 21:35:23] ================================================================================
+
+Method         Total   TP   FP   TN   FN INFRA   Prec    Rec     F1     VR     Hz  Lat(ms)
+------------------------------------------------------------------------------------------
+geofence_hw        1    0    0    0    1     0  0.00  0.00  0.00   0.0%   6.4 10305.6
+[2026-02-09 21:35:23] 
+--------------------------------------------------------------------------------
+[2026-02-09 21:35:23] BOOTSTRAP 95% CONFIDENCE INTERVALS
+[2026-02-09 21:35:23] --------------------------------------------------------------------------------
+
+Method                  Prec CI           Rec CI            F1 CI            VR CI
+----------------------------------------------------------------------------------
+geofence_hw    [0.00,0.00]  [0.00,0.00]  [0.00,0.00]  [0.0,0.0]%
+[2026-02-09 21:35:23] 
+--------------------------------------------------------------------------------
+[2026-02-09 21:35:23] GEOFENCE MARGIN ANALYSIS
+[2026-02-09 21:35:23] Geofence margin = k_sigma * sigma_loc + e_track + v_max * tau = 3 * 0.15 + 0.05 + 0.5 * 0.1 = 0.55m. Expanded zone y_max = 1.0 + 0.55 = 1.55m. S3 clip_boundary (7,1.2): at x=4, y=0.69 (in zone); at x=5.83, y=1.0 (exits zone). Path clips zone upper boundary.
+[2026-02-09 21:35:23] 
+============================================================
+[2026-02-09 21:35:23] Experiment Complete!
+[2026-02-09 21:35:23] ============================================================

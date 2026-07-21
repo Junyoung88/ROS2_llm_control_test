@@ -1,0 +1,102 @@
+{
+  "params": {
+    "epsilon": 0.003,
+    "sigma": 0.15,
+    "e_0": 0.03,
+    "c_1": 0.04,
+    "tau": 0.1,
+    "v_max": 0.5,
+    "a_max": 2.5
+  },
+  "components": {
+    "est": 0.4122,
+    "track": 0.05,
+    "lat": 0.05,
+    "brake": 0.05
+  },
+  "nominal": {
+    "static": {
+      "margin": 0.4122,
+      "violations": 35054,
+      "n": 2000000,
+      "viol_pct": 1.7527,
+      "viol_upper95": 1.7709796453160687,
+      "mean_clearance_m": 0.3264
+    },
+    "rss": {
+      "margin": 0.4212,
+      "violations": 30420,
+      "n": 2000000,
+      "viol_pct": 1.521,
+      "viol_upper95": 1.5380553746469139,
+      "mean_clearance_m": 0.3354
+    },
+    "additive": {
+      "margin": 0.5622,
+      "violations": 2115,
+      "n": 2000000,
+      "viol_pct": 0.10575,
+      "viol_upper95": 0.11035140272347245,
+      "mean_clearance_m": 0.4764
+    },
+    "emp_p99": {
+      "margin": 0.4461,
+      "violations": 20000,
+      "n": 2000000,
+      "viol_pct": 1.0,
+      "viol_upper95": 1.0138842492989737,
+      "mean_clearance_m": 0.3603
+    },
+    "emp_p999": {
+      "margin": 0.565,
+      "violations": 2000,
+      "n": 2000000,
+      "viol_pct": 0.1,
+      "viol_upper95": 0.10447739334569085,
+      "mean_clearance_m": 0.4792
+    }
+  },
+  "adversarial": {
+    "static": {
+      "margin": 0.4122,
+      "violations": 2000000,
+      "n": 2000000,
+      "viol_pct": 100.0,
+      "viol_upper95": 100.0,
+      "mean_clearance_m": -0.15
+    },
+    "rss": {
+      "margin": 0.4212,
+      "violations": 2000000,
+      "n": 2000000,
+      "viol_pct": 100.0,
+      "viol_upper95": 100.0,
+      "mean_clearance_m": -0.141
+    },
+    "additive": {
+      "margin": 0.5622,
+      "violations": 0,
+      "n": 2000000,
+      "viol_pct": 0.0,
+      "viol_upper95": 0.00019207963105344466,
+      "mean_clearance_m": 0.0
+    },
+    "emp_p99": {
+      "margin": 0.4461,
+      "violations": 2000000,
+      "n": 2000000,
+      "viol_pct": 100.0,
+      "viol_upper95": 100.0,
+      "mean_clearance_m": -0.1161
+    },
+    "emp_p999": {
+      "margin": 0.565,
+      "violations": 0,
+      "n": 2000000,
+      "viol_pct": 0.0,
+      "viol_upper95": 0.00019207963105344466,
+      "mean_clearance_m": 0.0028
+    }
+  },
+  "n_per_condition": 2000000
+}

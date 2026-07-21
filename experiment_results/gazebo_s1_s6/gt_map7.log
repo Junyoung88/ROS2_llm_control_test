@@ -1,0 +1,56 @@
+[BOOT] Starting Gazebo warehouse + robot...
+[SIM] Starting Gazebo...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 1/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 2/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 3/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 4/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 5/5)...
+[SIM][WARNING] Could not kill all gz sim processes — proceeding anyway
+The daemon has been started
+[SIM] Waiting for Gazebo (180s)...
+[SIM] Gazebo started successfully
+[SIM] robot_state_publisher: running
+[SIM] Starting odom relay (odom_real → odom)...
+[SIM] Odom relay started
+[SIM] Starting scan relay (scan_real → scan)...
+[SIM] Scan relay started, verifying /scan topic...
+[SIM] /scan topic verified - data flowing
+[BOOT] Gazebo up. Ground-truth-pose mapping (440s)...
+[GTMAP] t=15s mode=goto wp=0/61 scans=126 integrated=14 pose=(-1.08, -0.12, 3.11)
+[GTMAP] t=30s mode=goto wp=1/61 scans=276 integrated=72 pose=(-3.68, 0.08, 0.41)
+[GTMAP] t=45s mode=goto wp=2/61 scans=426 integrated=102 pose=(-2.16, -0.0, -0.82)
+[GTMAP] t=60s mode=goto wp=3/61 scans=577 integrated=105 pose=(-2.15, -0.04, -0.95)
+[GTMAP] t=75s mode=goto wp=4/61 scans=728 integrated=106 pose=(-2.19, 0.07, 0.34)
+[GTMAP] t=90s mode=goto wp=5/61 scans=878 integrated=115 pose=(-2.13, 0.11, -0.61)
+[GTMAP] t=105s mode=goto wp=5/61 scans=1028 integrated=130 pose=(-1.39, 0.05, -0.01)
+[GTMAP] t=120s mode=goto wp=6/61 scans=1178 integrated=199 pose=(1.76, 0.9, 0.33)
+[GTMAP] t=135s mode=goto wp=8/61 scans=1328 integrated=226 pose=(2.79, 1.48, 2.97)
+[GTMAP] t=150s mode=goto wp=9/61 scans=1479 integrated=294 pose=(-0.47, 1.98, 3.1)
+[GTMAP] t=165s mode=goto wp=11/61 scans=1629 integrated=347 pose=(-2.83, 1.98, -1.19)
+[GTMAP] t=180s mode=wpspin wp=12/61 scans=1778 integrated=351 pose=(-3.09, 1.66, -1.35)
+[GTMAP] t=195s mode=goto wp=12/61 scans=1928 integrated=400 pose=(-4.65, 3.62, 2.31)
+[GTMAP] t=210s mode=goto wp=14/61 scans=2079 integrated=452 pose=(-2.18, 3.99, -0.05)
+[GTMAP] t=225s mode=goto wp=15/61 scans=2230 integrated=459 pose=(-1.48, 4.33, 0.89)
+[GTMAP] t=240s mode=wpspin wp=16/61 scans=2380 integrated=466 pose=(-1.2, 4.3, 0.1)
+[GTMAP] t=255s mode=goto wp=16/61 scans=2529 integrated=470 pose=(-0.57, 4.25, 1.27)
+[GTMAP] t=270s mode=goto wp=17/61 scans=2680 integrated=482 pose=(0.19, 4.57, 0.87)
+[GTMAP] t=285s mode=goto wp=18/61 scans=2830 integrated=490 pose=(0.48, 4.79, 2.57)
+[GTMAP] t=300s mode=goto wp=19/61 scans=2981 integrated=493 pose=(0.96, 5.21, 0.15)
+[GTMAP] t=315s mode=goto wp=19/61 scans=3131 integrated=501 pose=(1.69, 5.44, -0.05)
+[GTMAP] t=330s mode=goto wp=21/61 scans=3280 integrated=528 pose=(0.06, 5.92, 3.07)
+[GTMAP] t=346s mode=goto wp=23/61 scans=3431 integrated=603 pose=(-3.26, 6.0, 3.14)
+[GTMAP] t=361s mode=wpspin wp=24/61 scans=3582 integrated=626 pose=(-4.59, 5.88, 3.02)
+[GTMAP] t=376s mode=goto wp=25/61 scans=3732 integrated=648 pose=(-3.89, 6.9, 0.11)
+[GTMAP] t=391s mode=goto wp=27/61 scans=3883 integrated=722 pose=(-0.57, 7.0, 0.0)
+[GTMAP] t=406s mode=goto wp=28/61 scans=4032 integrated=751 pose=(0.8, 7.23, -0.05)
+[GTMAP] t=421s mode=goto wp=29/61 scans=4183 integrated=802 pose=(3.06, 7.12, 1.46)
+[GTMAP] t=436s mode=goto wp=30/61 scans=4334 integrated=809 pose=(3.06, 7.36, 0.99)
+[GTMAP] saved warehouse_map_gt: 416x409 occ=10045 free=107640 origin=(-11.25,-6.60)
+[CLEANUP] Stopping sim...
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Resetting ROS2 daemon...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped

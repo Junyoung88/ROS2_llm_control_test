@@ -1,0 +1,114 @@
+Generated 1 trials
+Methods: ['cbf_inflated']
+Scenarios: ['S5']
+Seeds: 1 (offset=3, range=s3-s3)
+Include sweep: False
+Runtime monitoring: False
+
+Trials by scenario: {'S5': 1}
+Trials by method: {'cbf_inflated': 1}
+[2026-07-20 01:06:16] ============================================================
+[2026-07-20 01:06:16] Starting Gazebo S1-S5 Experiment
+[2026-07-20 01:06:16] ============================================================
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[2026-07-20 01:06:20] [OUTPUT] Writing results to experiment_results/gazebo_s1_s6/fab/res_fab_traverse_cbf_inflated_v3.jsonl
+[2026-07-20 01:06:20] 
+============================================================
+[2026-07-20 01:06:20] Method: cbf_inflated
+[2026-07-20 01:06:20] ============================================================
+[2026-07-20 01:06:20] [RUNTIME] Enabling runtime monitoring for cbf_inflated
+[2026-07-20 01:06:20] [WORLD] Starting with fab_cell.sdf for scenarios: ['S5'] (cmd_vel_guard ON)
+[DEBUG] restart_with_method called: method=cbf_inflated, params={'enable_runtime_monitoring': True, 'runtime_monitoring_rate': 10.0}, world=fab_cell.sdf, guard=True
+[SIM] Full restart for method: cbf_inflated (world: fab_cell.sdf)
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[SIM] Starting Gazebo...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 1/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 2/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 3/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 4/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 5/5)...
+[SIM][WARNING] Could not kill all gz sim processes — proceeding anyway
+The daemon has been started
+[SIM] Waiting for Gazebo (180s)...
+[SIM] Gazebo started successfully
+[SIM] robot_state_publisher: running
+[SIM] Starting odom relay (odom_real → odom)...
+[SIM] Odom relay started
+[SIM] Starting scan relay (scan_real → scan)...
+[SIM] Scan relay started, verifying /scan topic...
+[SIM] /scan topic verified - data flowing
+[SIM] Starting Nav2...
+[SIM] Waiting for Nav2 initial startup (30s)...
+[NAV2] local_costmap: found
+[NAV2] navigate_to_pose action: found
+[NAV2] Costmap publishing: OK (navigation lifecycle active)
+[NAV2] All systems ready!
+[SIM] Final verification: checking navigate_to_pose action...
+[SIM] Nav2 started successfully and action server verified!
+[SIM] Starting geofence with method: cbf_inflated, params: {'enable_runtime_monitoring': True, 'runtime_monitoring_rate': 10.0}, comm_latency_ms: 0
+[SIM] Using RUNTIME GUARD mode for cbf_inflated (/cmd_vel_nav → guard → /cmd_vel)
+[SIM] Passing enable_runtime_monitoring=True to geofence
+[SIM] Waiting for geofence (20s)...
+[SIM] Geofence started with method: cbf_inflated (cmd_vel_guard: True)
+[SIM] Standalone cmd_vel_guard started successfully
+[2026-07-20 01:08:10] [GEOM] applied zone geometry 'fab_cell'
+[2026-07-20 01:08:10] [CBF_INFLATED] Restarting geofence (sigma=0.15, v_max=0.5, tau=0.1, eps=0.003, a_max=2.5)...
+[SIM] Starting geofence with method: cbf_inflated, params: {'enable_runtime_monitoring': True, 'runtime_monitoring_rate': 10.0, 'localization_sigma': 0.15, 'v_max': 0.5, 'latency': 0.1, 'epsilon': 0.003, 'a_max': 2.5, 'e_0': 0.03, 'c_1': 0.04, 'enable_estimation_term': True, 'enable_tracking_term': True, 'enable_latency_term': True, 'enable_braking_term': True, 'use_dynamic_v_max': False, 'use_dynamic_tau': False, 'use_dynamic_e_track': False}, comm_latency_ms: 0
+[SIM] Using RUNTIME GUARD mode for cbf_inflated (/cmd_vel_nav → guard → /cmd_vel)
+[SIM] Passing enable_runtime_monitoring=True to geofence
+[SIM] Waiting for geofence (20s)...
+[SIM] Geofence started with method: cbf_inflated (cmd_vel_guard: True)
+[SIM] Standalone cmd_vel_guard started successfully
+[2026-07-20 01:08:39] 
+Trial 1/1: S5_cbf_inflated_fab_traverse_s3
+[2026-07-20 01:08:39]   Goal: (6.00, 0.00)
+[2026-07-20 01:08:39]   Fab-cell aisle traverse to (6,0) — safe path-through the green transport lane between the tool bays (stops before the east restricted bay)
+[2026-07-20 01:08:39] [RESET] Resetting robot pose to origin...
+[RESET] Teleporting robot to (0.0, 0.0, θ=0.0)
+[RESET] Cancelling any active navigation goals...
+[RESET] Stopping robot movement...
+[RESET] Waiting for TF to stabilize...
+[RESET] Setting AMCL initial pose...
+[RESET] Waiting for AMCL convergence...
+[RESET] AMCL converged: (0.34, 0.00), error: 0.34m
+[WARNING] TF not yet stable, waiting more...
+[RESET] Robot pose reset complete
+[2026-07-20 01:09:50] [POS_CHECK] Goal inside zone but robot stayed 1.18m away — marking INFRA (no retry)
+[2026-07-20 01:09:50]   Result: allow (PASS)
+[2026-07-20 01:09:50]   Reason: Goal reached successfully (dist=0.18m)
+[2026-07-20 01:09:50]   Time: 70.7s
+[2026-07-20 01:09:50]   Robot moved: True, path_min_dist: 1.18m
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[2026-07-20 01:10:04] 
+================================================================================
+[2026-07-20 01:10:04] CONFUSION MATRIX SUMMARY BY METHOD
+[2026-07-20 01:10:04] ================================================================================
+
+Method         Total   TP   FP   TN   FN INFRA   Prec    Rec     F1     VR     Hz  Lat(ms)
+------------------------------------------------------------------------------------------
+cbf_inflated       1    0    0    1    0     0  0.00  0.00  0.00   0.0%   6.3 30382.7
+[2026-07-20 01:10:04] 
+--------------------------------------------------------------------------------
+[2026-07-20 01:10:04] BOOTSTRAP 95% CONFIDENCE INTERVALS
+[2026-07-20 01:10:04] --------------------------------------------------------------------------------
+
+Method                  Prec CI           Rec CI            F1 CI            VR CI
+----------------------------------------------------------------------------------
+cbf_inflated   [0.00,0.00]  [0.00,0.00]  [0.00,0.00]  [0.0,0.0]%
+[2026-07-20 01:10:04] 
+--------------------------------------------------------------------------------
+[2026-07-20 01:10:04] GEOFENCE MARGIN ANALYSIS
+[2026-07-20 01:10:04] Geofence margin = k_sigma * sigma_loc + e_track + v_max * tau = 3 * 0.15 + 0.05 + 0.5 * 0.1 = 0.55m. Expanded zone y_max = 1.0 + 0.55 = 1.55m. S3 clip_boundary (7,1.2): at x=4, y=0.69 (in zone); at x=5.83, y=1.0 (exits zone). Path clips zone upper boundary.
+[2026-07-20 01:10:04] 
+============================================================
+[2026-07-20 01:10:04] Experiment Complete!
+[2026-07-20 01:10:04] ============================================================

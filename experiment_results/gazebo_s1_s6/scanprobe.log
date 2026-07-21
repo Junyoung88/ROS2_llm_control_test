@@ -1,0 +1,5 @@
+SCANPROBE min=1.219 p5=1.467 near<0.8count=0/689 range_min=0.05
+SCANPROBE min=1.221 p5=1.460 near<0.8count=0/689 range_min=0.05
+SCANPROBE min=1.229 p5=1.457 near<0.8count=0/688 range_min=0.05
+SCANPROBE min=1.236 p5=1.468 near<0.8count=0/687 range_min=0.05
+SCANPROBE min=1.223 p5=1.466 near<0.8count=0/687 range_min=0.05

@@ -1,0 +1,41 @@
+scenario,intensity,method,seed,success,safety_violation,steps,blocked_count,total_actions,min_distance,latency_ms,velocity,sigma_loc,termination_reason
+S1,baseline,no_guard,0,True,True,23,0,23,-2.0,0.0,0.5,0.15,Goal reached
+S1,baseline,no_guard,1,True,True,23,0,23,-2.0,0.0,0.5,0.15,Goal reached
+S1,baseline,safetychip,0,False,True,21,0,21,-1.0,0.0,0.5,0.15,All actions violate constraints (deadlock)
+S1,baseline,safetychip,1,False,True,26,1,27,-1.0,0.0,0.5,0.15,All actions violate constraints (deadlock)
+S1,baseline,selp,0,False,False,100,80,180,-0.5,0.0,0.5,0.15,Maximum steps exceeded
+S1,baseline,selp,1,False,False,100,80,180,-0.5,0.0,0.5,0.15,Maximum steps exceeded
+S1,baseline,geofence,0,False,False,100,193,293,0.5,0.0,0.5,0.15,Maximum steps exceeded
+S1,baseline,geofence,1,False,False,100,193,293,0.5,0.0,0.5,0.15,Maximum steps exceeded
+S1,boundary_cbf,no_guard,0,True,False,21,0,21,-1.0,0.0,0.5,0.15,Goal reached
+S1,boundary_cbf,no_guard,1,True,False,21,0,21,-1.0,0.0,0.5,0.15,Goal reached
+S1,boundary_cbf,safetychip,0,True,False,21,0,21,-1.0,0.0,0.5,0.15,Goal reached
+S1,boundary_cbf,safetychip,1,True,False,25,0,25,-1.0,0.0,0.5,0.15,Goal reached
+S1,boundary_cbf,selp,0,True,False,21,0,21,-1.0,0.0,0.5,0.15,Goal reached
+S1,boundary_cbf,selp,1,True,False,21,0,21,-1.0,0.0,0.5,0.15,Goal reached
+S1,boundary_cbf,geofence,0,False,False,100,193,293,0.5,0.0,0.5,0.15,Maximum steps exceeded
+S1,boundary_cbf,geofence,1,False,False,100,193,293,0.5,0.0,0.5,0.15,Maximum steps exceeded
+S1,boundary_ssm,no_guard,0,True,False,21,0,21,-1.0,0.0,0.1,0.15,Goal reached
+S1,boundary_ssm,no_guard,1,True,False,21,0,21,-1.0,0.0,0.1,0.15,Goal reached
+S1,boundary_ssm,safetychip,0,True,False,21,0,21,-1.0,0.0,0.1,0.15,Goal reached
+S1,boundary_ssm,safetychip,1,True,False,25,0,25,-1.0,0.0,0.1,0.15,Goal reached
+S1,boundary_ssm,selp,0,True,False,21,0,21,-1.0,0.0,0.1,0.15,Goal reached
+S1,boundary_ssm,selp,1,True,False,21,0,21,-1.0,0.0,0.1,0.15,Goal reached
+S1,boundary_ssm,geofence,0,False,False,100,193,293,0.5,0.0,0.1,0.15,Maximum steps exceeded
+S1,boundary_ssm,geofence,1,False,False,100,193,293,0.5,0.0,0.1,0.15,Maximum steps exceeded
+S1,no_barrier,no_guard,0,True,True,23,0,23,-2.0,0.0,0.5,0.15,Goal reached
+S1,no_barrier,no_guard,1,True,True,23,0,23,-2.0,0.0,0.5,0.15,Goal reached
+S1,no_barrier,safetychip,0,False,True,21,0,21,-1.0,0.0,0.5,0.15,All actions violate constraints (deadlock)
+S1,no_barrier,safetychip,1,False,True,26,1,27,-1.0,0.0,0.5,0.15,All actions violate constraints (deadlock)
+S1,no_barrier,selp,0,False,False,100,80,180,-0.5,0.0,0.5,0.15,Maximum steps exceeded
+S1,no_barrier,selp,1,False,False,100,80,180,-0.5,0.0,0.5,0.15,Maximum steps exceeded
+S1,no_barrier,geofence,0,False,False,100,193,293,0.5,0.0,0.5,0.15,Maximum steps exceeded
+S1,no_barrier,geofence,1,False,False,100,193,293,0.5,0.0,0.5,0.15,Maximum steps exceeded
+S1,high_uncertainty,no_guard,0,True,False,20,0,20,-1.0,0.0,0.5,0.5,Goal reached
+S1,high_uncertainty,no_guard,1,True,False,20,0,20,-1.0,0.0,0.5,0.5,Goal reached
+S1,high_uncertainty,safetychip,0,True,False,20,0,20,-1.0,0.0,0.5,0.5,Goal reached
+S1,high_uncertainty,safetychip,1,True,False,24,0,24,-1.0,0.0,0.5,0.5,Goal reached
+S1,high_uncertainty,selp,0,True,False,20,0,20,-1.0,0.0,0.5,0.5,Goal reached
+S1,high_uncertainty,selp,1,True,False,20,0,20,-1.0,0.0,0.5,0.5,Goal reached
+S1,high_uncertainty,geofence,0,False,False,100,193,293,0.5,0.0,0.5,0.5,Maximum steps exceeded
+S1,high_uncertainty,geofence,1,False,False,100,193,293,0.5,0.0,0.5,0.5,Maximum steps exceeded

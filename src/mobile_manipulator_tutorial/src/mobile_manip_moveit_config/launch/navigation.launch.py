@@ -68,11 +68,19 @@ def generate_launch_description():
         'navigation.yaml'
     )
 
-    map_file_path = os.path.join(
+    # Default map is the blank empty_map (empty-world experiments); warehouse
+    # experiments pass map:=<...>/warehouse_map.yaml so AMCL has a real occupancy
+    # grid to localize against.
+    default_map_path = os.path.join(
         get_package_share_directory('mobile_manip_moveit_config'),
         'maps',
-        'empty_map.yaml'  # Use empty map for simpler localization
+        'empty_map.yaml'
     )
+    map_arg = DeclareLaunchArgument(
+        'map', default_value=default_map_path,
+        description='Path to the map yaml for AMCL/map_server.'
+    )
+    map_file_path = LaunchConfiguration('map')
 
     # Launch rviz
     rviz_node = Node(
@@ -146,6 +154,7 @@ def generate_launch_description():
     launchDescriptionObject.add_action(rviz_config_arg)
     launchDescriptionObject.add_action(sim_time_arg)
     launchDescriptionObject.add_action(use_amcl_arg)
+    launchDescriptionObject.add_action(map_arg)
     launchDescriptionObject.add_action(rviz_node)
     #launchDescriptionObject.add_action(interactive_marker_twist_server_node)
     launchDescriptionObject.add_action(localization_launch)

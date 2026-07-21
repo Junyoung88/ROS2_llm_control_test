@@ -1,0 +1,21 @@
+[WARN] [1784367792.307675377] [scan_spoofing_attack]: ============================================================
+[WARN] [1784367792.307985078] [scan_spoofing_attack]: LIDAR SCAN SPOOFING ATTACK NODE STARTED
+[WARN] [1784367792.308221941] [scan_spoofing_attack]: ============================================================
+[WARN] [1784367792.308451268] [scan_spoofing_attack]:   Input topic:  /scan_real
+[WARN] [1784367792.308688311] [scan_spoofing_attack]:   Output topic: /scan
+[WARN] [1784367792.308931948] [scan_spoofing_attack]:   Rotation offset: 0.0 degrees
+[WARN] [1784367792.309170114] [scan_spoofing_attack]:   Range scale: 1.0x
+[WARN] [1784367792.309410343] [scan_spoofing_attack]:   Noise stddev: 0.0m
+[WARN] [1784367792.309665614] [scan_spoofing_attack]: ============================================================
+[WARN] [1784367792.309919882] [scan_spoofing_attack]: Effect: AMCL will mislocalize the robot!
+[WARN] [1784367792.310175313] [scan_spoofing_attack]: ============================================================
+[WARN] [1784367793.545578848] [scan_spoofing_attack]: [MAP-SPOOF] map latched: 431x409 @ 0.050m origin=(-11.00,-11.75) occ_cells=46716
+[WARN] [1784367793.595568642] [scan_spoofing_attack]: [MAP-SPOOF] map-consistent δ=0.038m ψ_world=90° S=(0.83,0.02,-1°) odom=(0.83,-0.02) (rate=0.2m/s) scans=12
+[WARN] [1784367795.589009119] [scan_spoofing_attack]: [MAP-SPOOF] map-consistent δ=0.439m ψ_world=90° S=(1.25,0.41,-1°) odom=(1.25,-0.03) (rate=0.2m/s) scans=32
+[WARN] [1784367797.592438100] [scan_spoofing_attack]: [MAP-SPOOF] map-consistent δ=0.840m ψ_world=90° S=(1.66,0.80,-3°) odom=(1.66,-0.04) (rate=0.2m/s) scans=52
+[WARN] [1784367799.592616558] [scan_spoofing_attack]: [MAP-SPOOF] map-consistent δ=1.240m ψ_world=90° S=(2.08,1.16,-3°) odom=(2.08,-0.08) (rate=0.2m/s) scans=72
+[WARN] [1784367801.598064521] [scan_spoofing_attack]: [MAP-SPOOF] map-consistent δ=1.641m ψ_world=90° S=(2.50,1.55,-1°) odom=(2.50,-0.09) (rate=0.2m/s) scans=92
+[WARN] [1784367803.600998570] [scan_spoofing_attack]: [MAP-SPOOF] map-consistent δ=2.041m ψ_world=90° S=(2.92,1.94,-0°) odom=(2.92,-0.10) (rate=0.2m/s) scans=112
+[WARN] [1784367805.605835282] [scan_spoofing_attack]: [MAP-SPOOF] map-consistent δ=2.442m ψ_world=90° S=(3.34,2.36,5°) odom=(3.34,-0.08) (rate=0.2m/s) scans=132
+[WARN] [1784367807.609300206] [scan_spoofing_attack]: [MAP-SPOOF] map-consistent δ=2.843m ψ_world=90° S=(3.77,2.81,7°) odom=(3.77,-0.03) (rate=0.2m/s) scans=152
+[WARN] [1784367809.612472603] [scan_spoofing_attack]: [MAP-SPOOF] map-consistent δ=3.243m ψ_world=90° S=(4.09,3.29,16°) odom=(4.09,0.04) (rate=0.2m/s) scans=172

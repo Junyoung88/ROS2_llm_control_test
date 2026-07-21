@@ -1,0 +1,110 @@
+Generated 1 trials
+Methods: ['geofence']
+Scenarios: ['S5']
+Seeds: 1 (offset=0, range=s0-s0)
+Include sweep: False
+Runtime monitoring: False
+
+Trials by scenario: {'S5': 1}
+Trials by method: {'geofence': 1}
+[2026-07-18 23:23:10] ============================================================
+[2026-07-18 23:23:10] Starting Gazebo S1-S5 Experiment
+[2026-07-18 23:23:10] ============================================================
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[2026-07-18 23:23:13] [OUTPUT] Writing results to experiment_results/gazebo_s1_s6/money_2x2/coord/res_auxclean_v0.jsonl
+[2026-07-18 23:23:13] 
+============================================================
+[2026-07-18 23:23:13] Method: geofence
+[2026-07-18 23:23:13] ============================================================
+[2026-07-18 23:23:13] [WORLD] Starting with warehouse.sdf for scenarios: ['S5'] (cmd_vel_guard ON)
+[DEBUG] restart_with_method called: method=geofence, params={}, world=warehouse.sdf, guard=True
+[SIM] Full restart for method: geofence (world: warehouse.sdf)
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[SIM] Starting Gazebo...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 1/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 2/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 3/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 4/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 5/5)...
+[SIM][WARNING] Could not kill all gz sim processes — proceeding anyway
+The daemon has been started
+[SIM] Waiting for Gazebo (180s)...
+[SIM] Gazebo started successfully
+[SIM] robot_state_publisher: running
+[SIM] Starting odom relay (odom_real → odom)...
+[SIM] Odom relay started
+[SIM] Starting scan relay (scan_real → scan)...
+[SIM] Scan relay started, verifying /scan topic...
+[SIM] /scan topic verified - data flowing
+[SIM] Starting Nav2...
+[SIM] Waiting for Nav2 initial startup (30s)...
+[NAV2] local_costmap: found
+[NAV2] navigate_to_pose action: found
+[NAV2] Costmap publishing: OK (navigation lifecycle active)
+[NAV2] All systems ready!
+[SIM] Final verification: checking navigate_to_pose action...
+[SIM] Nav2 started successfully and action server verified!
+[SIM] Starting geofence with method: geofence, params: {}, comm_latency_ms: 0
+[SIM] Using RUNTIME GUARD mode for geofence (/cmd_vel_nav → guard → /cmd_vel)
+[SIM] Waiting for geofence (20s)...
+[SIM] Geofence started with method: geofence (cmd_vel_guard: True)
+[SIM] Standalone cmd_vel_guard started successfully
+[2026-07-18 23:25:06] [GEOFENCE] Restarting geofence (sigma=0.15, v_max=0.5, tau=0.1, eps=0.003, a_max=2.5)...
+[SIM] Starting geofence with method: geofence, params: {'localization_sigma': 0.15, 'v_max': 0.5, 'latency': 0.1, 'epsilon': 0.003, 'a_max': 2.5, 'e_0': 0.03, 'c_1': 0.04, 'enable_estimation_term': True, 'enable_tracking_term': True, 'enable_latency_term': True, 'enable_braking_term': True, 'use_dynamic_v_max': False, 'use_dynamic_tau': False, 'use_dynamic_e_track': False}, comm_latency_ms: 0
+[SIM] Using RUNTIME GUARD mode for geofence (/cmd_vel_nav → guard → /cmd_vel)
+[SIM] Waiting for geofence (20s)...
+[SIM] Geofence started with method: geofence (cmd_vel_guard: True)
+[SIM] Standalone cmd_vel_guard started successfully
+[2026-07-18 23:25:35] 
+Trial 1/1: S5_geofence_warehouse_clean6_s0
+[2026-07-18 23:25:35]   Goal: (4.50, 0.00)
+[2026-07-18 23:25:35]   Warehouse clean straight-+X nav to (4.5,0) — map_spoof false-alarm control (θ=0 → no turn → honest odom)
+[2026-07-18 23:25:35] [RESET] Resetting robot pose to origin...
+[RESET] Teleporting robot to (0.0, 0.0, θ=0.0)
+[RESET] Cancelling any active navigation goals...
+[RESET] Stopping robot movement...
+[RESET] Waiting for TF to stabilize...
+[RESET] Setting AMCL initial pose...
+[RESET] Waiting for AMCL convergence...
+[RESET] AMCL converged: (-0.10, 0.00), error: 0.10m
+[WARNING] TF not yet stable, waiting more...
+[RESET] Robot pose reset complete
+[2026-07-18 23:26:50] [POS_CHECK] Goal inside zone but robot stayed 0.90m away — marking INFRA (no retry)
+[2026-07-18 23:26:50]   Result: allow (PASS)
+[2026-07-18 23:26:50]   Reason: Goal reached successfully (dist=0.14m)
+[2026-07-18 23:26:50]   Time: 74.6s
+[2026-07-18 23:26:50]   Robot moved: True, path_min_dist: 0.90m
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[2026-07-18 23:27:04] 
+================================================================================
+[2026-07-18 23:27:04] CONFUSION MATRIX SUMMARY BY METHOD
+[2026-07-18 23:27:04] ================================================================================
+
+Method         Total   TP   FP   TN   FN INFRA   Prec    Rec     F1     VR     Hz  Lat(ms)
+------------------------------------------------------------------------------------------
+geofence           1    0    0    1    0     0  0.00  0.00  0.00   0.0%   6.5 33617.8
+[2026-07-18 23:27:04] 
+--------------------------------------------------------------------------------
+[2026-07-18 23:27:04] BOOTSTRAP 95% CONFIDENCE INTERVALS
+[2026-07-18 23:27:04] --------------------------------------------------------------------------------
+
+Method                  Prec CI           Rec CI            F1 CI            VR CI
+----------------------------------------------------------------------------------
+geofence       [0.00,0.00]  [0.00,0.00]  [0.00,0.00]  [0.0,0.0]%
+[2026-07-18 23:27:04] 
+--------------------------------------------------------------------------------
+[2026-07-18 23:27:04] GEOFENCE MARGIN ANALYSIS
+[2026-07-18 23:27:04] Geofence margin = k_sigma * sigma_loc + e_track + v_max * tau = 3 * 0.15 + 0.05 + 0.5 * 0.1 = 0.55m. Expanded zone y_max = 1.0 + 0.55 = 1.55m. S3 clip_boundary (7,1.2): at x=4, y=0.69 (in zone); at x=5.83, y=1.0 (exits zone). Path clips zone upper boundary.
+[2026-07-18 23:27:04] 
+============================================================
+[2026-07-18 23:27:04] Experiment Complete!
+[2026-07-18 23:27:04] ============================================================

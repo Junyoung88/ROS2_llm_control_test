@@ -1,0 +1,41 @@
+[INFO] [1784274607.584256928] [cmd_vel_guard]: Zones loaded: 2
+[INFO] [1784274607.584467580] [cmd_vel_guard]: CBF margin: 0.1m (real-time control)
+[INFO] [1784274607.584602659] [cmd_vel_guard]: SSM base margin: 0.05m (velocity-dependent)
+[INFO] [1784274607.589334383] [cmd_vel_guard]: Spoof detection ON [cusum]: amcl=/amcl_pose, offset_thresh=0.95m, jump_thresh=0.45m, enforce_pose=amcl
+[INFO] [1784274607.589943557] [cmd_vel_guard]: DEBUG subscriptions:
+[INFO] [1784274607.590220306] [cmd_vel_guard]:   cmd_sub topic: /cmd_vel_nav
+[INFO] [1784274607.590449264] [cmd_vel_guard]:   odom_sub topic: /odom
+[INFO] [1784274607.590678432] [cmd_vel_guard]:   nav_state_sub topic: /geofence/nav_state
+[INFO] [1784274607.591517175] [cmd_vel_guard]: ============================================================
+[INFO] [1784274607.591775238] [cmd_vel_guard]: Cmd Vel Guard node initialized
+[INFO] [1784274607.592015858] [cmd_vel_guard]: Safety method: geofence
+[INFO] [1784274607.592256999] [cmd_vel_guard]: Input: /cmd_vel_nav -> Output: /cmd_vel
+[INFO] [1784274607.592349516] [cmd_vel_guard]:   Mode: Forward Simulation
+[INFO] [1784274607.592445770] [cmd_vel_guard]:   Horizon: 1.0s, Steps: 10
+[INFO] [1784274607.592550169] [cmd_vel_guard]:   Margin: 0.562m
+[INFO] [1784274607.592801059] [cmd_vel_guard]: ============================================================
+[INFO] [1784274608.215005762] [cmd_vel_guard]: [HEARTBEAT #1] cmds=0, odom=no, nav_approved=False, pos=(0.00,0.00)
+[INFO] [1784274609.328823111] [cmd_vel_guard]: [HEARTBEAT #2] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274614.335979743] [cmd_vel_guard]: [HEARTBEAT #3] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274617.532079925] [cmd_vel_guard]: Guard status: cmds=1, nav_approved=False, odom=yes, pos=(-0.00,0.00), passed=0, blocked=0
+[INFO] [1784274619.343057625] [cmd_vel_guard]: [HEARTBEAT #4] cmds=1, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274624.350554606] [cmd_vel_guard]: [HEARTBEAT #5] cmds=3, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274629.450375188] [cmd_vel_guard]: [HEARTBEAT #6] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274634.457568382] [cmd_vel_guard]: [HEARTBEAT #7] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274639.469328228] [cmd_vel_guard]: [HEARTBEAT #8] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274644.476514982] [cmd_vel_guard]: [HEARTBEAT #9] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274649.483325957] [cmd_vel_guard]: [HEARTBEAT #10] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274654.490569513] [cmd_vel_guard]: [HEARTBEAT #11] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274659.497199031] [cmd_vel_guard]: [HEARTBEAT #12] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274664.504887552] [cmd_vel_guard]: [HEARTBEAT #13] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274669.511591613] [cmd_vel_guard]: [HEARTBEAT #14] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274674.518920111] [cmd_vel_guard]: [HEARTBEAT #15] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274679.525587412] [cmd_vel_guard]: [HEARTBEAT #16] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274684.533143822] [cmd_vel_guard]: [HEARTBEAT #17] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274689.539940973] [cmd_vel_guard]: [HEARTBEAT #18] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274694.547132392] [cmd_vel_guard]: [HEARTBEAT #19] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274699.555627049] [cmd_vel_guard]: [HEARTBEAT #20] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274704.562053063] [cmd_vel_guard]: [HEARTBEAT #21] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274709.569506251] [cmd_vel_guard]: [HEARTBEAT #22] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274714.577998921] [cmd_vel_guard]: [HEARTBEAT #23] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784274719.584480105] [cmd_vel_guard]: [HEARTBEAT #24] cmds=4, odom=yes, nav_approved=False, pos=(-0.00,0.00)

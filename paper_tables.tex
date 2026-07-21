@@ -1,0 +1,318 @@
+% ============================================================================
+%  Paper Tables — Geofence Policy Enforcer Evaluation (with CBF-Adaptive)
+%  Usage: \input{paper_tables.tex} in your main document
+%  Required packages: booktabs, multirow, makecell, siunitx
+% ============================================================================
+
+% ============================================================================
+%  TABLE I: Confusion Matrix (matches paper Table I format)
+%  S1 parameter-sweep trials excluded for fair cross-method comparison.
+%  All methods have comparable trial counts (~170).
+% ============================================================================
+\begin{table}[t]
+\centering
+\caption{Confusion matrix --- Gazebo simulation (S1--S5, ${\sim}170$
+  trials per method). S1 parameter-sweep trials (geofence-only) are
+  reported separately in Table~\ref{tab:s1_sweep}.}
+\label{tab:confusion}
+\begin{tabular}{@{}l rrr rrrr@{}}
+\toprule
+& \multicolumn{3}{c}{Trial Counts} & \multicolumn{4}{c}{Confusion Matrix} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-8}
+Method & $N$ & Valid & Infra & TP$\uparrow$ & FP$\downarrow$ & TN$\uparrow$ & FN$\downarrow$ \\
+\midrule
+No Guard          & 170 & 170 & 0 &   0 &  0 & 50 & 120 \\
+SELP              & 170 & 170 & 0 &  20 &  0 & 49 & 101 \\
+CBF               & 169 & 165 & 4 &  44 &  1 & 49 &  71 \\
+SSM               & 169 & 164 & 5 &  54 & 11 & 37 &  62 \\
+CBF-Adaptive      & 170 & 170 & 0 &  59 & 10 & 40 &  61 \\
+\textbf{Geofence (Ours)} & 168 & 167 & 1 & \textbf{115} & 4 & 44 & \textbf{4} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================================
+%  TABLE II: Detection Performance (matches paper Table II format)
+% ============================================================================
+\begin{table}[t]
+\centering
+\caption{Detection performance comparison.
+  CBF-Adaptive uses the proposed dynamic margin formula within a CBF
+  framework to isolate the contribution of path-based architecture.}
+\label{tab:detection}
+\begin{tabular}{@{}l S[table-format=1.3] S[table-format=1.3]
+                    S[table-format=1.3] S[table-format=3.1]@{}}
+\toprule
+Method & {Precision$\uparrow$} & {Recall$\uparrow$} & {F1$\uparrow$} & {FNR$\downarrow$} \\
+\midrule
+No Guard          & {--}   & 0.000 & 0.000 & 100.0 \\
+SELP              & 1.000  & 0.165 & 0.284 &  83.5 \\
+CBF               & 0.978  & 0.383 & 0.550 &  61.7 \\
+SSM               & 0.831  & 0.466 & 0.597 &  53.4 \\
+CBF-Adaptive      & 0.855  & 0.492 & 0.624 &  50.8 \\
+\textbf{Geofence (Ours)} & \textbf{0.966} & \textbf{0.966} & \textbf{0.966} & \textbf{3.4} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================================
+%  TABLE III: Per-Scenario Violation Rate (matches paper Table III format)
+% ============================================================================
+\begin{table}[t]
+\centering
+\caption{Per-scenario violation rate (VR, \%). Lower is better.
+  $\text{VR} = \text{FN} / (\text{N} - \text{Infra}) \times 100$.}
+\label{tab:vr}
+\begin{tabular}{@{}l S[table-format=2.1]
+                    S[table-format=2.1] S[table-format=2.1]
+                    S[table-format=2.1] S[table-format=3.1]
+                    S[table-format=2.1]@{}}
+\toprule
+Method & {Overall} & {S1} & {S2} & {S3} & {S4} & {S5} \\
+\midrule
+No Guard          & 70.6 & 66.7 & 33.3 & 75.0 & 100.0 & 80.0 \\
+SELP              & 59.4 & 36.7 &  0.0 & 75.0 & 100.0 & 80.0 \\
+CBF               & 43.0 & 33.3 &  0.0 & 72.2 & 100.0 & 30.6 \\
+SSM               & 37.8 & 33.3 &  0.0 & 76.5 & 100.0 & 12.0 \\
+CBF-Adaptive      & 35.9 & 33.3 &  0.0 & 75.0 &  45.0 & 24.0 \\
+\textbf{Geofence (Ours)} & \textbf{2.4} & \textbf{0.0} & \textbf{0.0} & \textbf{0.0} & \textbf{5.0} & \textbf{6.2} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================================
+%  TABLE IV: Architectural Ablation — Same Margin, Different Architecture
+%  This is the KEY table answering "why not adaptive CBF?"
+% ============================================================================
+\begin{table}[t]
+\centering
+\caption{Architectural ablation: CBF-Adaptive uses the \emph{same}
+  dynamic margin formula $M(t) = k_\sigma\sigma + e_\text{track}
+  + v_\text{max}\tau$ as the proposed geofence, but retains CBF's
+  point-based goal check and velocity-projection runtime guard.
+  The performance gap isolates the contribution of path-based
+  architecture from the margin formula.}
+\label{tab:ablation_arch}
+\begin{tabular}{@{}l cc ccc@{}}
+\toprule
+& \multicolumn{2}{c}{Architecture} & \multicolumn{3}{c}{Performance} \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-6}
+Method & Planning & Runtime & F1 & VR & $\Delta$ vs Geofence \\
+\midrule
+CBF (fixed margin) &
+  \makecell{goal-point\\$h{=}d{-}0.3$} &
+  \makecell{velocity\\projection} &
+  0.550 & 43.0\% & $-$0.416 \\[4pt]
+CBF-Adaptive &
+  \makecell{goal-point\\$h{=}d{-}M(t)$} &
+  \makecell{velocity\\projection} &
+  0.624 & 35.9\% & $-$0.342 \\[4pt]
+\textbf{Geofence (Ours)} &
+  \makecell{\textbf{path-based}\\$\min_i d(p_i){>}M(t)$} &
+  \makecell{\textbf{forward}\\
+  \textbf{simulation}} &
+  \textbf{0.966} & \textbf{2.4\%} & {--} \\
+\bottomrule
+\end{tabular}
+\vspace{1mm}
+
+{\footnotesize
+\textbf{Key finding}: Applying the same dynamic margin to CBF improves
+F1 by only 0.074 (CBF$\to$CBF-Adaptive), while the architectural change
+yields a further 0.342 improvement (CBF-Adaptive$\to$Geofence).
+S3 (path proximity) accounts for the largest gap: CBF-Adaptive
+detects 0/30 path-through violations vs.\ geofence's 30/30.}
+\end{table}
+
+% ============================================================================
+%  TABLE V: S3 — Path-Based vs Point-Based
+% ============================================================================
+\begin{table}[t]
+\centering
+\caption{S3: Path-proximity detection. The goal lies outside the zone
+  in all three unsafe configs, but the planned path crosses the zone.
+  Only path-based checking (geofence) detects zone traversal.
+  CBF-Adaptive's inflated margin does not help because the goal
+  point itself remains outside the expanded zone.}
+\label{tab:s3_path}
+\begin{tabular}{@{}l ccc c@{}}
+\toprule
+& \multicolumn{3}{c}{Unsafe Configs (TP / 10)} & Safe \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-5}
+Method & through & clip & graze & before \\
+\midrule
+\textbf{Geofence}  & \textbf{10} & \textbf{10} & \textbf{10} & 10 TN \\
+CBF-Adaptive       & 0  & 0  & 0  & 10 TN \\
+SSM                & 0  & 0  & 0  &  8 TN \\
+CBF                & 0  & 0  & 0  & 10 TN \\
+SELP               & 0  & 0  & 0  & 10 TN \\
+No Guard           & 0  & 0  & 0  & 10 TN \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================================
+%  TABLE VI: S4 — Runtime Attack Detection
+% ============================================================================
+\begin{table}[t]
+\centering
+\caption{S4: Runtime attack detection. Only methods with a runtime
+  velocity guard detect attacks that bypass the planning layer.
+  Geofence uses forward simulation (2\,s horizon);
+  CBF-Adaptive uses instantaneous velocity projection.}
+\label{tab:s4_attacks}
+\begin{tabular}{@{}l cc c@{}}
+\toprule
+& \multicolumn{2}{c}{TP / 10 trials} & \\
+\cmidrule(lr){2-3}
+Method & direct\_to\_zone & approved+deviate & F1 \\
+\midrule
+\textbf{Geofence}  & \textbf{10} & \textbf{9} & \textbf{0.974} \\
+CBF-Adaptive       & 6           & 5          & 0.710 \\
+SSM                & 0           & 0          & 0.000 \\
+CBF                & 0           & 0          & 0.000 \\
+SELP               & 0           & 0          & 0.000 \\
+No Guard           & 0           & 0          & 0.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================================
+%  TABLE VII: S5 — TOCTOU Detection by Bias Level
+% ============================================================================
+\begin{table}[t]
+\centering
+\caption{S5: TOCTOU attack detection rate by odometry bias
+  magnitude~$\Delta$. At $\Delta{=}\SI{1.5}{\meter}$, the biased
+  planner path ($y{=}\SI{1.56}{\meter}$) exceeds the expanded zone
+  boundary ($y_\text{max}{=}\SI{1.39}{\meter}$), bypassing the
+  planning-level check.}
+\label{tab:s5_toctou}
+\begin{tabular}{@{}l cccc c@{}}
+\toprule
+& \multicolumn{4}{c}{TP / 10 trials at bias $\Delta$ [m]} & \\
+\cmidrule(lr){2-5}
+Method & 0.0 & 0.5 & 1.0 & 1.5 & Avg.\ [\%] \\
+\midrule
+\textbf{Geofence}  & \textbf{10} & \textbf{10} & \textbf{10} & 6 & \textbf{90} \\
+SSM                & 8  & \textbf{10} & 7  & \textbf{9} & 85 \\
+CBF-Adaptive       & 8  & 6  & 6  & 8 & 70 \\
+CBF                & 6  & 7  & 5  & 6 & 60 \\
+SELP               & 0  & 0  & 0  & 0 & 0  \\
+No Guard           & 0  & 0  & 0  & 0 & 0  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================================
+%  TABLE VIII: S2 — Salami Attack Step-Level Analysis
+% ============================================================================
+\begin{table}[t]
+\centering
+\caption{S2: Salami attack step-level analysis.
+  Step~2 goal lies \SI{0.5}{\meter} outside the zone boundary.
+  CBF-Adaptive and SSM reject it 100\% (uniform margin $M{=}\SI{0.6}{\meter}
+  {>}\SI{0.5}{\meter}$), while geofence's radial expansion reduces the
+  effective margin in the $x$-direction, allowing 60\% of trials.}
+\label{tab:s2_salami}
+\begin{tabular}{@{}l ccc@{}}
+\toprule
+& Step 1 & Step 2 & Step 3 \\
+& (safe goal) & (near boundary) & (inside zone) \\
+& \emph{exp.\ TN} & \emph{exp.\ TN} & \emph{exp.\ TP} \\
+\midrule
+\textbf{Geofence}  & 10 TN & 6 TN / \textbf{4 FP} & \textbf{10 TP} \\
+CBF-Adaptive       & 10 TN & 0 TN / \textbf{10 FP} & 10 TP \\
+SSM                & 10 TN & 0 TN / \textbf{10 FP} & 10 TP \\
+CBF                & 10 TN & 10 TN / 0 FP & 10 TP \\
+SELP               & 10 TN & 10 TN / 0 FP & 10 TP \\
+No Guard           & 10 TN & 10 TN / 0 FP & \textbf{10 FN} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================================
+%  TABLE IX: S1 — Safety Margin Parameter Sweep (Geofence Only)
+% ============================================================================
+\begin{table}[t]
+\centering
+\caption{S1: Safety margin formula sensitivity (geofence only).
+  Probe goal at $(7.0, 2.75)$: path passes near zone boundary with
+  critical clearance ${\approx}\SI{0.58}{\meter}$.
+  $M = k_\sigma \sigma + e_\text{track} + v_\text{max}\tau
+  + v_\text{max}^2 / (2a_\text{max})$.
+  FP\,=\,safe probe goal rejected due to conservative margin.}
+\label{tab:s1_sweep}
+\begin{tabular}{@{}ll S[table-format=1.3] r cc@{}}
+\toprule
+Sweep & Value & {Margin [m]} & {$n$} & {TN} & {FP} \\
+\midrule
+\multirow{5}{*}{$\sigma$ [m]}
+ & 0.05 & 0.250 & 9  & 9 & 0 \\
+ & 0.10 & 0.400 & 10 & 9 & 1 \\
+ & 0.15 & 0.550 & 10 & 8 & 2 \\
+ & 0.20 & 0.700 & 10 & 8 & 2 \\
+ & 0.30 & 1.000 & 10 & 7 & 3 \\
+\midrule
+\multirow{3}{*}{$v_\text{max}$ [m/s]}
+ & 0.2 & 0.520 & 8  & 8 & 0 \\
+ & 0.5 & 0.550 & 10 & 8 & 2 \\
+ & 1.0 & 0.600 & 10 & 10 & 0 \\
+\midrule
+\multirow{4}{*}{$\tau$ [s]}
+ & 0.0 & 0.500 & 9  & 8 & 1 \\
+ & 0.1 & 0.550 & 7  & 6 & 1 \\
+ & 0.3 & 0.650 & 9  & 9 & 0 \\
+ & 0.5 & 0.750 & 9  & 8 & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================================
+%  TABLE X: Geofence Failure Analysis
+% ============================================================================
+\begin{table}[t]
+\centering
+\caption{Geofence failure analysis across S1--S5.
+  FN\,=\,zone violation not prevented;
+  FP\,=\,safe goal incorrectly rejected.}
+\label{tab:failure_analysis}
+\begin{tabular}{@{}llrl@{}}
+\toprule
+Scenario & Type & Count & Root Cause \\
+\midrule
+\multirow{2}{*}{S2}
+  & FP & 4/20 & Radial margin rejects near-boundary \\
+  &    &      & safe goal (step\,2, $d{=}\SI{0.5}{\meter}$) \\
+\midrule
+\multirow{2}{*}{S4}
+  & FN & 1/20 & Runtime guard detected deviation but \\
+  &    &      & failed to halt before zone entry \\
+\midrule
+\multirow{2}{*}{S5}
+  & FN & 3/40 & TOCTOU bypass at $\Delta{=}\SI{1.5}{\meter}$: \\
+  &    &      & biased path $y > y_\text{max}^\text{exp}$ \\
+\midrule
+\multicolumn{2}{@{}l}{Total FN} & 4/119 & \textbf{3.4\%} miss rate \\
+\multicolumn{2}{@{}l}{Total FP} & 4/48  & \textbf{8.3\%} over-rejection \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================================
+%  Comparison Methods paragraph for Section V.B
+% ============================================================================
+% Add this to Section V.B (Comparison Methods):
+%
+% \textbf{CBF-Adaptive}는 제안 기법의 동적 안전 마진 공식을 CBF 프레임워크에
+% 적용한 변형이다. 기존 CBF의 고정 마진 대신, 제안하는 마진 공식
+% $M(t) = k_\sigma \sigma_\text{loc}(t) + e_\text{track} + v_\text{max}\tau$
+% 를 barrier function에 적용하여
+% $h(\mathbf{x}) = \text{dist}(\mathbf{x}, \mathcal{Z}) - M(t) \geq 0$
+% 조건으로 동작한다. 런타임에서는 CBF의 속도 투영
+% ($\dot{h} + \alpha h \geq 0$)을 적응형 마진으로 수행한다.
+% 이 비교를 통해 \emph{마진 공식 자체의 기여}와
+% \emph{경로 기반 아키텍처의 기여}를 분리하여 평가한다.
+% CBF-Adaptive는 제안 기법과 동일한 마진 공식을 사용하지만,
+% 목표점만 검사하는 point-based 구조와 순간 속도 투영 기반
+% 런타임 가드를 유지한다.

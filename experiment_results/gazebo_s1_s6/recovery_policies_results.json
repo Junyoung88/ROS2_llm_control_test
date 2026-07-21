@@ -1,0 +1,84 @@
+{
+  "summary": [
+    {
+      "policy": "P1_failstop",
+      "fault": "covariance",
+      "completed": false,
+      "violations": 0,
+      "blocked_passage_s": 110.05,
+      "secondary_stops": 0,
+      "final_x": 5.0,
+      "total_time_s": null
+    },
+    {
+      "policy": "P2_hold_resume",
+      "fault": "covariance",
+      "completed": true,
+      "violations": 0,
+      "blocked_passage_s": 8.05,
+      "secondary_stops": 1,
+      "final_x": 10.0,
+      "total_time_s": 28.05
+    },
+    {
+      "policy": "P3_retreat_replan",
+      "fault": "covariance",
+      "completed": true,
+      "violations": 0,
+      "blocked_passage_s": 0.05,
+      "secondary_stops": 1,
+      "final_x": 10.0,
+      "total_time_s": 32.05
+    },
+    {
+      "policy": "P4_reduced_speed",
+      "fault": "covariance",
+      "completed": true,
+      "violations": 0,
+      "blocked_passage_s": 8.05,
+      "secondary_stops": 1,
+      "final_x": 10.0,
+      "total_time_s": 28.05
+    },
+    {
+      "policy": "P1_failstop",
+      "fault": "velocity_latency",
+      "completed": false,
+      "violations": 0,
+      "blocked_passage_s": 110.05,
+      "secondary_stops": 0,
+      "final_x": 5.0,
+      "total_time_s": null
+    },
+    {
+      "policy": "P2_hold_resume",
+      "fault": "velocity_latency",
+      "completed": true,
+      "violations": 0,
+      "blocked_passage_s": 8.05,
+      "secondary_stops": 1,
+      "final_x": 10.0,
+      "total_time_s": 28.05
+    },
+    {
+      "policy": "P3_retreat_replan",
+      "fault": "velocity_latency",
+      "completed": true,
+      "violations": 0,
+      "blocked_passage_s": 0.05,
+      "secondary_stops": 1,
+      "final_x": 10.0,
+      "total_time_s": 32.05
+    },
+    {
+      "policy": "P4_reduced_speed",
+      "fault": "velocity_latency",
+      "completed": true,
+      "violations": 0,
+      "blocked_passage_s": 0.0,
+      "secondary_stops": 0,
+      "final_x": 10.002,
+      "total_time_s": 20.9
+    }
+  ]
+}

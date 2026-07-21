@@ -1,0 +1,16 @@
+{
+  "experiment_id": "20260213_234656",
+  "started_at": "2026-02-13T23:46:56.052047",
+  "last_updated": "2026-02-13T23:59:05.105762",
+  "total_trials": 75,
+  "completed_trials": 5,
+  "current_trial_idx": 5,
+  "completed_trial_ids": [
+    "S4_no_guard_direct_to_zone_s0",
+    "S4_no_guard_direct_to_zone_s1",
+    "S4_no_guard_direct_to_zone_s2",
+    "S4_no_guard_approved_then_deviate_s0",
+    "S4_no_guard_approved_then_deviate_s1"
+  ],
+  "results_summary": {}
+}

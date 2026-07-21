@@ -1,10 +1,17 @@
 amcl:
   ros__parameters:
-    # Motion model noise (differential drive)
-    alpha1: 0.1   # rotation noise from rotation
-    alpha2: 0.1   # rotation noise from translation
-    alpha3: 0.1   # translation noise from translation
-    alpha4: 0.1   # translation noise from rotation
+    # Motion model noise (differential drive).
+    # Raised 0.1 -> 0.5: a tight motion model over-trusts wheel odometry, which is
+    # (a) unrealistic for a drift-prone real robot and (b) anchors AMCL so hard to
+    # odom that even a perfectly map-consistent spoofed scan cannot pull the
+    # estimate off the true track (the injected pose gets averaged away as lag).
+    # Higher odom noise makes AMCL commit to the (attacked) exteroceptive scan —
+    # the realistic threat surface — and lets a gradual spoof coherently drag the
+    # estimate, while an honest scan still localizes cleanly.
+    alpha1: 0.8   # rotation noise from rotation
+    alpha2: 0.8   # rotation noise from translation
+    alpha3: 0.8   # translation noise from translation
+    alpha4: 0.8   # translation noise from rotation
     alpha5: 0.1   # translation noise (strafe, not used for diff drive)
 
     base_frame_id: "base_footprint"
@@ -26,8 +33,11 @@ amcl:
     laser_min_range: 0.1
     max_beams: 180
     sigma_hit: 0.15
-    z_hit: 0.7
-    z_rand: 0.3
+    # Trust the scan more (lower uniform z_rand) so AMCL commits to the scan —
+    # smooth tracking when clean, and a COHERENT mislocalization when a
+    # consistently-spoofed scan is injected (reliable lure, not chaotic jitter).
+    z_hit: 0.85
+    z_rand: 0.15
     z_max: 0.0
     z_short: 0.0
 
@@ -38,9 +48,13 @@ amcl:
     beam_skip_threshold: 0.3
     lambda_short: 0.1
 
-    # Recovery (enabled for robustness)
-    recovery_alpha_fast: 0.1
-    recovery_alpha_slow: 0.001
+    # Recovery DISABLED: random-particle injection was teleporting the clean
+    # estimate by up to ~2.5m (false-alarm source for the spoof detector, and it
+    # let the clean baseline drift into the zone). With recovery off, AMCL stays
+    # committed to the odom+scan track — smooth when honest, coherently pulled
+    # when spoofed.
+    recovery_alpha_fast: 0.0
+    recovery_alpha_slow: 0.0
 
     # Update thresholds (more frequent updates)
     update_min_a: 0.1

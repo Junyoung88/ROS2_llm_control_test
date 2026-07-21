@@ -1,0 +1,242 @@
+[
+  {
+    "error": "odom_timeout",
+    "trial_id": "no_brake_a0.1_s0",
+    "seed": 0
+  },
+  {
+    "error": "odom_timeout",
+    "trial_id": "no_brake_a0.2_s0",
+    "seed": 0
+  },
+  {
+    "error": "odom_timeout",
+    "trial_id": "no_brake_a0.5_s0",
+    "seed": 0
+  },
+  {
+    "error": "odom_timeout",
+    "trial_id": "no_brake_a1.0_s0",
+    "seed": 0
+  },
+  {
+    "error": "odom_timeout",
+    "trial_id": "with_brake_a0.1_s0",
+    "seed": 0
+  },
+  {
+    "error": "odom_timeout",
+    "trial_id": "with_brake_a0.2_s0",
+    "seed": 0
+  },
+  {
+    "error": "odom_timeout",
+    "trial_id": "with_brake_a0.5_s0",
+    "seed": 0
+  },
+  {
+    "error": "odom_timeout",
+    "trial_id": "with_brake_a1.0_s0",
+    "seed": 0
+  },
+  {
+    "error": "odom_timeout",
+    "trial_id": "no_brake_a0.1_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 0.2,
+    "use_braking_term": false,
+    "M_guard": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 4.6942,
+    "violation": true,
+    "penetration_m": 0.6942,
+    "expected_pen_m": 0.125,
+    "n_traj": 551,
+    "trial_id": "no_brake_a0.2_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 0.5,
+    "use_braking_term": false,
+    "M_guard": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 4.7991,
+    "violation": true,
+    "penetration_m": 0.7991,
+    "expected_pen_m": -0.25,
+    "n_traj": 55,
+    "trial_id": "no_brake_a0.5_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 1.0,
+    "use_braking_term": false,
+    "M_guard": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 5.0009,
+    "violation": true,
+    "penetration_m": 1.0009,
+    "expected_pen_m": -0.375,
+    "n_traj": 30,
+    "trial_id": "no_brake_a1.0_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 0.1,
+    "use_braking_term": true,
+    "M_guard": 1.8,
+    "trigger_x": 2.2,
+    "final_x": 5.5187,
+    "violation": true,
+    "penetration_m": 1.5187,
+    "expected_pen_m": 0.75,
+    "n_traj": 224,
+    "trial_id": "with_brake_a0.1_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 0.2,
+    "use_braking_term": true,
+    "M_guard": 1.175,
+    "trigger_x": 2.825,
+    "final_x": 6.2617,
+    "violation": true,
+    "penetration_m": 2.2617,
+    "expected_pen_m": 0.125,
+    "n_traj": 1,
+    "trial_id": "with_brake_a0.2_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 0.5,
+    "use_braking_term": true,
+    "M_guard": 0.8,
+    "trigger_x": 3.2,
+    "final_x": 6.2617,
+    "violation": true,
+    "penetration_m": 2.2617,
+    "expected_pen_m": -0.25,
+    "n_traj": 1,
+    "trial_id": "with_brake_a0.5_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 1.0,
+    "use_braking_term": true,
+    "M_guard": 0.675,
+    "trigger_x": 3.325,
+    "final_x": 6.2617,
+    "violation": true,
+    "penetration_m": 2.2617,
+    "expected_pen_m": -0.375,
+    "n_traj": 1,
+    "trial_id": "with_brake_a1.0_s1",
+    "seed": 1
+  },
+  {
+    "a_max": 0.1,
+    "use_braking_term": false,
+    "M_guard": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 6.2617,
+    "violation": true,
+    "penetration_m": 2.2617,
+    "expected_pen_m": 0.75,
+    "n_traj": 1,
+    "trial_id": "no_brake_a0.1_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 0.2,
+    "use_braking_term": false,
+    "M_guard": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 6.2617,
+    "violation": true,
+    "penetration_m": 2.2617,
+    "expected_pen_m": 0.125,
+    "n_traj": 1,
+    "trial_id": "no_brake_a0.2_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 0.5,
+    "use_braking_term": false,
+    "M_guard": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 6.2617,
+    "violation": true,
+    "penetration_m": 2.2617,
+    "expected_pen_m": -0.25,
+    "n_traj": 1,
+    "trial_id": "no_brake_a0.5_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 1.0,
+    "use_braking_term": false,
+    "M_guard": 0.55,
+    "trigger_x": 3.45,
+    "final_x": 6.2617,
+    "violation": true,
+    "penetration_m": 2.2617,
+    "expected_pen_m": -0.375,
+    "n_traj": 1,
+    "trial_id": "no_brake_a1.0_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 0.1,
+    "use_braking_term": true,
+    "M_guard": 1.8,
+    "trigger_x": 2.2,
+    "final_x": 6.2617,
+    "violation": true,
+    "penetration_m": 2.2617,
+    "expected_pen_m": 0.75,
+    "n_traj": 1,
+    "trial_id": "with_brake_a0.1_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 0.2,
+    "use_braking_term": true,
+    "M_guard": 1.175,
+    "trigger_x": 2.825,
+    "final_x": 6.2617,
+    "violation": true,
+    "penetration_m": 2.2617,
+    "expected_pen_m": 0.125,
+    "n_traj": 1,
+    "trial_id": "with_brake_a0.2_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 0.5,
+    "use_braking_term": true,
+    "M_guard": 0.8,
+    "trigger_x": 3.2,
+    "final_x": 6.2617,
+    "violation": true,
+    "penetration_m": 2.2617,
+    "expected_pen_m": -0.25,
+    "n_traj": 1,
+    "trial_id": "with_brake_a0.5_s2",
+    "seed": 2
+  },
+  {
+    "a_max": 1.0,
+    "use_braking_term": true,
+    "M_guard": 0.675,
+    "trigger_x": 3.325,
+    "final_x": 6.2617,
+    "violation": true,
+    "penetration_m": 2.2617,
+    "expected_pen_m": -0.375,
+    "n_traj": 1,
+    "trial_id": "with_brake_a1.0_s2",
+    "seed": 2
+  }
+]

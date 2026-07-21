@@ -1,0 +1,118 @@
+The daemon has been started
+Generated 1 trials
+Methods: ['geofence']
+Scenarios: ['S5']
+Seeds: 1 (offset=0, range=s0-s0)
+Include sweep: True
+Runtime monitoring: False
+
+Trials by scenario: {'S5': 1}
+Trials by method: {'geofence': 1}
+[2026-02-09 22:50:32] ============================================================
+[2026-02-09 22:50:32] Starting Gazebo S1-S5 Experiment
+[2026-02-09 22:50:32] ============================================================
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[2026-02-09 22:50:35] 
+============================================================
+[2026-02-09 22:50:35] Method: geofence
+[2026-02-09 22:50:35] ============================================================
+[2026-02-09 22:50:35] [WORLD] Starting with empty.sdf for scenarios: ['S5']
+[DEBUG] restart_with_method called: method=geofence, params={}, world=empty.sdf
+[SIM] Full restart for method: geofence (world: empty.sdf)
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[SIM] Starting Gazebo with HARDWARE GUARD bridge config (method: geofence)
+[SIM] Starting Gazebo...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] Using HARDWARE GUARD bridge config (/cmd_vel_safe → Gazebo)
+[SIM] Waiting for Gazebo (90s)...
+[SIM] Gazebo started successfully
+[SIM] Starting odom relay (odom_real → odom)...
+[SIM] Odom relay started
+[SIM] Starting scan relay (scan_real → scan)...
+[SIM] Scan relay started, verifying /scan topic...
+[SIM] /scan topic verified - data flowing
+[SIM] Auto-disabling AMCL for empty world (no LIDAR features)
+[SIM] Starting Nav2...
+[SIM] AMCL disabled - using dead reckoning only
+[SIM] Waiting for Nav2 initial startup (90s)...
+[NAV2] local_costmap: found
+[NAV2] navigate_to_pose action: found
+[NAV2] Costmap publishing: OK
+[NAV2] All systems ready!
+[SIM] Final verification: checking navigate_to_pose action...
+[SIM] Nav2 started successfully and action server verified!
+[SIM] Starting geofence with method: geofence, params: {}
+[SIM] Using FULL INTERCEPTION mode (/cmd_vel_nav → guard → /cmd_vel_safe)
+[SIM] Waiting for geofence (20s)...
+[SIM] Geofence started with method: geofence (cmd_vel_guard: True)
+[2026-02-09 22:53:36] 
+Trial 1/1: S5_geofence_odom_spoof_s0
+[2026-02-09 22:53:36]   Goal: (5.00, 1.50)
+[2026-02-09 22:53:36]   Odom spoof -3m: spoofed path misses zone, real path grazes
+[2026-02-09 22:53:36] [RESET] Resetting robot pose to origin...
+[RESET] Teleporting robot to (0.0, 0.0, θ=0.0)
+[RESET] Cancelling any active navigation goals...
+[RESET] Stopping robot movement...
+[RESET] Waiting for TF to stabilize...
+[RESET] Setting AMCL initial pose...
+[WARNING] Robot reset failed: Command 'source /opt/ros/jazzy/setup.bash && ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped '{
+                    header: {frame_id: "map"},
+                    pose: {
+                        pose: {
+                            position: {x: 0.0, y: 0.0, z: 0.0},
+                            orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+                        },
+                        covariance: [0.001, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                     0.0, 0.001, 0.0, 0.0, 0.0, 0.0,
+                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.001]
+                    }
+                }'' timed out after 5 seconds
+[2026-02-09 22:54:04] [WARN] Robot pose reset may have failed, continuing anyway...
+[2026-02-09 22:54:10] [S5] Starting odom_spoofing attack (scale=1.0, offset=(-3.0, 0.0))
+[ATTACK] Starting odom_spoofing attack with scale=1.0, offset=(-3.0, 0.0)
+[ATTACK] Stopping odom relay for odom spoofing attack...
+[ATTACK] odom_spoofing attack started successfully
+[2026-02-09 22:54:18] [S4] Stopping odom_spoofing attack
+[ATTACK] Restarting odom relay after odom spoofing attack...
+[SIM] Starting odom relay (odom_real → odom)...
+[SIM] Odom relay started
+[2026-02-09 22:54:21]   Result: reject (FAIL)
+[2026-02-09 22:54:21]   Reason: Goal rejected by geofence (within safety margin)
+[2026-02-09 22:54:21]   Time: 45.0s
+[2026-02-09 22:54:21]   Robot moved: False, path_min_dist: 4.00m
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[2026-02-09 22:54:35] 
+================================================================================
+[2026-02-09 22:54:35] CONFUSION MATRIX SUMMARY BY METHOD
+[2026-02-09 22:54:35] ================================================================================
+
+Method         Total   TP   FP   TN   FN INFRA   Prec    Rec     F1     VR     Hz  Lat(ms)
+------------------------------------------------------------------------------------------
+geofence           1    1    0    0    0     0  1.00  1.00  1.00   0.0%   6.4  2527.9
+[2026-02-09 22:54:35] 
+--------------------------------------------------------------------------------
+[2026-02-09 22:54:35] BOOTSTRAP 95% CONFIDENCE INTERVALS
+[2026-02-09 22:54:35] --------------------------------------------------------------------------------
+
+Method                  Prec CI           Rec CI            F1 CI            VR CI
+----------------------------------------------------------------------------------
+geofence       [1.00,1.00]  [1.00,1.00]  [1.00,1.00]  [0.0,0.0]%
+[2026-02-09 22:54:35] 
+--------------------------------------------------------------------------------
+[2026-02-09 22:54:35] GEOFENCE MARGIN ANALYSIS
+[2026-02-09 22:54:35] Geofence margin = k_sigma * sigma_loc + e_track + v_max * tau = 3 * 0.15 + 0.05 + 0.5 * 0.1 = 0.55m. Expanded zone y_max = 1.0 + 0.55 = 1.55m. S3 clip_boundary (7,1.2): at x=4, y=0.69 (in zone); at x=5.83, y=1.0 (exits zone). Path clips zone upper boundary.
+[2026-02-09 22:54:35] 
+============================================================
+[2026-02-09 22:54:35] Experiment Complete!
+[2026-02-09 22:54:35] ============================================================

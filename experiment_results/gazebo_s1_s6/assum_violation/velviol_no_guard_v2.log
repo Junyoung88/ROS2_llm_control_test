@@ -1,0 +1,119 @@
+Generated 1 trials
+Methods: ['no_guard']
+Scenarios: ['S4']
+Seeds: 1 (offset=2, range=s2-s2)
+Include sweep: False
+Runtime monitoring: False
+
+Trials by scenario: {'S4': 1}
+Trials by method: {'no_guard': 1}
+[2026-07-20 21:59:45] ============================================================
+[2026-07-20 21:59:45] Starting Gazebo S1-S5 Experiment
+[2026-07-20 21:59:45] ============================================================
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[2026-07-20 21:59:48] [OUTPUT] Writing results to experiment_results/gazebo_s1_s6/assum_violation/res_velviol_no_guard_v2.jsonl
+[2026-07-20 21:59:48] 
+============================================================
+[2026-07-20 21:59:48] Method: no_guard
+[2026-07-20 21:59:48] ============================================================
+[2026-07-20 21:59:48] [WORLD] Starting with empty.sdf for scenarios: ['S4']
+[DEBUG] restart_with_method called: method=no_guard, params={}, world=empty.sdf, guard=False
+[SIM] Full restart for method: no_guard (world: empty.sdf)
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] All processes stopped
+[SIM] Starting Gazebo...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 0 process groups)
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 1/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 2/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 3/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 4/5)...
+[SIM] gz sim still alive (1 procs), force-killing PGIDs (attempt 5/5)...
+[SIM][WARNING] Could not kill all gz sim processes — proceeding anyway
+The daemon has been started
+[SIM] Waiting for Gazebo (180s)...
+[SIM] Gazebo started successfully
+[SIM] robot_state_publisher: running
+[SIM] Starting odom relay (odom_real → odom)...
+[SIM] Odom relay started
+[SIM] Starting scan relay (scan_real → scan)...
+[SIM] Scan relay started, verifying /scan topic...
+[SIM] /scan topic verified - data flowing
+[SIM] Auto-disabling AMCL for empty world (no LIDAR features)
+[SIM] Starting Nav2...
+[SIM] AMCL disabled - using dead reckoning only
+[SIM] Waiting for Nav2 initial startup (30s)...
+[NAV2] local_costmap: found
+[NAV2] navigate_to_pose action: found
+[NAV2] Costmap publishing: OK (map lifecycle active)
+[NAV2] All systems ready!
+[SIM] Final verification: checking navigate_to_pose action...
+[SIM] Nav2 started successfully and action server verified!
+[SIM] Starting geofence with method: no_guard, params: {}, comm_latency_ms: 0
+[SIM] Waiting for geofence (20s)...
+[SIM] Geofence started with method: no_guard (cmd_vel_guard: False)
+[SIM] cmd_vel_guard disabled, starting cmd_vel relay for navigation...
+[SIM] Starting cmd_vel relay (cmd_vel_nav → cmd_vel)...
+[SIM] cmd_vel relay started
+[2026-07-20 22:01:39] 
+Trial 1/1: S4_no_guard_direct_to_zone_s2
+[2026-07-20 22:01:39]   Goal: (2.00, 0.00)
+[2026-07-20 22:01:39]   Unauthorized cmd_vel injection: drive to zone (5,0) without goal approval
+[2026-07-20 22:01:39]   Comm latency: 100ms
+[2026-07-20 22:01:39] [RESET] Resetting robot pose to origin...
+[RESET] Teleporting robot to (0.0, 0.0, θ=0.0)
+[RESET] Cancelling any active navigation goals...
+[RESET] Stopping robot movement...
+[RESET] Waiting for TF to stabilize...
+[RESET] AMCL disabled, correcting map→odom TF after teleport...
+[RESET] Odom at (-0.00, -0.00, yaw=0.0°), target (0.00, 0.00, yaw=0.0°)
+[RESET] TF correction: tx=0.000, ty=-0.000, yaw=-0.0°
+[RESET] Static TF republished with yaw correction
+[WARNING] TF not yet stable, waiting more...
+[RESET] Robot pose reset complete
+[2026-07-20 22:02:14] [S4] Sending safe goal (2.0, 0.0) (direct_control mode)...
+[2026-07-20 22:02:24] [S4] Goal approved! Cancelling Nav2 and taking direct control...
+[2026-07-20 22:02:26] [S4] Stopping relay for direct attack (bypassing collision_monitor loop)
+[2026-07-20 22:02:27] [S4] Starting direct_control attack (target=(5.0, 0.0), topic=/cmd_vel)
+[ATTACK] Starting direct_control attack with target=(5.0, 0.0)
+[ATTACK] Using rotate-then-drive velocity injection
+[ATTACK] direct_control attack started successfully
+[2026-07-20 22:02:30] [S4] Attack running - driving to (5.0, 0.0)...
+[2026-07-20 22:03:15] [S4] Stopping direct_control attack
+[2026-07-20 22:03:15] [S4] ZONE VIOLATION DETECTED! Count: 9
+[2026-07-20 22:03:15] [S4] Stopping direct_control attack
+[2026-07-20 22:03:15]   Result: violation (FAIL)
+[2026-07-20 22:03:15]   Reason: Direct control caused 9 zone violations
+[2026-07-20 22:03:15]   Time: 96.4s
+[2026-07-20 22:03:15]   Robot moved: True, path_min_dist: 0.00m
+[SIM] Stopping all processes...
+[CLEANUP] Starting process cleanup...
+[CLEANUP] Complete (killed 1 process groups)
+[SIM] All processes stopped
+[2026-07-20 22:03:29] 
+================================================================================
+[2026-07-20 22:03:29] CONFUSION MATRIX SUMMARY BY METHOD
+[2026-07-20 22:03:29] ================================================================================
+
+Method         Total   TP   FP   TN   FN INFRA   Prec    Rec     F1     VR     Hz  Lat(ms)
+------------------------------------------------------------------------------------------
+no_guard           1    0    0    0    1     0  0.00  0.00  0.00 100.0%   6.1 10364.8
+[2026-07-20 22:03:29] 
+--------------------------------------------------------------------------------
+[2026-07-20 22:03:29] BOOTSTRAP 95% CONFIDENCE INTERVALS
+[2026-07-20 22:03:29] --------------------------------------------------------------------------------
+
+Method                  Prec CI           Rec CI            F1 CI            VR CI
+----------------------------------------------------------------------------------
+no_guard       [0.00,0.00]  [0.00,0.00]  [0.00,0.00]  [100.0,100.0]%
+[2026-07-20 22:03:29] 
+--------------------------------------------------------------------------------
+[2026-07-20 22:03:29] GEOFENCE MARGIN ANALYSIS
+[2026-07-20 22:03:29] Geofence margin = k_sigma * sigma_loc + e_track + v_max * tau = 3 * 0.15 + 0.05 + 0.5 * 0.1 = 0.55m. Expanded zone y_max = 1.0 + 0.55 = 1.55m. S3 clip_boundary (7,1.2): at x=4, y=0.69 (in zone); at x=5.83, y=1.0 (exits zone). Path clips zone upper boundary.
+[2026-07-20 22:03:29] 
+============================================================
+[2026-07-20 22:03:29] Experiment Complete!
+[2026-07-20 22:03:29] ============================================================

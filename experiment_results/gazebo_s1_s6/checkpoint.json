@@ -1,0 +1,16 @@
+{
+  "experiment_id": "20260713_212449",
+  "started_at": "2026-07-13T21:24:49.934233",
+  "last_updated": "2026-07-13T21:46:51.031408",
+  "total_trials": 6,
+  "completed_trials": 5,
+  "current_trial_idx": 5,
+  "completed_trial_ids": [
+    "S5_geofence_scan_rot_30_s0",
+    "S5_geofence_scan_rot_30_s1",
+    "S5_geofence_scan_rot_30_s2",
+    "S5_geofence_scan_rot_30_s3",
+    "S5_geofence_scan_rot_30_s4"
+  ],
+  "results_summary": {}
+}

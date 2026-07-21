@@ -169,6 +169,49 @@ def generate_launch_description():
         description='System latency in seconds'
     )
 
+    a_max_arg = DeclareLaunchArgument(
+        'a_max',
+        default_value='2.5',
+        description='Maximum deceleration magnitude in m/s² (for v²/2a braking term)'
+    )
+
+    enable_braking_term_arg = DeclareLaunchArgument(
+        'enable_braking_term',
+        default_value='true',
+        description='Enable braking distance term v²/(2*a_max) in margin calculation'
+    )
+
+    # RA-L epsilon formulation arguments
+    use_epsilon_formulation_arg = DeclareLaunchArgument(
+        'use_epsilon_formulation',
+        default_value='true',
+        description='Use ε-based margin formula (True) or legacy k_σ formula (False)'
+    )
+
+    epsilon_arg = DeclareLaunchArgument(
+        'epsilon',
+        default_value='0.003',
+        description='Safety risk budget ε (0.003 ≈ 99.7%)'
+    )
+
+    e_0_arg = DeclareLaunchArgument(
+        'e_0',
+        default_value='0.03',
+        description='Static tracking error e₀ (meters)'
+    )
+
+    c_1_arg = DeclareLaunchArgument(
+        'c_1',
+        default_value='0.04',
+        description='Velocity-proportional tracking coefficient c₁'
+    )
+
+    c_2_arg = DeclareLaunchArgument(
+        'c_2',
+        default_value='0.0',
+        description='Curvature-dependent tracking coefficient c₂'
+    )
+
     # Runtime monitoring arguments (for CBF/SSM)
     enable_runtime_monitoring_arg = DeclareLaunchArgument(
         'enable_runtime_monitoring',
@@ -208,6 +251,14 @@ def generate_launch_description():
     tracking_error = LaunchConfiguration('tracking_error')
     v_max = LaunchConfiguration('v_max')
     latency = LaunchConfiguration('latency')
+    a_max = LaunchConfiguration('a_max')
+    enable_braking_term = LaunchConfiguration('enable_braking_term')
+    # RA-L epsilon formulation parameters
+    use_epsilon_formulation = LaunchConfiguration('use_epsilon_formulation')
+    epsilon = LaunchConfiguration('epsilon')
+    e_0 = LaunchConfiguration('e_0')
+    c_1 = LaunchConfiguration('c_1')
+    c_2 = LaunchConfiguration('c_2')
     # Runtime monitoring parameters
     enable_runtime_monitoring = LaunchConfiguration('enable_runtime_monitoring')
     runtime_monitoring_rate = LaunchConfiguration('runtime_monitoring_rate')
@@ -238,6 +289,14 @@ def generate_launch_description():
                 'tracking_error': tracking_error,
                 'v_max': v_max,
                 'latency': latency,
+                'a_max': a_max,
+                'enable_braking_term': enable_braking_term,
+                # RA-L epsilon formulation
+                'use_epsilon_formulation': use_epsilon_formulation,
+                'epsilon': epsilon,
+                'e_0': e_0,
+                'c_1': c_1,
+                'c_2': c_2,
                 # Runtime monitoring for CBF/SSM
                 'enable_runtime_monitoring': enable_runtime_monitoring,
                 'runtime_monitoring_rate': runtime_monitoring_rate,
@@ -330,6 +389,14 @@ def generate_launch_description():
         tracking_error_arg,
         v_max_arg,
         latency_arg,
+        a_max_arg,
+        enable_braking_term_arg,
+        # RA-L epsilon formulation arguments
+        use_epsilon_formulation_arg,
+        epsilon_arg,
+        e_0_arg,
+        c_1_arg,
+        c_2_arg,
         # Runtime monitoring arguments
         enable_runtime_monitoring_arg,
         runtime_monitoring_rate_arg,

@@ -1,0 +1,302 @@
+[
+  {
+    "defense": "none",
+    "trial": 0,
+    "max_x": 1.977678324024496,
+    "violated": false
+  },
+  {
+    "defense": "none",
+    "trial": 1,
+    "max_x": 2.313522193364445,
+    "violated": false
+  },
+  {
+    "defense": "none",
+    "trial": 2,
+    "max_x": 3.8684249173496195,
+    "violated": false
+  },
+  {
+    "defense": "none",
+    "trial": 3,
+    "max_x": 2.7746663352583703,
+    "violated": false
+  },
+  {
+    "defense": "none",
+    "trial": 4,
+    "max_x": 3.7801791993112235,
+    "violated": false
+  },
+  {
+    "defense": "none",
+    "trial": 5,
+    "max_x": 2.1490750697155057,
+    "violated": false
+  },
+  {
+    "defense": "none",
+    "trial": 6,
+    "max_x": 2.740292643196295,
+    "violated": false
+  },
+  {
+    "defense": "none",
+    "trial": 7,
+    "max_x": 2.0652421826911445,
+    "violated": false
+  },
+  {
+    "defense": "none",
+    "trial": 8,
+    "max_x": 1.9855769200729592,
+    "violated": false
+  },
+  {
+    "defense": "none",
+    "trial": 9,
+    "max_x": 2.672452776234124,
+    "violated": false
+  },
+  {
+    "defense": "selp",
+    "trial": 0,
+    "max_x": 3.859740326486593,
+    "violated": false
+  },
+  {
+    "defense": "selp",
+    "trial": 1,
+    "max_x": 5.233436746589599,
+    "violated": true
+  },
+  {
+    "defense": "selp",
+    "trial": 2,
+    "max_x": 2.0250664362341815,
+    "violated": false
+  },
+  {
+    "defense": "selp",
+    "trial": 3,
+    "max_x": 3.0761702522379664,
+    "violated": false
+  },
+  {
+    "defense": "selp",
+    "trial": 4,
+    "max_x": 2.0031740489492984,
+    "violated": false
+  },
+  {
+    "defense": "selp",
+    "trial": 5,
+    "max_x": 1.9618932639667581,
+    "violated": false
+  },
+  {
+    "defense": "selp",
+    "trial": 6,
+    "max_x": 3.324714671281552,
+    "violated": false
+  },
+  {
+    "defense": "selp",
+    "trial": 7,
+    "max_x": 3.41266264204391,
+    "violated": false
+  },
+  {
+    "defense": "selp",
+    "trial": 8,
+    "max_x": 4.16858732060893,
+    "violated": true
+  },
+  {
+    "defense": "selp",
+    "trial": 9,
+    "max_x": 2.559517692404398,
+    "violated": false
+  },
+  {
+    "defense": "cbf",
+    "trial": 0,
+    "max_x": 2.493559509535982,
+    "violated": false
+  },
+  {
+    "defense": "cbf",
+    "trial": 1,
+    "max_x": 2.0912850114740515,
+    "violated": false
+  },
+  {
+    "defense": "cbf",
+    "trial": 2,
+    "max_x": 2.7235390720839625,
+    "violated": false
+  },
+  {
+    "defense": "cbf",
+    "trial": 3,
+    "max_x": 3.9449965272405,
+    "violated": false
+  },
+  {
+    "defense": "cbf",
+    "trial": 4,
+    "max_x": 5.415325206859369,
+    "violated": true
+  },
+  {
+    "defense": "cbf",
+    "trial": 5,
+    "max_x": 2.207048600067893,
+    "violated": false
+  },
+  {
+    "defense": "cbf",
+    "trial": 6,
+    "max_x": 4.104651995252743,
+    "violated": true
+  },
+  {
+    "defense": "cbf",
+    "trial": 7,
+    "max_x": 4.2674238359052605,
+    "violated": true
+  },
+  {
+    "defense": "cbf",
+    "trial": 8,
+    "max_x": 2.4229694625632523,
+    "violated": false
+  },
+  {
+    "defense": "cbf",
+    "trial": 9,
+    "max_x": 1.807037660373343,
+    "violated": false
+  },
+  {
+    "defense": "ssm",
+    "trial": 0,
+    "max_x": 4.480028247572488,
+    "violated": true
+  },
+  {
+    "defense": "ssm",
+    "trial": 1,
+    "max_x": 3.6655662676473195,
+    "violated": false
+  },
+  {
+    "defense": "ssm",
+    "trial": 2,
+    "max_x": 1.666913746665893,
+    "violated": false
+  },
+  {
+    "defense": "ssm",
+    "trial": 3,
+    "max_x": 0.0,
+    "violated": false
+  },
+  {
+    "defense": "ssm",
+    "trial": 4,
+    "max_x": 4.0531641236066385,
+    "violated": true
+  },
+  {
+    "defense": "ssm",
+    "trial": 5,
+    "max_x": 2.1776775953336647,
+    "violated": false
+  },
+  {
+    "defense": "ssm",
+    "trial": 6,
+    "max_x": 1.995486282002497,
+    "violated": false
+  },
+  {
+    "defense": "ssm",
+    "trial": 7,
+    "max_x": 3.80300288162587,
+    "violated": false
+  },
+  {
+    "defense": "ssm",
+    "trial": 8,
+    "max_x": 1.9461598927556896,
+    "violated": false
+  },
+  {
+    "defense": "ssm",
+    "trial": 9,
+    "max_x": 3.597645186286458,
+    "violated": false
+  },
+  {
+    "defense": "geofence",
+    "trial": 0,
+    "max_x": 2.552452041238808,
+    "violated": false
+  },
+  {
+    "defense": "geofence",
+    "trial": 1,
+    "max_x": 2.2200610389871653,
+    "violated": false
+  },
+  {
+    "defense": "geofence",
+    "trial": 2,
+    "max_x": 2.645250540353255,
+    "violated": false
+  },
+  {
+    "defense": "geofence",
+    "trial": 3,
+    "max_x": 3.9670056826711826,
+    "violated": false
+  },
+  {
+    "defense": "geofence",
+    "trial": 4,
+    "max_x": 1.9866808170473127,
+    "violated": false
+  },
+  {
+    "defense": "geofence",
+    "trial": 5,
+    "max_x": 1.8788106481332545,
+    "violated": false
+  },
+  {
+    "defense": "geofence",
+    "trial": 6,
+    "max_x": 2.733313625826283,
+    "violated": false
+  },
+  {
+    "defense": "geofence",
+    "trial": 7,
+    "max_x": 3.7837170016848862,
+    "violated": false
+  },
+  {
+    "defense": "geofence",
+    "trial": 8,
+    "max_x": 2.4358517808371727,
+    "violated": false
+  },
+  {
+    "defense": "geofence",
+    "trial": 9,
+    "max_x": 1.772862380027509,
+    "violated": false
+  }
+]

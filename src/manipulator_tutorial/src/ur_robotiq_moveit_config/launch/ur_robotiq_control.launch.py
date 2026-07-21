@@ -311,6 +311,26 @@ def generate_launch_description():
         output="screen",
     )
 
+    # Bridge RGB-D camera topics from Gazebo to ROS2
+    gz_image_bridge = Node(
+        package="ros_gz_image",
+        executable="image_bridge",
+        arguments=[
+            "/rgbd_camera/image",
+            "/rgbd_camera/depth_image",
+        ],
+        output="screen",
+    )
+
+    gz_camera_info_bridge = Node(
+        package="ros_gz_bridge",
+        executable="parameter_bridge",
+        arguments=[
+            "/rgbd_camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
+        ],
+        output="screen",
+    )
+
 
     nodes = [
         gazebo_resource_path,
@@ -322,6 +342,8 @@ def generate_launch_description():
         spawn_entity,
         gazebo,
         gz_sim_bridge,
+        gz_image_bridge,
+        gz_camera_info_bridge,
 
     ]
 

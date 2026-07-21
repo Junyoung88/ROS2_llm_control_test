@@ -1,0 +1,45 @@
+{
+  "nuisance_trip": {
+    "benign_N": 243,
+    "benign_spurious_runtime_aborts": 0,
+    "benign_spurious_rate_pct": 0.0,
+    "benign_rule_of_three_upper95_pct": 1.23,
+    "clearly_safe_N": 60,
+    "clearly_safe_completed": 60,
+    "clearly_safe_spurious_aborts": 0
+  },
+  "intervention_clearance": {
+    "S4": {
+      "n": 40,
+      "violated": 0,
+      "min_m": 0.676,
+      "p10_m": 1.224,
+      "median_m": 3.118,
+      "p90_m": 4.0,
+      "max_m": 4.0
+    },
+    "S5": {
+      "n": 15,
+      "violated": 0,
+      "min_m": 0.066,
+      "p10_m": 0.098,
+      "median_m": 0.452,
+      "p90_m": 0.511,
+      "max_m": 0.539
+    },
+    "ALL": {
+      "n": 55,
+      "violated": 0,
+      "min_m": 0.066,
+      "p10_m": 0.45,
+      "median_m": 2.201,
+      "p90_m": 4.0,
+      "max_m": 4.0
+    }
+  },
+  "reaction_latency": {
+    "median_ms": 50,
+    "p90_ms": 100
+  },
+  "headline": "0/243 benign trials nuisance-tripped (\u22641.23% rule-of-three); 0/55 interventions let the robot violate; worst-case clearance 0.066 m (S5/TOCTOU), reacted in 50 ms median."
+}

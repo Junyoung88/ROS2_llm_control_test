@@ -49,7 +49,7 @@ from tf_transformations import euler_from_quaternion, quaternion_from_euler
 
 from .geofence_core import (
     GeofencePolicy, PolicyAction, PolicyDecision, ZoneType,
-    VelocityMonitor, LatencyMonitor, TrackingErrorMonitor
+    UncertaintyParams, VelocityMonitor, LatencyMonitor, TrackingErrorMonitor
 )
 
 # Import new safety baselines (SELP, CBF, Static Margin, SSM)
@@ -57,6 +57,9 @@ from .safety_baselines import (
     SELPSpatialSafety, CBFSpatialSafety, StaticMarginSafety, SSMSpatialSafety,
     SafetyDecision, SafetyResult
 )
+
+# Import RoboGuard baseline (Diemert et al., 2024 — adapted)
+from .roboguard_baseline import RoboGuardBaseline
 
 
 # ============================================================================
@@ -587,6 +590,15 @@ class GoalGateNode(Node):
         self.declare_parameter('tracking_error', 0.05)
         self.declare_parameter('v_max', 0.5)
         self.declare_parameter('latency', 0.1)
+        self.declare_parameter('a_max', 2.5)
+        self.declare_parameter('enable_braking_term', True)
+
+        # RA-L epsilon formulation parameters
+        self.declare_parameter('use_epsilon_formulation', True)
+        self.declare_parameter('epsilon', 0.003)
+        self.declare_parameter('e_0', 0.03)
+        self.declare_parameter('c_1', 0.04)
+        self.declare_parameter('c_2', 0.0)
 
         # Load geofence policy
         config_path = self.get_parameter('geofence_config').get_parameter_value().string_value
@@ -598,6 +610,18 @@ class GoalGateNode(Node):
         self.policy.uncertainty.tracking_error = self.get_parameter('tracking_error').value
         self.policy.uncertainty.v_max = self.get_parameter('v_max').value
         self.policy.uncertainty.latency = self.get_parameter('latency').value
+        self.policy.uncertainty.a_max = self.get_parameter('a_max').value
+        self.policy.uncertainty.enable_braking_term = self.get_parameter('enable_braking_term').value
+
+        # Apply RA-L epsilon formulation parameters
+        self.policy.uncertainty.use_epsilon_formulation = self.get_parameter('use_epsilon_formulation').value
+        self.policy.uncertainty.epsilon = self.get_parameter('epsilon').value
+        self.policy.uncertainty.e_0 = self.get_parameter('e_0').value
+        self.policy.uncertainty.c_1 = self.get_parameter('c_1').value
+        self.policy.uncertainty.c_2 = self.get_parameter('c_2').value
+        # Recompute z-quantile from epsilon
+        self.policy.uncertainty._z_quantile = UncertaintyParams._compute_z_quantile(
+            self.policy.uncertainty.epsilon)
 
         # Apply ablation settings to policy
         self.policy.uncertainty.enable_estimation_term = self.get_parameter('enable_estimation_term').value
@@ -821,6 +845,11 @@ class GoalGateNode(Node):
         # Default margin = 0.3m (can be tuned for comparison)
         self.cbf_checker = CBFSpatialSafety(gamma=1.0, margin=0.3)
 
+        # CBF-Inflated: CBF with geofence's dynamic margin M(t)
+        # Uses same margin formula as geofence but point-based checking (no path check)
+        cbf_inflated_margin = self.policy.get_safety_margin()
+        self.cbf_inflated_checker = CBFSpatialSafety(gamma=1.0, margin=cbf_inflated_margin)
+
         # Static Margin: Fixed costmap-style inflation
         # Default margin = 0.5m (typical ROS Nav2 inflation_radius)
         self.static_margin_checker = StaticMarginSafety(margin=0.5)
@@ -834,10 +863,19 @@ class GoalGateNode(Node):
             base_margin=0.2         # Minimum margin when stationary (m)
         )
 
-        self.get_logger().info('Initialized safety baselines: CBF, Static Margin, SSM, SELP-proper')
+        # RoboGuard: Two-stage guardrail baseline (Ravichandran et al., 2024)
+        # Stage 1: ground safety rules into LTL constraints via simulated root-of-trust LLM
+        # Stage 2: validate plan through Büchi automaton (action-level, not path-level)
+        # Planning-stage only — no runtime monitoring, no safety margins, no path-through
+        forbidden_zones_list = [z for z in self.policy.zones if z.zone_type == ZoneType.FORBIDDEN]
+        self.roboguard_checker = RoboGuardBaseline(zones=forbidden_zones_list)
+
+        self.get_logger().info('Initialized safety baselines: CBF, CBF-Inflated, Static Margin, SSM, SELP-proper, RoboGuard')
         self.get_logger().info(f'  - CBF margin: {self.cbf_checker.margin}m')
+        self.get_logger().info(f'  - CBF-Inflated margin: {self.cbf_inflated_checker.margin}m (dynamic, from geofence)')
         self.get_logger().info(f'  - Static margin: {self.static_margin_checker.margin}m')
         self.get_logger().info(f'  - SSM base margin: {self.ssm_checker.base_margin}m')
+        self.get_logger().info(f'  - RoboGuard: {len(self.roboguard_checker.specification.constraints)} LTL constraints, φ_safe={self.roboguard_checker.specification.conjuncted_formula}')
 
     def _get_propositions_for_point(self, x: float, y: float,
                                      include_near_boundary: bool = False) -> Dict[str, bool]:
@@ -1044,6 +1082,42 @@ class GoalGateNode(Node):
                 }
             )
 
+        # cbf_inflated: CBF with geofence's dynamic margin M(t)
+        # Same barrier function as CBF but uses geofence margin formula.
+        # Point-based checking only (no path-through detection like geofence).
+        if self.safety_method == 'cbf_inflated':
+            forbidden_zones = [z for z in self.policy.zones if z.zone_type == ZoneType.FORBIDDEN]
+            # Update margin to current dynamic value
+            self.cbf_inflated_checker.margin = self.policy.get_safety_margin()
+            result = self.cbf_inflated_checker.evaluate(point, forbidden_zones)
+
+            if result.barrier_value < 0:
+                return PolicyDecision(
+                    action=PolicyAction.REJECT,
+                    reason=f"CBF-Inflated barrier h(x)={result.barrier_value:.3f} < 0 (goal inside safety margin {result.margin_used}m)",
+                    original_point=point,
+                    min_distance_to_forbidden=result.distance_to_boundary,
+                    violated_zone=result.extra_info.get("closest_zone", "unknown") if result.extra_info else "forbidden_zone",
+                    extra_info={
+                        "barrier_value": result.barrier_value,
+                        "margin": result.margin_used,
+                        "method": "cbf_inflated",
+                        "reference": "Ames et al., TAC 2017 + geofence margin"
+                    }
+                )
+            return PolicyDecision(
+                action=PolicyAction.ALLOW,
+                reason=f"CBF-Inflated allows goal. Barrier h(x)={result.barrier_value:.3f} >= 0, distance: {result.distance_to_boundary:.2f}m",
+                original_point=point,
+                min_distance_to_forbidden=result.distance_to_boundary,
+                extra_info={
+                    "barrier_value": result.barrier_value,
+                    "margin": result.margin_used,
+                    "method": "cbf_inflated",
+                    "reference": "Ames et al., TAC 2017 + geofence margin"
+                }
+            )
+
         # static_margin: Fixed costmap inflation (Lu et al., IROS 2014)
         if self.safety_method == 'static_margin':
             forbidden_zones = [z for z in self.policy.zones if z.zone_type == ZoneType.FORBIDDEN]
@@ -1074,9 +1148,7 @@ class GoalGateNode(Node):
         # SSM uses velocity-dependent safety margins. For goal checking, use max velocity.
         if self.safety_method == 'ssm':
             forbidden_zones = [z for z in self.policy.zones if z.zone_type == ZoneType.FORBIDDEN]
-            # Use max velocity for goal-level checking (conservative approach)
-            # At runtime, actual velocity could be used for more precise margins
-            max_velocity = 0.5  # Use v_max for goal-level checking
+            max_velocity = 0.5
             if hasattr(self, '_approach_velocity_override') and self._approach_velocity_override is not None:
                 max_velocity = self._approach_velocity_override
                 self._approach_velocity_override = None
@@ -1110,6 +1182,32 @@ class GoalGateNode(Node):
                 }
             )
 
+        # roboguard: Two-stage guardrail baseline (Ravichandran et al., 2024)
+        # Stage 1 = LTL constraint grounding (pre-computed)
+        # Stage 2 = Büchi automaton plan validation (action-level, not path-level)
+        # Binary ALLOW/REJECT — no repair, no safety margin, no path-through
+        if self.safety_method == 'roboguard':
+            result = self.roboguard_checker.evaluate(goal=point)
+
+            if result.decision == SafetyDecision.REJECT:
+                violated_zones = result.extra_info.get("violated_zones", ["unknown"])
+                return PolicyDecision(
+                    action=PolicyAction.REJECT,
+                    reason=result.reason,
+                    original_point=point,
+                    min_distance_to_forbidden=result.distance_to_boundary,
+                    violated_zone=violated_zones[0] if violated_zones else "unknown",
+                    extra_info=result.extra_info,
+                )
+
+            return PolicyDecision(
+                action=PolicyAction.ALLOW,
+                reason=result.reason,
+                original_point=point,
+                min_distance_to_forbidden=result.distance_to_boundary,
+                extra_info=result.extra_info,
+            )
+
         # Fallback to geofence
         self.get_logger().warn(f'Unknown safety method: {self.safety_method}, using geofence')
         return self.policy.evaluate_point(x, y)
@@ -1128,13 +1226,17 @@ class GoalGateNode(Node):
         return response
 
     def _check_line_through_zones(self, goal_x: float, goal_y: float,
-                                    num_samples: int = 50) -> Optional[Tuple[str, Tuple[float, float]]]:
+                                    num_samples: int = 200) -> Optional[Tuple[str, Tuple[float, float]]]:
         """
         Check if straight line from current position to goal passes through any forbidden zone.
 
         This is a simplified path check that samples points along the line.
         Used for S5 odom spoofing attack detection - if robot's perceived position
         is spoofed, this check may incorrectly allow dangerous paths.
+
+        NOTE: num_samples=200 needed for S6 braking term validation (M=0.60m vs M*≈0.58m).
+        With 50 samples the path corner intersection near the expanded zone was missed;
+        200 samples provides sufficient resolution to detect M=0.60m > M*.
 
         Args:
             goal_x, goal_y: Goal coordinates

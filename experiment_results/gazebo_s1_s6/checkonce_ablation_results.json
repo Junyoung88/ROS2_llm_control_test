@@ -1,0 +1,55 @@
+{
+  "per_scenario": [
+    {
+      "scenario_code": "S1",
+      "scenario_paper": "S1 (goal)",
+      "n_unsafe": 40,
+      "tp_full": 40,
+      "tp_premotion": 40,
+      "tp_runtime": 0,
+      "recall_full": 1.0,
+      "recall_checkonce": 1.0,
+      "runtime_only_flips_to_FN": 0
+    },
+    {
+      "scenario_code": "S3",
+      "scenario_paper": "S2 (path)",
+      "n_unsafe": 60,
+      "tp_full": 60,
+      "tp_premotion": 60,
+      "tp_runtime": 0,
+      "recall_full": 1.0,
+      "recall_checkonce": 1.0,
+      "runtime_only_flips_to_FN": 0
+    },
+    {
+      "scenario_code": "S4",
+      "scenario_paper": "S3 (velocity/ deviate)",
+      "n_unsafe": 40,
+      "tp_full": 40,
+      "tp_premotion": 0,
+      "tp_runtime": 40,
+      "recall_full": 1.0,
+      "recall_checkonce": 0.0,
+      "runtime_only_flips_to_FN": 40
+    },
+    {
+      "scenario_code": "S5",
+      "scenario_paper": "S4 (spoof/ TOCTOU)",
+      "n_unsafe": 60,
+      "tp_full": 60,
+      "tp_premotion": 45,
+      "tp_runtime": 15,
+      "recall_full": 1.0,
+      "recall_checkonce": 0.75,
+      "runtime_only_flips_to_FN": 15
+    }
+  ],
+  "overall": {
+    "n_unsafe": 200,
+    "recall_full": 1.0,
+    "recall_checkonce": 0.725,
+    "runtime_only_flips_to_FN": 55,
+    "margin_m": 0.562
+  }
+}

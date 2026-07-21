@@ -1,0 +1,284 @@
+[INFO] [1784392829.827257736] [cmd_vel_guard]: Zones loaded: 2
+[INFO] [1784392829.827475317] [cmd_vel_guard]: CBF margin: 0.1m (real-time control)
+[INFO] [1784392829.827612761] [cmd_vel_guard]: SSM base margin: 0.05m (velocity-dependent)
+[INFO] [1784392829.832523736] [cmd_vel_guard]: Spoof detection ON [cusum]: amcl=/amcl_pose, offset_thresh=0.95m, jump_thresh=0.45m, enforce_pose=amcl
+[INFO] [1784392829.833129863] [cmd_vel_guard]: DEBUG subscriptions:
+[INFO] [1784392829.833396044] [cmd_vel_guard]:   cmd_sub topic: /cmd_vel_nav
+[INFO] [1784392829.833650513] [cmd_vel_guard]:   odom_sub topic: /odom_spoofed
+[INFO] [1784392829.833914169] [cmd_vel_guard]:   nav_state_sub topic: /geofence/nav_state
+[INFO] [1784392829.834523082] [cmd_vel_guard]: ============================================================
+[INFO] [1784392829.834822123] [cmd_vel_guard]: Cmd Vel Guard node initialized
+[INFO] [1784392829.835111206] [cmd_vel_guard]: Safety method: geofence
+[INFO] [1784392829.835402714] [cmd_vel_guard]: Input: /cmd_vel_nav -> Output: /cmd_vel
+[INFO] [1784392829.835498951] [cmd_vel_guard]:   Mode: Forward Simulation
+[INFO] [1784392829.835598404] [cmd_vel_guard]:   Horizon: 1.0s, Steps: 10
+[INFO] [1784392829.835715761] [cmd_vel_guard]:   Margin: 0.562m
+[INFO] [1784392829.836016245] [cmd_vel_guard]: ============================================================
+[INFO] [1784392832.347022854] [cmd_vel_guard]: [HEARTBEAT #1] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784392832.571464840] [cmd_vel_guard]: [HEARTBEAT #2] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784392837.579624153] [cmd_vel_guard]: [HEARTBEAT #3] cmds=0, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784392839.484297059] [cmd_vel_guard]: Guard status: cmds=1, nav_approved=False, odom=yes, pos=(-0.00,0.00), passed=0, blocked=0
+[INFO] [1784392842.587339047] [cmd_vel_guard]: [HEARTBEAT #4] cmds=2, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784392847.595675672] [cmd_vel_guard]: [HEARTBEAT #5] cmds=3, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784392852.703239844] [cmd_vel_guard]: [HEARTBEAT #6] cmds=44, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784392857.710676284] [cmd_vel_guard]: [HEARTBEAT #7] cmds=44, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784392862.717914551] [cmd_vel_guard]: [HEARTBEAT #8] cmds=44, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784392867.725249743] [cmd_vel_guard]: [HEARTBEAT #9] cmds=44, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784392872.733018360] [cmd_vel_guard]: [HEARTBEAT #10] cmds=44, odom=yes, nav_approved=False, pos=(-0.00,0.00)
+[INFO] [1784392874.163756823] [cmd_vel_guard]: Navigation authorized
+[INFO] [1784392874.338257903] [cmd_vel_guard]: Guard status: cmds=51, nav_approved=True, odom=yes, pos=(0.01,-0.00), passed=50, blocked=0
+[INFO] [1784392875.738062215] [cmd_vel_guard]: Guard status: cmds=101, nav_approved=True, odom=yes, pos=(0.28,-0.00), passed=100, blocked=0
+[INFO] [1784392876.912631409] [cmd_vel_guard]: Guard status: cmds=151, nav_approved=True, odom=yes, pos=(0.54,-0.00), passed=150, blocked=0
+[INFO] [1784392877.741957179] [cmd_vel_guard]: [HEARTBEAT #11] cmds=184, odom=yes, nav_approved=True, pos=(0.71,-0.00)
+[INFO] [1784392877.881590955] [cmd_vel_guard]: [spoofmon] d_abs=0.027 jump=0.018 max_jump=0.018 c=(0.05,0.01)
+[INFO] [1784392878.182835999] [cmd_vel_guard]: Guard status: cmds=201, nav_approved=True, odom=yes, pos=(0.81,-0.00), passed=200, blocked=0
+[INFO] [1784392879.437821475] [cmd_vel_guard]: Guard status: cmds=251, nav_approved=True, odom=yes, pos=(1.08,-0.00), passed=250, blocked=0
+[INFO] [1784392880.682681955] [cmd_vel_guard]: Guard status: cmds=301, nav_approved=True, odom=yes, pos=(1.34,-0.01), passed=300, blocked=0
+[INFO] [1784392881.922680118] [cmd_vel_guard]: Guard status: cmds=351, nav_approved=True, odom=yes, pos=(1.60,-0.01), passed=350, blocked=0
+[INFO] [1784392882.750660150] [cmd_vel_guard]: [HEARTBEAT #12] cmds=384, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392882.890729258] [cmd_vel_guard]: [spoofmon] d_abs=0.280 jump=0.077 max_jump=0.077 c=(0.28,0.10)
+[INFO] [1784392883.152421447] [cmd_vel_guard]: Guard status: cmds=401, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=400, blocked=0
+[WARN] [1784392883.188205915] [cmd_vel_guard]: Odometry data is stale (0.51s old)
+[INFO] [1784392884.422496422] [cmd_vel_guard]: Guard status: cmds=451, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=450, blocked=0
+[INFO] [1784392886.188063170] [cmd_vel_guard]: Guard status: cmds=501, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=500, blocked=0
+[INFO] [1784392887.759913511] [cmd_vel_guard]: [HEARTBEAT #13] cmds=532, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392887.810976758] [cmd_vel_guard]: [spoofmon] d_abs=0.533 jump=0.060 max_jump=0.139 c=(0.53,0.16)
+[WARN] [1784392888.237990922] [cmd_vel_guard]: Odometry data is stale (5.55s old)
+[INFO] [1784392888.537953538] [cmd_vel_guard]: Guard status: cmds=551, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=550, blocked=0
+[INFO] [1784392889.787997676] [cmd_vel_guard]: Guard status: cmds=601, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=600, blocked=0
+[ERROR] [1784392890.911471430] [cmd_vel_guard]: LOCALIZATION SPOOF DETECTED [cusum]: d_abs=0.980m (d_abs=0.980, jump=0.051, offset c=(0.87,0.49)) — fail-stopping
+[WARN] [1784392890.937845750] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392891.038691737] [cmd_vel_guard]: Guard status: cmds=651, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4
+[INFO] [1784392892.288003707] [cmd_vel_guard]: Guard status: cmds=701, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=54
+[INFO] [1784392892.768331520] [cmd_vel_guard]: [HEARTBEAT #14] cmds=719, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784392892.938294438] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392893.537965316] [cmd_vel_guard]: Guard status: cmds=751, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=104
+[INFO] [1784392894.788273145] [cmd_vel_guard]: Guard status: cmds=801, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=154
+[WARN] [1784392894.972853826] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392896.038509103] [cmd_vel_guard]: Guard status: cmds=851, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=204
+[WARN] [1784392896.988406329] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392897.288069154] [cmd_vel_guard]: Guard status: cmds=901, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=254
+[INFO] [1784392897.776736843] [cmd_vel_guard]: [HEARTBEAT #15] cmds=920, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392898.538095945] [cmd_vel_guard]: Guard status: cmds=951, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=304
+[WARN] [1784392899.012566790] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392899.757498702] [cmd_vel_guard]: Guard status: cmds=1001, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=354
+[INFO] [1784392901.022829529] [cmd_vel_guard]: Guard status: cmds=1051, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=404
+[WARN] [1784392901.023036401] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392902.282596678] [cmd_vel_guard]: Guard status: cmds=1101, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=454
+[INFO] [1784392902.785575271] [cmd_vel_guard]: [HEARTBEAT #16] cmds=1121, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784392903.057747400] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392903.522735235] [cmd_vel_guard]: Guard status: cmds=1151, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=504
+[INFO] [1784392904.762514937] [cmd_vel_guard]: Guard status: cmds=1201, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=554
+[WARN] [1784392905.092728083] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392906.022692732] [cmd_vel_guard]: Guard status: cmds=1251, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=604
+[WARN] [1784392907.092769921] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392907.292706417] [cmd_vel_guard]: Guard status: cmds=1301, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=654
+[INFO] [1784392907.793762398] [cmd_vel_guard]: [HEARTBEAT #17] cmds=1321, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392908.523374865] [cmd_vel_guard]: Guard status: cmds=1351, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=704
+[WARN] [1784392909.104526677] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392910.062479580] [cmd_vel_guard]: Guard status: cmds=1401, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=754
+[WARN] [1784392911.107815301] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392911.332661360] [cmd_vel_guard]: Guard status: cmds=1451, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=804
+[INFO] [1784392912.572484745] [cmd_vel_guard]: Guard status: cmds=1501, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=854
+[INFO] [1784392912.801999445] [cmd_vel_guard]: [HEARTBEAT #18] cmds=1509, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784392913.132795738] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392913.807299018] [cmd_vel_guard]: Guard status: cmds=1551, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=904
+[INFO] [1784392915.072615291] [cmd_vel_guard]: Guard status: cmds=1601, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=954
+[WARN] [1784392915.157553943] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392916.312617618] [cmd_vel_guard]: Guard status: cmds=1651, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1004
+[WARN] [1784392917.157726568] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392917.582685791] [cmd_vel_guard]: Guard status: cmds=1701, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1054
+[INFO] [1784392917.810196735] [cmd_vel_guard]: [HEARTBEAT #19] cmds=1710, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392918.812634073] [cmd_vel_guard]: Guard status: cmds=1751, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1104
+[WARN] [1784392919.157894067] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392920.052509875] [cmd_vel_guard]: Guard status: cmds=1801, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1154
+[WARN] [1784392921.177753135] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392921.312464023] [cmd_vel_guard]: Guard status: cmds=1851, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1204
+[INFO] [1784392922.552482478] [cmd_vel_guard]: Guard status: cmds=1901, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1254
+[INFO] [1784392922.818853598] [cmd_vel_guard]: [HEARTBEAT #20] cmds=1910, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784392923.222801852] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392923.822590172] [cmd_vel_guard]: Guard status: cmds=1951, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1304
+[INFO] [1784392925.062970069] [cmd_vel_guard]: Guard status: cmds=2001, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1354
+[WARN] [1784392925.227726138] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392926.322650638] [cmd_vel_guard]: Guard status: cmds=2051, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1404
+[WARN] [1784392927.227912395] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392927.562554773] [cmd_vel_guard]: Guard status: cmds=2101, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1454
+[INFO] [1784392927.827073704] [cmd_vel_guard]: [HEARTBEAT #21] cmds=2111, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392928.802703825] [cmd_vel_guard]: Guard status: cmds=2151, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1504
+[WARN] [1784392929.262688976] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392930.072553137] [cmd_vel_guard]: Guard status: cmds=2201, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1554
+[WARN] [1784392931.272800658] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392931.744375758] [cmd_vel_guard]: Guard status: cmds=2251, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1604
+[INFO] [1784392932.835873151] [cmd_vel_guard]: [HEARTBEAT #22] cmds=2283, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784392933.332654035] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392933.412563803] [cmd_vel_guard]: Guard status: cmds=2301, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1654
+[INFO] [1784392935.072604682] [cmd_vel_guard]: Guard status: cmds=2351, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1704
+[WARN] [1784392935.342731810] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392936.744416904] [cmd_vel_guard]: Guard status: cmds=2401, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1754
+[WARN] [1784392937.342840503] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392937.843783551] [cmd_vel_guard]: [HEARTBEAT #23] cmds=2433, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392938.412498622] [cmd_vel_guard]: Guard status: cmds=2451, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1804
+[WARN] [1784392939.344553710] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392940.082743712] [cmd_vel_guard]: Guard status: cmds=2501, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1854
+[WARN] [1784392941.382918470] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392942.582715219] [cmd_vel_guard]: Guard status: cmds=2551, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1904
+[INFO] [1784392942.851657157] [cmd_vel_guard]: [HEARTBEAT #24] cmds=2556, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784392943.422674225] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392945.062565556] [cmd_vel_guard]: Guard status: cmds=2601, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=1954
+[WARN] [1784392945.432773546] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392946.362560043] [cmd_vel_guard]: Guard status: cmds=2651, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2004
+[WARN] [1784392947.432869765] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392947.632612692] [cmd_vel_guard]: Guard status: cmds=2701, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2054
+[INFO] [1784392947.860158797] [cmd_vel_guard]: [HEARTBEAT #25] cmds=2710, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392948.862617299] [cmd_vel_guard]: Guard status: cmds=2751, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2104
+[WARN] [1784392949.457890310] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392950.107461376] [cmd_vel_guard]: Guard status: cmds=2801, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2154
+[INFO] [1784392951.362540319] [cmd_vel_guard]: Guard status: cmds=2851, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2204
+[WARN] [1784392951.472780397] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392952.607499669] [cmd_vel_guard]: Guard status: cmds=2901, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2254
+[INFO] [1784392952.868472561] [cmd_vel_guard]: [HEARTBEAT #26] cmds=2910, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784392953.502480231] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392953.872779772] [cmd_vel_guard]: Guard status: cmds=2951, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2304
+[INFO] [1784392955.112609547] [cmd_vel_guard]: Guard status: cmds=3001, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2354
+[WARN] [1784392955.512773347] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392956.481100842] [cmd_vel_guard]: Guard status: cmds=3051, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2404
+[WARN] [1784392957.531409794] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392957.712466916] [cmd_vel_guard]: Guard status: cmds=3101, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2454
+[INFO] [1784392957.876332103] [cmd_vel_guard]: [HEARTBEAT #27] cmds=3107, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392958.981068368] [cmd_vel_guard]: Guard status: cmds=3151, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2504
+[WARN] [1784392959.581187385] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392960.212516343] [cmd_vel_guard]: Guard status: cmds=3201, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2554
+[INFO] [1784392961.452620197] [cmd_vel_guard]: Guard status: cmds=3251, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2604
+[WARN] [1784392961.582658508] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392962.722586500] [cmd_vel_guard]: Guard status: cmds=3301, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2654
+[INFO] [1784392962.885218132] [cmd_vel_guard]: [HEARTBEAT #28] cmds=3308, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784392963.582885906] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392963.981047270] [cmd_vel_guard]: Guard status: cmds=3351, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2704
+[INFO] [1784392965.223062601] [cmd_vel_guard]: Guard status: cmds=3401, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2754
+[WARN] [1784392965.592896729] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392966.744326863] [cmd_vel_guard]: Guard status: cmds=3451, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2804
+[WARN] [1784392967.623178550] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392967.893886905] [cmd_vel_guard]: [HEARTBEAT #29] cmds=3485, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392968.423306107] [cmd_vel_guard]: Guard status: cmds=3501, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2854
+[WARN] [1784392969.632722994] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392970.072561602] [cmd_vel_guard]: Guard status: cmds=3551, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2904
+[WARN] [1784392971.632801970] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392971.744367434] [cmd_vel_guard]: Guard status: cmds=3601, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=2954
+[INFO] [1784392972.901666407] [cmd_vel_guard]: [HEARTBEAT #30] cmds=3635, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392973.432660666] [cmd_vel_guard]: Guard status: cmds=3651, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3004
+[WARN] [1784392973.644493929] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392975.082668962] [cmd_vel_guard]: Guard status: cmds=3701, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3054
+[WARN] [1784392975.682657972] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392976.507608933] [cmd_vel_guard]: Guard status: cmds=3751, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3104
+[WARN] [1784392977.682740005] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392977.757621919] [cmd_vel_guard]: Guard status: cmds=3801, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3154
+[INFO] [1784392977.910204286] [cmd_vel_guard]: [HEARTBEAT #31] cmds=3807, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392979.007632078] [cmd_vel_guard]: Guard status: cmds=3851, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3204
+[WARN] [1784392979.708013082] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392980.257699281] [cmd_vel_guard]: Guard status: cmds=3901, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3254
+[INFO] [1784392981.508089169] [cmd_vel_guard]: Guard status: cmds=3951, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3304
+[WARN] [1784392981.722638016] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392982.752551929] [cmd_vel_guard]: Guard status: cmds=4001, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3354
+[INFO] [1784392982.918372614] [cmd_vel_guard]: [HEARTBEAT #32] cmds=4007, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784392983.722867496] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392984.007830203] [cmd_vel_guard]: Guard status: cmds=4051, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3404
+[INFO] [1784392985.252507765] [cmd_vel_guard]: Guard status: cmds=4101, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3454
+[WARN] [1784392985.732697953] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392986.477598961] [cmd_vel_guard]: Guard status: cmds=4151, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3504
+[INFO] [1784392987.727885813] [cmd_vel_guard]: Guard status: cmds=4201, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3554
+[WARN] [1784392987.762708583] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392987.926910988] [cmd_vel_guard]: [HEARTBEAT #33] cmds=4208, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392988.977896680] [cmd_vel_guard]: Guard status: cmds=4251, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3604
+[WARN] [1784392989.777945854] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392990.232686203] [cmd_vel_guard]: Guard status: cmds=4301, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3654
+[INFO] [1784392991.478090773] [cmd_vel_guard]: Guard status: cmds=4351, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3704
+[WARN] [1784392991.827586965] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392992.728816223] [cmd_vel_guard]: Guard status: cmds=4401, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3754
+[INFO] [1784392992.935606725] [cmd_vel_guard]: [HEARTBEAT #34] cmds=4409, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784392993.832630366] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392993.977700979] [cmd_vel_guard]: Guard status: cmds=4451, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3804
+[INFO] [1784392995.242729784] [cmd_vel_guard]: Guard status: cmds=4501, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3854
+[WARN] [1784392995.842968711] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392996.644224169] [cmd_vel_guard]: Guard status: cmds=4551, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3904
+[WARN] [1784392997.844258530] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392997.943754435] [cmd_vel_guard]: [HEARTBEAT #35] cmds=4589, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784392998.312574790] [cmd_vel_guard]: Guard status: cmds=4601, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=3954
+[WARN] [1784392999.844328994] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784392999.982648438] [cmd_vel_guard]: Guard status: cmds=4651, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4004
+[INFO] [1784393001.644563612] [cmd_vel_guard]: Guard status: cmds=4701, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4054
+[WARN] [1784393001.844507942] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393002.952320600] [cmd_vel_guard]: [HEARTBEAT #36] cmds=4740, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784393003.322704000] [cmd_vel_guard]: Guard status: cmds=4751, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4104
+[WARN] [1784393003.882817826] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393004.962498792] [cmd_vel_guard]: Guard status: cmds=4801, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4154
+[WARN] [1784393005.933030992] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393006.932709044] [cmd_vel_guard]: Guard status: cmds=4851, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4204
+[INFO] [1784393007.959774472] [cmd_vel_guard]: [HEARTBEAT #37] cmds=4871, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784393007.962636676] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393009.402526094] [cmd_vel_guard]: Guard status: cmds=4901, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4254
+[WARN] [1784393009.972694293] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393011.557195770] [cmd_vel_guard]: Guard status: cmds=4951, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4304
+[WARN] [1784393011.972760569] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393012.802443810] [cmd_vel_guard]: Guard status: cmds=5001, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4354
+[INFO] [1784393012.968556794] [cmd_vel_guard]: [HEARTBEAT #38] cmds=5007, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784393013.972774977] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393014.057507726] [cmd_vel_guard]: Guard status: cmds=5051, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4404
+[INFO] [1784393015.302479410] [cmd_vel_guard]: Guard status: cmds=5101, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4454
+[WARN] [1784393015.982774578] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393016.557684452] [cmd_vel_guard]: Guard status: cmds=5151, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4504
+[INFO] [1784393017.807434288] [cmd_vel_guard]: Guard status: cmds=5201, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4554
+[INFO] [1784393017.976678469] [cmd_vel_guard]: [HEARTBEAT #39] cmds=5208, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784393018.007587572] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393019.057505253] [cmd_vel_guard]: Guard status: cmds=5251, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4604
+[WARN] [1784393020.012521403] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393020.307553356] [cmd_vel_guard]: Guard status: cmds=5301, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4654
+[INFO] [1784393021.622765087] [cmd_vel_guard]: Guard status: cmds=5351, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4704
+[WARN] [1784393022.014999089] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393022.882625164] [cmd_vel_guard]: Guard status: cmds=5401, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4754
+[INFO] [1784393022.985565439] [cmd_vel_guard]: [HEARTBEAT #40] cmds=5405, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784393024.022628791] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393024.131144980] [cmd_vel_guard]: Guard status: cmds=5451, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4804
+[INFO] [1784393025.380785489] [cmd_vel_guard]: Guard status: cmds=5501, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4854
+[WARN] [1784393026.022831182] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393026.632603958] [cmd_vel_guard]: Guard status: cmds=5551, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4904
+[INFO] [1784393027.892771244] [cmd_vel_guard]: Guard status: cmds=5601, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=4954
+[INFO] [1784393027.993589496] [cmd_vel_guard]: [HEARTBEAT #41] cmds=5605, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784393028.030913153] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393029.132705672] [cmd_vel_guard]: Guard status: cmds=5651, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5004
+[WARN] [1784393030.030952761] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393030.381931619] [cmd_vel_guard]: Guard status: cmds=5701, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5054
+[INFO] [1784393031.644144142] [cmd_vel_guard]: Guard status: cmds=5751, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5104
+[WARN] [1784393032.044384378] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393033.002670410] [cmd_vel_guard]: [HEARTBEAT #42] cmds=5791, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784393033.332608814] [cmd_vel_guard]: Guard status: cmds=5801, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5154
+[WARN] [1784393034.044538555] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393034.982588177] [cmd_vel_guard]: Guard status: cmds=5851, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5204
+[WARN] [1784393036.072657701] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393036.644151355] [cmd_vel_guard]: Guard status: cmds=5901, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5254
+[INFO] [1784393038.011542744] [cmd_vel_guard]: [HEARTBEAT #43] cmds=5941, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784393038.112765982] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393038.312559661] [cmd_vel_guard]: Guard status: cmds=5951, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5304
+[INFO] [1784393039.952382624] [cmd_vel_guard]: Guard status: cmds=6001, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5354
+[WARN] [1784393040.144172245] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393041.644192266] [cmd_vel_guard]: Guard status: cmds=6051, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5404
+[WARN] [1784393042.152489119] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393042.922636928] [cmd_vel_guard]: Guard status: cmds=6101, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5454
+[INFO] [1784393043.020173637] [cmd_vel_guard]: [HEARTBEAT #44] cmds=6104, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784393044.152490484] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393044.157409495] [cmd_vel_guard]: Guard status: cmds=6151, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5504
+[INFO] [1784393045.432688329] [cmd_vel_guard]: Guard status: cmds=6201, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5554
+[WARN] [1784393046.152902930] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393046.662500329] [cmd_vel_guard]: Guard status: cmds=6251, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5604
+[INFO] [1784393047.932678144] [cmd_vel_guard]: Guard status: cmds=6301, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5654
+[INFO] [1784393048.027849627] [cmd_vel_guard]: [HEARTBEAT #45] cmds=6305, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[WARN] [1784393048.157481640] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393049.162457857] [cmd_vel_guard]: Guard status: cmds=6351, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5704
+[WARN] [1784393050.162576555] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393050.407365827] [cmd_vel_guard]: Guard status: cmds=6401, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5754
+[INFO] [1784393051.672571630] [cmd_vel_guard]: Guard status: cmds=6451, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5804
+[WARN] [1784393052.172620958] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393052.932049709] [cmd_vel_guard]: Guard status: cmds=6501, nav_approved=True, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5854
+[INFO] [1784393053.036730578] [cmd_vel_guard]: [HEARTBEAT #46] cmds=6506, odom=yes, nav_approved=True, pos=(1.76,-0.02)
+[INFO] [1784393053.704227894] [cmd_vel_guard]: Navigation completed
+[WARN] [1784393054.192463501] [cmd_vel_guard]: BLOCKED (spoof fail-stop): localization spoof detected, halting robot
+[INFO] [1784393054.592498130] [cmd_vel_guard]: Guard status: cmds=6551, nav_approved=False, odom=yes, pos=(1.76,-0.02), passed=646, blocked=5904
