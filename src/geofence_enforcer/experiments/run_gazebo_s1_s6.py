@@ -4632,6 +4632,24 @@ def generate_trials(methods: List[str] = None,
              "scan_heading_compensate": True, "scan_world_bias_angle_deg": 0.0,
              "expected_safe": False, "required_world": "warehouse.sdf",
              "desc": "Heading-compensated stealthy bias: 0.15 m/s, world +X"},
+            # Defense-aware SLOW attacker sweep (R: NDSS adaptive-attacker concern).
+            # An attacker who knows PETSE's cross-channel CUSUM detector ramps the bias
+            # ever more slowly to keep each per-update residual jump tiny, trying to stay
+            # under the detector before reaching the zone. bias-rate sweep characterizes
+            # the defense boundary: how slow must the attack be to delay detection past
+            # zone entry. Same heading-compensated world-+X lure as bias_hc_*.
+            {"intensity": "bias_hc_vslow", "goal": (0.0, 5.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "bias_injection",
+             "scan_bias_rate": 0.04, "scan_bias_max": 3.0,
+             "scan_heading_compensate": True, "scan_world_bias_angle_deg": 0.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Defense-aware slow bias: 0.04 m/s, world +X"},
+            {"intensity": "bias_hc_xslow", "goal": (0.0, 5.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "bias_injection",
+             "scan_bias_rate": 0.02, "scan_bias_max": 3.0,
+             "scan_heading_compensate": True, "scan_world_bias_angle_deg": 0.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Defense-aware very-slow bias: 0.02 m/s, world +X"},
             # MAP-CONSISTENT ray-cast spoof (Sun USENIX'20 threat model: map-aware
             # target-tracking adversary). Attacker forges the EXACT scan for a
             # spoofed pose S=odom+Δ, Δ ramping in the world frame → AMCL accepts
@@ -4665,6 +4683,37 @@ def generate_trials(methods: List[str] = None,
              "expected_safe": False, "required_world": "warehouse.sdf",
              "desc": "Warehouse spoofing hijack: map-consistent spoof (ψ=+Y) lures the true robot "
                      "−Y into the forbidden zone; planning-level baselines enter, PETSE fail-stops"},
+            # Defense-aware SLOW-attacker sweep (NDSS adaptive-attacker concern). Same
+            # map-consistent hijack as wh_hijack, but the attacker ramps the spoof ever
+            # more slowly (bias_rate 0.06 -> 0.03 -> 0.015 m/s) to keep each per-update
+            # cross-channel residual jump tiny, trying to stay under PETSE's CUSUM before
+            # the true robot reaches the zone. Run with no_guard (attack validity) and
+            # geofence (defense): as the ramp slows, does the accumulated residual still
+            # fail-stop PETSE before entry?
+            {"intensity": "wh_hijack_r09", "goal": (4.5, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.09, "scan_bias_max": 3.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 5.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Slow-attacker hijack sweep: map-consistent spoof at 0.09 m/s ramp (boundary)"},
+            {"intensity": "wh_hijack_r06", "goal": (4.5, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.06, "scan_bias_max": 3.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 5.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Slow-attacker hijack sweep: map-consistent spoof at 0.06 m/s ramp"},
+            {"intensity": "wh_hijack_r03", "goal": (4.5, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.03, "scan_bias_max": 3.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 5.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Slow-attacker hijack sweep: map-consistent spoof at 0.03 m/s ramp"},
+            {"intensity": "wh_hijack_r015", "goal": (4.5, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.015, "scan_bias_max": 3.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 5.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Slow-attacker hijack sweep: map-consistent spoof at 0.015 m/s ramp"},
             # Demonstration A (threat reality): STRONG lure — fast ramp + high cap so
             # the true robot is dragged DEEP into the zone under no/weak defense; PETSE
             # fail-stops at the boundary. Stealth is irrelevant here (big jumps allowed).
@@ -5776,7 +5825,7 @@ class GazeboExperimentRunner:
                     # the restricted bay) while PETSE fail-stops. Keeps warehouse behaviour
                     # unchanged; scopes the planning-level framing to the fab experiment.
                     if getattr(trial, 'required_world', None) == 'fab_cell.sdf' \
-                            or trial.intensity == 'wh_hijack':
+                            or str(getattr(trial, 'intensity', '')).startswith('wh_hijack'):
                         return method == 'geofence'
                     if trial.scenario == 'S4' and method in ('geofence', 'cbf_inflated', 'static_margin', 'static_reactive'):
                         return True
