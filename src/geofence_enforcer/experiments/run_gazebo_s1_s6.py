@@ -2083,6 +2083,12 @@ if __name__ == '__main__':
         # Mapped-world trials run under AMCL, so enable the localization-spoofing
         # detector (cross-checks AMCL vs wheel odometry → fail-stop on divergence).
         _spoof_det = "true" if self.current_world in MAPPED_WORLDS else "false"
+        # Component-ablation overrides (default: auto/normal). PETSE_SPOOF_DET forces the
+        # cross-channel gate on/off; PETSE_SPATIAL_CHECK forces the spatial runtime check
+        # on/off. Used by the 4-condition component ablation (planning / runtime-envelope /
+        # odometry-gate / full).
+        _spoof_det = os.environ.get('PETSE_SPOOF_DET', _spoof_det)
+        _spatial_check = os.environ.get('PETSE_SPATIAL_CHECK', 'true')
         # Detection scheme selectable via env (memoryless vs cusum) for A/B runs.
         _det_mode = os.environ.get('PETSE_DETECTION_MODE', 'cusum')
         # In the mapped warehouse the geofence enforces on the map-frame AMCL pose
@@ -2114,6 +2120,7 @@ if __name__ == '__main__':
             f"-p odom_topic:={_guard_odom} "
             f"-p safety_method:={method} "
             f"-p enable_spoof_detection:={_spoof_det} "
+            f"-p enable_spatial_check:={_spatial_check} "
             f"-p detection_mode:={_det_mode} "
             f"-p enforce_pose_source:={_enforce_src} "
             f"-p amcl_topic:=/amcl_pose "

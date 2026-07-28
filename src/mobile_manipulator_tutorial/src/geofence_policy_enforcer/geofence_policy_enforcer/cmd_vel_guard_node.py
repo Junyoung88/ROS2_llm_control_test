@@ -88,6 +88,12 @@ class CmdVelGuardNode(Node):
         # suppress without ALSO spoofing wheel odometry (a separate physical
         # channel). This is the independent-channel consistency check.
         self.declare_parameter('enable_spoof_detection', False)
+        # Component-ablation flag: when False, the spatial runtime check (forward-simulation
+        # margin) is NOT enforced -- the guard passes the command through even if the
+        # simulated trajectory would breach the margin. This isolates the spatial runtime
+        # envelope from the cross-channel gate (enable_spoof_detection) and the approval-time
+        # goal/path gate. Default True (normal PETSE). See the component-ablation experiment.
+        self.declare_parameter('enable_spatial_check', True)
         self.declare_parameter('amcl_topic', '/amcl_pose')
         # Absolute cross-channel offset threshold (m) — the robust 'cusum'/offset
         # detector fail-stops when d(t) exceeds this. Set well above the honest
@@ -135,6 +141,7 @@ class CmdVelGuardNode(Node):
 
         # Localization-spoofing detection state
         self.enable_spoof_detection = self.get_parameter('enable_spoof_detection').get_parameter_value().bool_value
+        self.enable_spatial_check = self.get_parameter('enable_spatial_check').get_parameter_value().bool_value
         self.spoof_offset_threshold = self.get_parameter('spoof_offset_threshold').get_parameter_value().double_value
         self.spoof_jump_threshold = self.get_parameter('spoof_jump_threshold').get_parameter_value().double_value
         self.detection_mode = self.get_parameter('detection_mode').get_parameter_value().string_value
@@ -664,6 +671,13 @@ class CmdVelGuardNode(Node):
         # Update stats
         if min_dist < self.stats['min_distance_ever']:
             self.stats['min_distance_ever'] = min_dist
+
+        # Component ablation: if the spatial runtime check is disabled, do NOT enforce the
+        # forward-simulation margin -- pass the original command through. The cross-channel
+        # gate (handled above) and the approval-time goal/path gate remain active. This
+        # isolates the spatial runtime envelope's independent contribution.
+        if not self.enable_spatial_check:
+            safe_cmd = msg
 
         # Simulated communication latency (for S4 latency variation experiment)
         if self.comm_latency_sec > 0:
