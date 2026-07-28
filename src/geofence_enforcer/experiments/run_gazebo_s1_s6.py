@@ -75,7 +75,7 @@ CLEANUP_PATTERNS = [
     "rviz2", "/opt/ros/.*/bin/ros2", "nav2_",  # More specific patterns
     "controller_server", "planner_server",
     "behavior_server", "bt_navigator", "lifecycle_manager",
-    "goal_gate_node", "cmd_vel_guard", "path_watchdog",
+    "goal_gate_node", "cmd_vel_guard", "trusted_cmd_mux", "path_watchdog",
     "metrics_logger",  # demo.launch.py spawns this per goal-gate start; it does NOT
                        # exit on stop_geofence and LEAKS (188 accrued over days →
                        # ~14 GB RAM + swap-thrash → the "flaky Nav2 abort" epidemic).
@@ -2101,6 +2101,13 @@ if __name__ == '__main__':
         # (/odom_spoofed) so an odom spoofer can hold the cross-channel offset low. Default
         # /odom (honest). Nav2/AMCL keep the real /odom → the luring trajectory is unchanged.
         _guard_odom = os.environ.get('PETSE_GUARD_ODOM_TOPIC', '/odom')
+        # Trusted-gateway mode (PETSE_USE_MUX=1): the guard emits PROPOSALS to
+        # /cmd_vel_proposed and trips /petse/stop_latch on danger-stop; the
+        # trusted_cmd_mux is the sole writer of the actuator topic /cmd_vel.
+        # Default (unset): legacy inline behaviour (guard writes /cmd_vel directly).
+        _use_mux = os.environ.get('PETSE_USE_MUX', '0') == '1'
+        _guard_out = '/cmd_vel_proposed' if _use_mux else '/cmd_vel'
+        _stop_latch_arg = '-p enable_stop_latch:=true ' if _use_mux else ''
         guard_cmd = (
             f"source /opt/ros/jazzy/setup.bash && "
             f"source {WORKSPACE_DIR}/install/setup.bash && "
@@ -2110,7 +2117,8 @@ if __name__ == '__main__':
             f"-p use_sim_time:=true "
             f"-p geofence_config:={geofence_config} "
             f"-p input_topic:=/cmd_vel_nav "
-            f"-p output_topic:=/cmd_vel "
+            f"-p output_topic:={_guard_out} "
+            f"{_stop_latch_arg}"
             f"-p odom_topic:={_guard_odom} "
             f"-p safety_method:={method} "
             f"-p enable_spoof_detection:={_spoof_det} "
@@ -2141,8 +2149,54 @@ if __name__ == '__main__':
         else:
             print("[WARN] Standalone cmd_vel_guard may have failed")
 
+        # Trusted-gateway mode: start the mux as the sole writer of /cmd_vel.
+        if _use_mux:
+            self._start_trusted_mux()
+
+    def _start_trusted_mux(self):
+        """Start trusted_cmd_mux as a standalone process (sole /cmd_vel writer).
+
+        Fresh per trial, so its stop-latch starts cleared each run. Consumes the
+        guard's /cmd_vel_proposed and PETSE's /petse/stop_latch, writes /cmd_vel.
+        """
+        mux_cmd = (
+            f"source /opt/ros/jazzy/setup.bash && "
+            f"source {WORKSPACE_DIR}/install/setup.bash && "
+            f"ros2 run geofence_policy_enforcer trusted_cmd_mux_node "
+            f"--ros-args "
+            f"-p use_sim_time:=true "
+            f"-p proposed_topic:=/cmd_vel_proposed "
+            f"-p actuator_topic:=/cmd_vel "
+            f"-p stop_latch_topic:=/petse/stop_latch "
+            f"-p reset_topic:=/petse/trusted_reset "
+            f"-p heartbeat_hz:=20.0"
+        )
+        self._mux_log = open('/tmp/trusted_mux.log', 'w')
+        self._mux_proc = subprocess.Popen(
+            mux_cmd, shell=True, executable='/bin/bash',
+            stdout=self._mux_log, stderr=self._mux_log, preexec_fn=os.setsid)
+        time.sleep(2)
+        if self._mux_proc.poll() is None:
+            print("[SIM] trusted_cmd_mux started (sole writer of /cmd_vel; "
+                  "guard→/cmd_vel_proposed, latch→/petse/stop_latch)")
+        else:
+            print("[WARN] trusted_cmd_mux may have failed to start")
+
+    def _stop_trusted_mux(self):
+        """Stop the trusted mux process."""
+        if hasattr(self, '_mux_proc') and self._mux_proc and self._mux_proc.poll() is None:
+            try:
+                os.killpg(os.getpgid(self._mux_proc.pid), signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        safe_pkill('trusted_cmd_mux')
+        if hasattr(self, '_mux_log') and self._mux_log:
+            self._mux_log.close()
+        self._mux_proc = None
+
     def _stop_standalone_guard(self):
         """Stop standalone guard process"""
+        self._stop_trusted_mux()  # Stop the mux first so nothing coasts on /cmd_vel
         if hasattr(self, '_guard_proc') and self._guard_proc and self._guard_proc.poll() is None:
             try:
                 os.killpg(os.getpgid(self._guard_proc.pid), signal.SIGTERM)

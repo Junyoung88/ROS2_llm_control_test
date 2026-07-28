@@ -27,7 +27,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 
 from geometry_msgs.msg import Twist, PoseStamped, TransformStamped, PoseWithCovarianceStamped
-from std_msgs.msg import String
+from std_msgs.msg import String, Bool
 from nav_msgs.msg import Odometry
 from tf2_ros import TransformListener, Buffer
 
@@ -62,6 +62,13 @@ class CmdVelGuardNode(Node):
         self.declare_parameter('geofence_config', '')
         self.declare_parameter('input_topic', '/cmd_vel_raw')
         self.declare_parameter('output_topic', '/cmd_vel')
+        # Trusted-gateway integration: when enabled, the guard's output_topic is a
+        # PROPOSAL consumed by trusted_cmd_mux (not the actuator), and on any
+        # danger-stop decision the guard trips /petse/stop_latch so the mux latches
+        # zero and drops the ongoing command flood. Off by default → legacy inline
+        # behaviour (guard writes the actuator topic directly).
+        self.declare_parameter('enable_stop_latch', False)
+        self.declare_parameter('stop_latch_topic', '/petse/stop_latch')
         self.declare_parameter('odom_topic', '/odom')
         self.declare_parameter('simulation_horizon', 2.0)  # seconds (for geofence)
         self.declare_parameter('simulation_steps', 20)
@@ -269,6 +276,17 @@ class CmdVelGuardNode(Node):
         self.cmd_pub = self.create_publisher(Twist, output_topic, pub_qos)
         self.metrics_pub = self.create_publisher(String, '/geofence/cmd_vel_events', 10)
         self.status_pub = self.create_publisher(String, '/geofence/cmd_vel_status', 10)
+
+        # Trusted-gateway stop-latch signal (consumed by trusted_cmd_mux).
+        self.enable_stop_latch = self.get_parameter('enable_stop_latch').value
+        self._latched = False
+        self.stop_latch_pub = None
+        if self.enable_stop_latch:
+            stop_latch_topic = self.get_parameter('stop_latch_topic').value
+            self.stop_latch_pub = self.create_publisher(Bool, stop_latch_topic, pub_qos)
+            self.get_logger().info(
+                f'[stop-latch] enabled → tripping {stop_latch_topic} on danger-stop; '
+                f'output_topic {output_topic} is a PROPOSAL for trusted_cmd_mux')
 
         # Statistics
         self.stats = {
@@ -572,6 +590,20 @@ class CmdVelGuardNode(Node):
         """
         return self.policy.uncertainty.compute_margin(velocity=velocity)
 
+    def _trip_latch(self, cause: str):
+        """Trip the trusted stop-latch once, so trusted_cmd_mux holds zero against
+        any subsequent command flood. No-op unless enable_stop_latch is set."""
+        if not self.enable_stop_latch or self._latched or self.stop_latch_pub is None:
+            return
+        self._latched = True
+        self.stop_latch_pub.publish(Bool(data=True))
+        self.get_logger().warning(f'[stop-latch] TRIP ({cause}) → /petse/stop_latch=true')
+
+    @staticmethod
+    def _zeroish(cmd: Twist, eps: float = 1e-3) -> bool:
+        return (abs(cmd.linear.x) < eps and abs(cmd.linear.y) < eps and
+                abs(cmd.angular.z) < eps)
+
     def cmd_vel_callback(self, msg: Twist):
         """Process incoming velocity command using method-specific approach."""
         self.stats['total_commands'] += 1
@@ -608,6 +640,7 @@ class CmdVelGuardNode(Node):
                 'BLOCKED (spoof fail-stop): localization spoof detected, halting robot',
                 throttle_duration_sec=2.0)
             self.cmd_pub.publish(Twist())
+            self._trip_latch('spoof fail-stop')
             return
 
         # Check if we have recent pose data
@@ -647,6 +680,7 @@ class CmdVelGuardNode(Node):
                 })
                 self.metrics_pub.publish(event_msg)
                 self.cmd_pub.publish(Twist())
+                self._trip_latch('unapproved motion')
                 return
 
         # Route to method-specific handler
@@ -671,6 +705,11 @@ class CmdVelGuardNode(Node):
 
         # Publish the safe command
         self.cmd_pub.publish(safe_cmd)
+
+        # Runtime full-stop (predicted violation → guard zeroed the command) is a
+        # danger-stop: trip the trusted latch so the mux holds it against a flood.
+        if modified and self._zeroish(safe_cmd):
+            self._trip_latch('runtime full-stop')
 
     # =========================================================================
     # CBF: Real-time Control Barrier Function
