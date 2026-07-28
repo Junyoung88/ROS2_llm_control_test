@@ -26,6 +26,8 @@ setup(
         'console_scripts': [
             'goal_gate_node = geofence_policy_enforcer.goal_gate_node:main',
             'cmd_vel_guard_node = geofence_policy_enforcer.cmd_vel_guard_node:main',
+            'trusted_cmd_mux_node = geofence_policy_enforcer.trusted_cmd_mux_node:main',
+            'command_race_pilot = geofence_policy_enforcer.command_race_pilot:main',
             'path_watchdog_node = geofence_policy_enforcer.path_watchdog_node:main',
             'metrics_logger_node = geofence_policy_enforcer.metrics_logger_node:main',
             'attack_stepwise_goals = geofence_policy_enforcer.attack_stepwise_goals:main',

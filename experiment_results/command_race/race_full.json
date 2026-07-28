@@ -1,0 +1,44 @@
+{
+  "attack_sec": 30.0,
+  "rates_hz": [
+    50.0,
+    100.0,
+    200.0
+  ],
+  "per_rate": [
+    {
+      "rate_hz": 50.0,
+      "benign_forwarded": 5,
+      "malicious_generated": 1500,
+      "malicious_reaching_actuator": 0,
+      "latch_to_actuator_ms": 0.0,
+      "reset_rejected": 10,
+      "reset_accepted_by_attacker": 0
+    },
+    {
+      "rate_hz": 100.0,
+      "benign_forwarded": 5,
+      "malicious_generated": 3000,
+      "malicious_reaching_actuator": 0,
+      "latch_to_actuator_ms": 0.0,
+      "reset_rejected": 10,
+      "reset_accepted_by_attacker": 0
+    },
+    {
+      "rate_hz": 200.0,
+      "benign_forwarded": 5,
+      "malicious_generated": 6000,
+      "malicious_reaching_actuator": 0,
+      "latch_to_actuator_ms": 0.0,
+      "reset_rejected": 10,
+      "reset_accepted_by_attacker": 0
+    }
+  ],
+  "totals": {
+    "malicious_generated": 10500,
+    "malicious_reaching_actuator": 0,
+    "mux_forwarded_after_latch": 0,
+    "reset_rejected": 30
+  },
+  "success": true
+}
