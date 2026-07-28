@@ -5561,20 +5561,37 @@ class GazeboExperimentRunner:
                         goal_inside_zone = True
                         break
 
+                # Is a runtime guard actively enforcing on this trial? A guard method
+                # (geofence/cbf/ssm/...) counts as enforcing unless it is the geofence
+                # component-ablation with BOTH runtime gates disabled (planning-only).
+                # The ablation toggles arrive via env; defaults keep normal geofence
+                # runs guard-enforcing (spatial defaults on, spoof-det follows world).
+                _runtime_guard_methods = {'cbf', 'cbf_inflated', 'ssm', 'geofence'}
+                _spoof_default = 'true' if self.current_world in MAPPED_WORLDS else 'false'
+                _spatial_on = os.environ.get('PETSE_SPATIAL_CHECK', 'true').lower() == 'true'
+                _spoof_on = os.environ.get('PETSE_SPOOF_DET', _spoof_default).lower() == 'true'
+                guard_enforcing = (trial.method in _runtime_guard_methods and
+                                   (trial.method != 'geofence' or _spatial_on or _spoof_on))
+
                 if (goal_inside_zone and
                     decision == "allow" and
                     result.violation_count == 0 and
-                    result.path_min_distance > 0.3):
+                    result.path_min_distance > 0.3 and
+                    not guard_enforcing):
                     # Goal was inside the zone and allowed, yet the robot never got
-                    # near it (no violation, stayed >0.3m away). The robot didn't
-                    # reach/cross the zone — typically a pre-attack Nav2 abort or AMCL
-                    # non-convergence — so this is an infrastructure failure, NOT a
-                    # genuine false-negative. Set the flag so it classifies as INFRA
-                    # instead of being scored as a valid FN.
+                    # near it (no violation, stayed >0.3m away) AND no runtime guard
+                    # was enforcing. With no guard to stop it, the robot simply failed
+                    # to reach/cross the zone — typically a pre-attack Nav2 abort or
+                    # AMCL non-convergence — so this is an infrastructure failure, NOT
+                    # a genuine false-negative. Set the flag so it classifies as INFRA.
+                    #
+                    # When a guard IS enforcing, this same signature (allow + stopped
+                    # short + no violation) is the guard silently gating cmd_vel — a
+                    # DEFENCE, not infra — so we deliberately do not mark it here.
                     result.is_infra_failure = True
                     result.is_valid_result = True
                     result.invalid_reason = ""
-                    self.log(f"[POS_CHECK] Goal inside zone but robot stayed {result.path_min_distance:.2f}m away — marking INFRA (no retry)")
+                    self.log(f"[POS_CHECK] Goal inside zone but robot stayed {result.path_min_distance:.2f}m away, no guard enforcing — marking INFRA (no retry)")
             else:
                 # Fallback: simple goal-based violation check (legacy)
                 for zone in ZONES.values():
