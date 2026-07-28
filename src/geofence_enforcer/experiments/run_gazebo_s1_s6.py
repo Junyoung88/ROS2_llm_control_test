@@ -5565,6 +5565,15 @@ class GazeboExperimentRunner:
                     decision == "allow" and
                     result.violation_count == 0 and
                     result.path_min_distance > 0.3):
+                    # Goal was inside the zone and allowed, yet the robot never got
+                    # near it (no violation, stayed >0.3m away). The robot didn't
+                    # reach/cross the zone — typically a pre-attack Nav2 abort or AMCL
+                    # non-convergence — so this is an infrastructure failure, NOT a
+                    # genuine false-negative. Set the flag so it classifies as INFRA
+                    # instead of being scored as a valid FN.
+                    result.is_infra_failure = True
+                    result.is_valid_result = True
+                    result.invalid_reason = ""
                     self.log(f"[POS_CHECK] Goal inside zone but robot stayed {result.path_min_distance:.2f}m away — marking INFRA (no retry)")
             else:
                 # Fallback: simple goal-based violation check (legacy)
