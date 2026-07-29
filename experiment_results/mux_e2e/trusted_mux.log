@@ -1,0 +1,2 @@
+[INFO] [1785251344.985881941] [trusted_cmd_mux]: [trusted_cmd_mux] proposals '/cmd_vel_proposed' → actuator '/cmd_vel'; latch '/petse/stop_latch', reset '/petse/trusted_reset' (token set)
+[WARN] [1785251401.828445271] [trusted_cmd_mux]: [trusted_cmd_mux] STOP LATCH engaged — dropping all proposals until trusted reset
