@@ -9,6 +9,7 @@ If a violation is detected, triggers navigation cancel and/or emergency stop.
 
 import math
 import json
+import os
 from typing import List, Tuple
 
 import rclpy
@@ -67,11 +68,23 @@ class PathWatchdogNode(Node):
             Path, local_path_topic, self.local_path_callback, 10
         )
 
-        # Publishers
-        self.cmd_vel_pub = self.create_publisher(Twist, cmd_vel_topic, 10)
+        # Trusted-gateway mode: route the emergency stop through trusted_cmd_mux's
+        # stop-latch instead of writing the actuator topic /cmd_vel directly, so the
+        # mux stays the SOLE /cmd_vel writer (a prerequisite for SROS2 exclusivity).
+        # Enabled when the runner sets PETSE_USE_MUX=1 (inherited via env).
+        self._mux_mode = os.environ.get('PETSE_USE_MUX', '0') == '1'
+
+        # Publishers. In mux mode we do NOT create the /cmd_vel publisher at all, so
+        # this node is not even registered as an actuator-topic writer in the ROS
+        # graph — the mux is the sole /cmd_vel publisher.
+        self.cmd_vel_pub = None if self._mux_mode else self.create_publisher(Twist, cmd_vel_topic, 10)
         self.violation_pub = self.create_publisher(String, '/geofence/path_violations', 10)
         self.status_pub = self.create_publisher(String, '/geofence/path_status', 10)
         self.emergency_stop_pub = self.create_publisher(Bool, '/geofence/emergency_stop', 10)
+        self.stop_latch_pub = self.create_publisher(Bool, '/petse/stop_latch', 10)
+        if self._mux_mode:
+            self.get_logger().info('[path_watchdog] mux mode: emergency stop routes '
+                                   'via /petse/stop_latch (not direct /cmd_vel)')
 
         # Action client for canceling navigation
         self._nav_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
@@ -202,9 +215,12 @@ class PathWatchdogNode(Node):
         self.stats['emergency_stops_triggered'] += 1
         self.get_logger().warn('EMERGENCY STOP triggered due to path violation')
 
-        # Publish zero velocity
-        stop_cmd = Twist()
-        self.cmd_vel_pub.publish(stop_cmd)
+        if self._mux_mode:
+            # Route the stop through the trusted mux's latch; do NOT touch /cmd_vel.
+            self.stop_latch_pub.publish(Bool(data=True))
+        else:
+            # Legacy inline behaviour: write a zero command to the actuator topic.
+            self.cmd_vel_pub.publish(Twist())
 
         # Publish emergency stop signal
         stop_msg = Bool()
