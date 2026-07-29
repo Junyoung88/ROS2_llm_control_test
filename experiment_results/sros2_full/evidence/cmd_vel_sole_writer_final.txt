@@ -1,0 +1,10 @@
+FINAL /cmd_vel sole-writer verification (single clean run, PETSE_USE_MUX=1)
+  ros2 topic info /cmd_vel  ->  Publisher count: 1
+  sole publisher: trusted_cmd_mux
+
+Removed as /cmd_vel writers:
+  - path_watchdog : rerouted to /petse/stop_latch (creates no cmd_vel pub in mux mode)
+  - goal_gate     : subscriber-only (never published)
+  - docking_server: disabled in mux mode (opennav_docking process killed; use_respawn=False)
+
+=> trusted_cmd_mux is the TRUE sole actuator-topic writer; SROS2 then enforces it.
