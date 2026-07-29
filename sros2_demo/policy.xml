@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SROS2 access-control policy for the trusted-command-mux exclusivity demo.
+
+  Core rule: publishing the actuator topic /cmd_vel is granted ONLY to the
+  /petse/mux enclave. The /petse/attacker enclave may publish proposals
+  (/cmd_vel_proposed) but NOT /cmd_vel; under ROS_SECURITY_STRATEGY=Enforce the
+  DDS access-control plugin rejects the attacker's /cmd_vel publisher outright,
+  so its commands never reach the actuator — enforcement, not just policy.
+
+  The rosout/parameter_events topics and the six parameter services are the
+  standard rclpy per-node boilerplate (default-deny requires enumerating them).
+-->
+<policy version="0.2.0">
+  <enclaves>
+
+    <!-- TRUSTED: the mux is the sole party allowed to publish /cmd_vel. -->
+    <enclave path="/petse/mux">
+      <profiles>
+        <profile ns="/" node="cmd_injector">
+          <topics publish="ALLOW">
+            <topic>rosout</topic>
+            <topic>parameter_events</topic>
+            <topic>cmd_vel</topic>
+          </topics>
+          <topics subscribe="ALLOW">
+            <topic>parameter_events</topic>
+          </topics>
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+            <service>~/get_type_description</service>
+          </services>
+        </profile>
+      </profiles>
+    </enclave>
+
+    <!-- UNTRUSTED: may propose but is DENIED /cmd_vel publish. -->
+    <enclave path="/petse/attacker">
+      <profiles>
+        <profile ns="/" node="cmd_injector">
+          <topics publish="ALLOW">
+            <topic>rosout</topic>
+            <topic>parameter_events</topic>
+            <topic>cmd_vel_proposed</topic>
+          </topics>
+          <topics subscribe="ALLOW">
+            <topic>parameter_events</topic>
+          </topics>
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+            <service>~/get_type_description</service>
+          </services>
+        </profile>
+      </profiles>
+    </enclave>
+
+    <!-- Independent observer of the actuator topic. -->
+    <enclave path="/petse/monitor">
+      <profiles>
+        <profile ns="/" node="cmd_monitor">
+          <topics publish="ALLOW">
+            <topic>rosout</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics subscribe="ALLOW">
+            <topic>parameter_events</topic>
+            <topic>cmd_vel</topic>
+          </topics>
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+            <service>~/get_type_description</service>
+          </services>
+        </profile>
+      </profiles>
+    </enclave>
+
+  </enclaves>
+</policy>

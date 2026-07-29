@@ -1,0 +1,4 @@
+mux_publisher:        published 40 (no security error → allowed)
+attacker_denied_rows: 2 (DDS check_create_datawriter rejections on rt/cmd_vel)
+monitor_MONITOR_FINAL_COUNT=37       (nonzero /cmd_vel actually delivered — attacker contributed 0)
+RESULT: PASS — actuator /cmd_vel exclusive to the mux enclave; attacker rejected at DDS layer

@@ -1,0 +1,2 @@
+[INFO] [1785291536.305305078] [rcl]: Found security directory: /home/jim/ros2_motion_planning_tutorials/.claude/worktrees/fix-poscheck-infra/sros2_demo/keystore/enclaves/petse/mux
+[INFO] [1785291538.393972790] [cmd_injector]: published 40 cmd_vel messages, exiting

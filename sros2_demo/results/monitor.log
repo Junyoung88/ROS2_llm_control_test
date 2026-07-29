@@ -1,0 +1,25 @@
+[INFO] [1785291531.305130623] [rcl]: Found security directory: /home/jim/ros2_motion_planning_tutorials/.claude/worktrees/fix-poscheck-infra/sros2_demo/keystore/enclaves/petse/monitor
+[INFO] [1785291536.994208642] [cmd_monitor]: received 10 nonzero /cmd_vel
+[INFO] [1785291537.489422857] [cmd_monitor]: received 20 nonzero /cmd_vel
+[INFO] [1785291537.989158088] [cmd_monitor]: received 30 nonzero /cmd_vel
+[INFO] [1785291544.854667232] [cmd_monitor]: FINAL received nonzero /cmd_vel = 37
+Failed to publish log message to rosout: publisher's context is invalid, at ./src/rcl/publisher.c:423
+MONITOR_FINAL_COUNT=37
+Traceback (most recent call last):
+  File "/home/jim/ros2_motion_planning_tutorials/.claude/worktrees/fix-poscheck-infra/sros2_demo/cmd_sub.py", line 46, in <module>
+    main()
+  File "/home/jim/ros2_motion_planning_tutorials/.claude/worktrees/fix-poscheck-infra/sros2_demo/cmd_sub.py", line 32, in main
+    rclpy.spin(node)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+    executor.spin_once()
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 845, in spin_once
+    self._spin_once_impl(timeout_sec)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 829, in _spin_once_impl
+    handler, entity, node = self.wait_for_ready_callbacks(
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 799, in wait_for_ready_callbacks
+    return next(self._cb_iter)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 707, in _wait_for_ready_callbacks
+    raise ExternalShutdownException()
+rclpy.executors.ExternalShutdownException

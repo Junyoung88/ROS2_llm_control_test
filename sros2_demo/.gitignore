@@ -1,0 +1,2 @@
+# SROS2 keystore holds private keys/certs — regenerate via run_sros2_demo.sh header
+keystore/

@@ -1,0 +1,18 @@
+[INFO] [1785291541.671317997] [rcl]: Found security directory: /home/jim/ros2_motion_planning_tutorials/.claude/worktrees/fix-poscheck-infra/sros2_demo/keystore/enclaves/petse/attacker
+2026-07-29 11:19:01.706 [SECURITY Error] rt/cmd_vel topic not found in allow rule. (./src/cpp/security/accesscontrol/Permissions.cpp:1192) -> Function check_create_datawriter
+2026-07-29 11:19:01.706 [SECURITY Error] Error checking creation of local writer  (rt/cmd_vel topic not found in allow rule. (./src/cpp/security/accesscontrol/Permissions.cpp:1192))
+ -> Function get_datawriter_sec_attributes
+2026-07-29 11:19:01.706 [DATA_WRITER Error] Problem creating associated Writer -> Function enable
+Traceback (most recent call last):
+  File "/home/jim/ros2_motion_planning_tutorials/.claude/worktrees/fix-poscheck-infra/sros2_demo/cmd_pub.py", line 51, in <module>
+    main()
+  File "/home/jim/ros2_motion_planning_tutorials/.claude/worktrees/fix-poscheck-infra/sros2_demo/cmd_pub.py", line 37, in main
+    node = CmdPub(n)
+           ^^^^^^^^^
+  File "/home/jim/ros2_motion_planning_tutorials/.claude/worktrees/fix-poscheck-infra/sros2_demo/cmd_pub.py", line 18, in __init__
+    self.pub = self.create_publisher(Twist, '/cmd_vel', 10)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 1559, in create_publisher
+    publisher_object = _rclpy.Publisher(
+                       ^^^^^^^^^^^^^^^^^
+rclpy._rclpy_pybind11.RCLError: Failed to create publisher: create_publisher() could not create data writer, at ./src/publisher.cpp:275, at ./src/rcl/publisher.c:117
