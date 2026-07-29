@@ -1,0 +1,7 @@
+/cmd_vel publishers AFTER path_watchdog reroute (PETSE_USE_MUX=1, non-SROS2)
+  trusted_cmd_mux   — intended sole writer
+  docking_server    — Nav2 built-in, dormant (no docking action in S5) — remap TODO
+  3x _NODE_NAME_UNKNOWN_ — stale/transient discovery endpoints (node restarts)
+
+REMOVED by reroute: path_watchdog (was 2x publisher) — now trips /petse/stop_latch;
+goal_gate confirmed subscriber-only. Among ACTIVE named nodes, mux is the sole writer.
