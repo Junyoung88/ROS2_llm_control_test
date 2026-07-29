@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<policy version="0.2.0">
+  <enclaves>
+    <enclave path="/petse/mux">
+      <profiles>
+        <profile node="trusted_cmd_mux" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/petse/stop_latch</topic>
+            <topic>/petse/trusted_reset</topic>
+            <topic>clock</topic>
+            <topic>cmd_vel_proposed</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/petse/mux_metrics</topic>
+            <topic>cmd_vel</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+      </profiles>
+    </enclave>
+  </enclaves>
+</policy>

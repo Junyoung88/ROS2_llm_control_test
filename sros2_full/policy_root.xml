@@ -1,0 +1,1272 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<policy version="0.2.0">
+  <enclaves>
+    <enclave path="/">
+      <profiles>
+        <profile node="amcl" ns="/">
+          <services reply="ALLOW">
+            <service>reinitialize_global_localization</service>
+            <service>request_nomotion_update</service>
+            <service>set_initial_pose</service>
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>initialpose</topic>
+            <topic>map</topic>
+            <topic>parameter_events</topic>
+            <topic>scan</topic>
+            <topic>tf</topic>
+            <topic>tf_static</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>amcl_pose</topic>
+            <topic>bond</topic>
+            <topic>parameter_events</topic>
+            <topic>particle_cloud</topic>
+            <topic>rosout</topic>
+            <topic>tf</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="behavior_server" ns="/">
+          <services reply="ALLOW">
+            <service>/assisted_teleop/_action/cancel_goal</service>
+            <service>/assisted_teleop/_action/get_result</service>
+            <service>/assisted_teleop/_action/send_goal</service>
+            <service>/backup/_action/cancel_goal</service>
+            <service>/backup/_action/get_result</service>
+            <service>/backup/_action/send_goal</service>
+            <service>/drive_on_heading/_action/cancel_goal</service>
+            <service>/drive_on_heading/_action/get_result</service>
+            <service>/drive_on_heading/_action/send_goal</service>
+            <service>/spin/_action/cancel_goal</service>
+            <service>/spin/_action/get_result</service>
+            <service>/spin/_action/send_goal</service>
+            <service>/wait/_action/cancel_goal</service>
+            <service>/wait/_action/get_result</service>
+            <service>/wait/_action/send_goal</service>
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/local_costmap/costmap_raw</topic>
+            <topic>/local_costmap/costmap_raw_updates</topic>
+            <topic>/local_costmap/published_footprint</topic>
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>cmd_vel_teleop</topic>
+            <topic>parameter_events</topic>
+            <topic>preempt_teleop</topic>
+            <topic>tf</topic>
+            <topic>tf_static</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/assisted_teleop/_action/feedback</topic>
+            <topic>/assisted_teleop/_action/status</topic>
+            <topic>/backup/_action/feedback</topic>
+            <topic>/backup/_action/status</topic>
+            <topic>/drive_on_heading/_action/feedback</topic>
+            <topic>/drive_on_heading/_action/status</topic>
+            <topic>/spin/_action/feedback</topic>
+            <topic>/spin/_action/status</topic>
+            <topic>/wait/_action/feedback</topic>
+            <topic>/wait/_action/status</topic>
+            <topic>bond</topic>
+            <topic>cmd_vel_nav</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="bt_navigator" ns="/">
+          <services reply="ALLOW">
+            <service>/navigate_through_poses/_action/cancel_goal</service>
+            <service>/navigate_through_poses/_action/get_result</service>
+            <service>/navigate_through_poses/_action/send_goal</service>
+            <service>/navigate_to_pose/_action/cancel_goal</service>
+            <service>/navigate_to_pose/_action/get_result</service>
+            <service>/navigate_to_pose/_action/send_goal</service>
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <services request="ALLOW">
+            <service>/navigate_to_pose/_action/cancel_goal</service>
+            <service>/navigate_to_pose/_action/get_result</service>
+            <service>/navigate_to_pose/_action/send_goal</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/navigate_to_pose/_action/feedback</topic>
+            <topic>/navigate_to_pose/_action/status</topic>
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>goal_pose</topic>
+            <topic>odom</topic>
+            <topic>parameter_events</topic>
+            <topic>tf</topic>
+            <topic>tf_static</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/navigate_through_poses/_action/feedback</topic>
+            <topic>/navigate_through_poses/_action/status</topic>
+            <topic>/navigate_to_pose/_action/feedback</topic>
+            <topic>/navigate_to_pose/_action/status</topic>
+            <topic>bond</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="bt_navigator_navigate_through_poses_rclcpp_node" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <services request="ALLOW">
+            <service>/backup/_action/cancel_goal</service>
+            <service>/backup/_action/get_result</service>
+            <service>/backup/_action/send_goal</service>
+            <service>/compute_path_through_poses/_action/cancel_goal</service>
+            <service>/compute_path_through_poses/_action/get_result</service>
+            <service>/compute_path_through_poses/_action/send_goal</service>
+            <service>/follow_path/_action/cancel_goal</service>
+            <service>/follow_path/_action/get_result</service>
+            <service>/follow_path/_action/send_goal</service>
+            <service>/global_costmap/clear_entirely_global_costmap</service>
+            <service>/local_costmap/clear_entirely_local_costmap</service>
+            <service>/spin/_action/cancel_goal</service>
+            <service>/spin/_action/get_result</service>
+            <service>/spin/_action/send_goal</service>
+            <service>/wait/_action/cancel_goal</service>
+            <service>/wait/_action/get_result</service>
+            <service>/wait/_action/send_goal</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/backup/_action/feedback</topic>
+            <topic>/backup/_action/status</topic>
+            <topic>/compute_path_through_poses/_action/feedback</topic>
+            <topic>/compute_path_through_poses/_action/status</topic>
+            <topic>/follow_path/_action/feedback</topic>
+            <topic>/follow_path/_action/status</topic>
+            <topic>/spin/_action/feedback</topic>
+            <topic>/spin/_action/status</topic>
+            <topic>/wait/_action/feedback</topic>
+            <topic>/wait/_action/status</topic>
+            <topic>clock</topic>
+            <topic>controller_selector</topic>
+            <topic>parameter_events</topic>
+            <topic>planner_selector</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>behavior_tree_log</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="bt_navigator_navigate_to_pose_rclcpp_node" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <services request="ALLOW">
+            <service>/backup/_action/cancel_goal</service>
+            <service>/backup/_action/get_result</service>
+            <service>/backup/_action/send_goal</service>
+            <service>/compute_path_to_pose/_action/cancel_goal</service>
+            <service>/compute_path_to_pose/_action/get_result</service>
+            <service>/compute_path_to_pose/_action/send_goal</service>
+            <service>/follow_path/_action/cancel_goal</service>
+            <service>/follow_path/_action/get_result</service>
+            <service>/follow_path/_action/send_goal</service>
+            <service>/global_costmap/clear_entirely_global_costmap</service>
+            <service>/local_costmap/clear_entirely_local_costmap</service>
+            <service>/spin/_action/cancel_goal</service>
+            <service>/spin/_action/get_result</service>
+            <service>/spin/_action/send_goal</service>
+            <service>/wait/_action/cancel_goal</service>
+            <service>/wait/_action/get_result</service>
+            <service>/wait/_action/send_goal</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/backup/_action/feedback</topic>
+            <topic>/backup/_action/status</topic>
+            <topic>/compute_path_to_pose/_action/feedback</topic>
+            <topic>/compute_path_to_pose/_action/status</topic>
+            <topic>/follow_path/_action/feedback</topic>
+            <topic>/follow_path/_action/status</topic>
+            <topic>/spin/_action/feedback</topic>
+            <topic>/spin/_action/status</topic>
+            <topic>/wait/_action/feedback</topic>
+            <topic>/wait/_action/status</topic>
+            <topic>clock</topic>
+            <topic>controller_selector</topic>
+            <topic>parameter_events</topic>
+            <topic>planner_selector</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>behavior_tree_log</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="cmd_vel_guard" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/geofence/nav_state</topic>
+            <topic>/petse/guard_reset</topic>
+            <topic>/petse/inject_zone</topic>
+            <topic>amcl_pose</topic>
+            <topic>clock</topic>
+            <topic>cmd_vel_nav</topic>
+            <topic>odom</topic>
+            <topic>tf</topic>
+            <topic>tf_static</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/geofence/cmd_vel_events</topic>
+            <topic>/geofence/cmd_vel_status</topic>
+            <topic>/petse/stop_latch</topic>
+            <topic>cmd_vel_proposed</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="collision_monitor" ns="/">
+          <services reply="ALLOW">
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+            <service>~/toggle</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/local_costmap/published_footprint</topic>
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>cmd_vel_smoothed</topic>
+            <topic>parameter_events</topic>
+            <topic>scan</topic>
+            <topic>tf</topic>
+            <topic>tf_static</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>bond</topic>
+            <topic>cmd_vel_nav</topic>
+            <topic>collision_monitor_state</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>~/collision_points_marker</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="controller_manager" ns="/">
+          <services reply="ALLOW">
+            <service>~/configure_controller</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_logger_levels</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_controller_types</service>
+            <service>~/list_controllers</service>
+            <service>~/list_hardware_components</service>
+            <service>~/list_hardware_interfaces</service>
+            <service>~/list_parameters</service>
+            <service>~/load_controller</service>
+            <service>~/reload_controller_libraries</service>
+            <service>~/set_hardware_component_state</service>
+            <service>~/set_logger_levels</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+            <service>~/switch_controller</service>
+            <service>~/unload_controller</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+            <topic>robot_description</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>diagnostics</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>~/activity</topic>
+            <topic>~/introspection_data/full</topic>
+            <topic>~/introspection_data/names</topic>
+            <topic>~/introspection_data/values</topic>
+            <topic>~/statistics/full</topic>
+            <topic>~/statistics/names</topic>
+            <topic>~/statistics/values</topic>
+          </topics>
+        </profile>
+        <profile node="controller_server" ns="/">
+          <services reply="ALLOW">
+            <service>/follow_path/_action/cancel_goal</service>
+            <service>/follow_path/_action/get_result</service>
+            <service>/follow_path/_action/send_goal</service>
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>odom</topic>
+            <topic>parameter_events</topic>
+            <topic>speed_limit</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/follow_path/_action/feedback</topic>
+            <topic>/follow_path/_action/status</topic>
+            <topic>bond</topic>
+            <topic>cmd_vel_nav</topic>
+            <topic>cost_cloud</topic>
+            <topic>evaluation</topic>
+            <topic>local_plan</topic>
+            <topic>marker</topic>
+            <topic>parameter_events</topic>
+            <topic>received_global_plan</topic>
+            <topic>rosout</topic>
+            <topic>transformed_global_plan</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="docking_server" ns="/">
+          <services reply="ALLOW">
+            <service>/dock_robot/_action/cancel_goal</service>
+            <service>/dock_robot/_action/get_result</service>
+            <service>/dock_robot/_action/send_goal</service>
+            <service>/undock_robot/_action/cancel_goal</service>
+            <service>/undock_robot/_action/get_result</service>
+            <service>/undock_robot/_action/send_goal</service>
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/reload_database</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <services request="ALLOW">
+            <service>/navigate_to_pose/_action/cancel_goal</service>
+            <service>/navigate_to_pose/_action/get_result</service>
+            <service>/navigate_to_pose/_action/send_goal</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/local_costmap/costmap_raw</topic>
+            <topic>/local_costmap/costmap_raw_updates</topic>
+            <topic>/local_costmap/published_footprint</topic>
+            <topic>/navigate_to_pose/_action/feedback</topic>
+            <topic>/navigate_to_pose/_action/status</topic>
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>detected_dock_pose</topic>
+            <topic>parameter_events</topic>
+            <topic>tf</topic>
+            <topic>tf_static</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/dock_robot/_action/feedback</topic>
+            <topic>/dock_robot/_action/status</topic>
+            <topic>/undock_robot/_action/feedback</topic>
+            <topic>/undock_robot/_action/status</topic>
+            <topic>bond</topic>
+            <topic>dock_pose</topic>
+            <topic>docking_trajectory</topic>
+            <topic>filtered_dock_pose</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>staging_pose</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="ekf_filter_node" ns="/">
+          <services reply="ALLOW">
+            <service>enable</service>
+            <service>reset</service>
+            <service>set_pose</service>
+            <service>toggle</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>clock</topic>
+            <topic>imu</topic>
+            <topic>odom</topic>
+            <topic>parameter_events</topic>
+            <topic>set_pose</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/odometry/filtered</topic>
+            <topic>diagnostics</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>tf</topic>
+          </topics>
+        </profile>
+        <profile node="global_costmap" ns="/global_costmap">
+          <services reply="ALLOW">
+            <service>clear_around_global_costmap</service>
+            <service>clear_around_pose_global_costmap</service>
+            <service>clear_entirely_global_costmap</service>
+            <service>clear_except_global_costmap</service>
+            <service>get_cost_global_costmap</service>
+            <service>get_costmap</service>
+            <service>get_obstacle_layer</service>
+            <service>get_static_layer</service>
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/clock</topic>
+            <topic>/map</topic>
+            <topic>/parameter_events</topic>
+            <topic>/scan</topic>
+            <topic>footprint</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/parameter_events</topic>
+            <topic>/rosout</topic>
+            <topic>costmap</topic>
+            <topic>costmap_raw</topic>
+            <topic>costmap_raw_updates</topic>
+            <topic>costmap_updates</topic>
+            <topic>obstacle_layer</topic>
+            <topic>obstacle_layer_raw</topic>
+            <topic>obstacle_layer_raw_updates</topic>
+            <topic>obstacle_layer_updates</topic>
+            <topic>published_footprint</topic>
+            <topic>static_layer</topic>
+            <topic>static_layer_raw</topic>
+            <topic>static_layer_raw_updates</topic>
+            <topic>static_layer_updates</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="goal_gate" ns="/">
+          <services reply="ALLOW">
+            <service>/follow_waypoints_safe/_action/cancel_goal</service>
+            <service>/follow_waypoints_safe/_action/get_result</service>
+            <service>/follow_waypoints_safe/_action/send_goal</service>
+            <service>/geofence/reload</service>
+            <service>/geofence/set_method</service>
+            <service>/navigate_to_pose_safe/_action/cancel_goal</service>
+            <service>/navigate_to_pose_safe/_action/get_result</service>
+            <service>/navigate_to_pose_safe/_action/send_goal</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <services request="ALLOW">
+            <service>/follow_waypoints/_action/cancel_goal</service>
+            <service>/follow_waypoints/_action/get_result</service>
+            <service>/follow_waypoints/_action/send_goal</service>
+            <service>/navigate_to_pose/_action/cancel_goal</service>
+            <service>/navigate_to_pose/_action/get_result</service>
+            <service>/navigate_to_pose/_action/send_goal</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/follow_waypoints/_action/feedback</topic>
+            <topic>/follow_waypoints/_action/status</topic>
+            <topic>/navigate_to_pose/_action/feedback</topic>
+            <topic>/navigate_to_pose/_action/status</topic>
+            <topic>approach_velocity</topic>
+            <topic>clock</topic>
+            <topic>cmd_vel</topic>
+            <topic>odom</topic>
+            <topic>plan</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/follow_waypoints_safe/_action/feedback</topic>
+            <topic>/follow_waypoints_safe/_action/status</topic>
+            <topic>/geofence/goal_events</topic>
+            <topic>/geofence/margin_breakdown</topic>
+            <topic>/geofence/nav_state</topic>
+            <topic>/geofence/status</topic>
+            <topic>/geofence/zones_viz</topic>
+            <topic>/navigate_to_pose_safe/_action/feedback</topic>
+            <topic>/navigate_to_pose_safe/_action/status</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="gripper_controller" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_logger_levels</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/gripper_cmd/_action/cancel_goal</service>
+            <service>~/gripper_cmd/_action/get_result</service>
+            <service>~/gripper_cmd/_action/send_goal</service>
+            <service>~/list_parameters</service>
+            <service>~/set_logger_levels</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>~/gripper_cmd/_action/feedback</topic>
+            <topic>~/gripper_cmd/_action/status</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="gz_ros_control" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="joint_state_broadcaster" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_logger_levels</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_logger_levels</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>dynamic_joint_states</topic>
+            <topic>joint_states</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="lifecycle_manager_localization" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/is_active</service>
+            <service>~/list_parameters</service>
+            <service>~/manage_nodes</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <services request="ALLOW">
+            <service>/amcl/change_state</service>
+            <service>/amcl/get_state</service>
+            <service>/map_server/change_state</service>
+            <service>/map_server/get_state</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>bond</topic>
+            <topic>diagnostics</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="lifecycle_manager_navigation" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/is_active</service>
+            <service>~/list_parameters</service>
+            <service>~/manage_nodes</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <services request="ALLOW">
+            <service>/behavior_server/change_state</service>
+            <service>/behavior_server/get_state</service>
+            <service>/bt_navigator/change_state</service>
+            <service>/bt_navigator/get_state</service>
+            <service>/collision_monitor/change_state</service>
+            <service>/collision_monitor/get_state</service>
+            <service>/controller_server/change_state</service>
+            <service>/controller_server/get_state</service>
+            <service>/docking_server/change_state</service>
+            <service>/docking_server/get_state</service>
+            <service>/planner_server/change_state</service>
+            <service>/planner_server/get_state</service>
+            <service>/route_server/change_state</service>
+            <service>/route_server/get_state</service>
+            <service>/smoother_server/change_state</service>
+            <service>/smoother_server/get_state</service>
+            <service>/velocity_smoother/change_state</service>
+            <service>/velocity_smoother/get_state</service>
+            <service>/waypoint_follower/change_state</service>
+            <service>/waypoint_follower/get_state</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>bond</topic>
+            <topic>diagnostics</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="local_costmap" ns="/local_costmap">
+          <services reply="ALLOW">
+            <service>clear_around_local_costmap</service>
+            <service>clear_around_pose_local_costmap</service>
+            <service>clear_entirely_local_costmap</service>
+            <service>clear_except_local_costmap</service>
+            <service>get_cost_local_costmap</service>
+            <service>get_costmap</service>
+            <service>get_voxel_layer</service>
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/clock</topic>
+            <topic>/parameter_events</topic>
+            <topic>/scan</topic>
+            <topic>footprint</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/parameter_events</topic>
+            <topic>/rosout</topic>
+            <topic>clearing_endpoints</topic>
+            <topic>costmap</topic>
+            <topic>costmap_raw</topic>
+            <topic>costmap_raw_updates</topic>
+            <topic>costmap_updates</topic>
+            <topic>published_footprint</topic>
+            <topic>voxel_grid</topic>
+            <topic>voxel_layer</topic>
+            <topic>voxel_layer_raw</topic>
+            <topic>voxel_layer_raw_updates</topic>
+            <topic>voxel_layer_updates</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="map_server" ns="/">
+          <services reply="ALLOW">
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/load_map</service>
+            <service>~/map</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>bond</topic>
+            <topic>map</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="metrics_logger" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/geofence/cmd_vel_events</topic>
+            <topic>/geofence/cmd_vel_status</topic>
+            <topic>/geofence/emergency_stop</topic>
+            <topic>/geofence/episode_control</topic>
+            <topic>/geofence/goal_events</topic>
+            <topic>/geofence/path_status</topic>
+            <topic>/geofence/path_violations</topic>
+            <topic>/geofence/status</topic>
+            <topic>clock</topic>
+            <topic>odom</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/geofence/metrics</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="path_watchdog" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <services request="ALLOW">
+            <service>/navigate_to_pose/_action/cancel_goal</service>
+            <service>/navigate_to_pose/_action/get_result</service>
+            <service>/navigate_to_pose/_action/send_goal</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/navigate_to_pose/_action/feedback</topic>
+            <topic>/navigate_to_pose/_action/status</topic>
+            <topic>clock</topic>
+            <topic>local_plan</topic>
+            <topic>plan</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/geofence/emergency_stop</topic>
+            <topic>/geofence/path_status</topic>
+            <topic>/geofence/path_violations</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="planner_server" ns="/">
+          <services reply="ALLOW">
+            <service>/compute_path_through_poses/_action/cancel_goal</service>
+            <service>/compute_path_through_poses/_action/get_result</service>
+            <service>/compute_path_through_poses/_action/send_goal</service>
+            <service>/compute_path_to_pose/_action/cancel_goal</service>
+            <service>/compute_path_to_pose/_action/get_result</service>
+            <service>/compute_path_to_pose/_action/send_goal</service>
+            <service>is_path_valid</service>
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/compute_path_through_poses/_action/feedback</topic>
+            <topic>/compute_path_through_poses/_action/status</topic>
+            <topic>/compute_path_to_pose/_action/feedback</topic>
+            <topic>/compute_path_to_pose/_action/status</topic>
+            <topic>bond</topic>
+            <topic>parameter_events</topic>
+            <topic>plan</topic>
+            <topic>rosout</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="relay" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>odom_real</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>odom</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="relay_camera_info" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/camera/camera_info</topic>
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/camera/image/camera_info</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="robot_state_publisher" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>clock</topic>
+            <topic>joint_states</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>parameter_events</topic>
+            <topic>robot_description</topic>
+            <topic>rosout</topic>
+            <topic>tf</topic>
+            <topic>tf_static</topic>
+          </topics>
+        </profile>
+        <profile node="ros_gz_bridge" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>clock</topic>
+            <topic>cmd_vel</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/camera/camera_info</topic>
+            <topic>/model/object1/pose</topic>
+            <topic>/model/object2/pose</topic>
+            <topic>/scan/points</topic>
+            <topic>clock</topic>
+            <topic>imu</topic>
+            <topic>joint_states</topic>
+            <topic>odom_real</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>scan_real</topic>
+          </topics>
+        </profile>
+        <profile node="ros_gz_image" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/camera/image</topic>
+            <topic>/camera/image/compressed</topic>
+            <topic>/camera/image/compressedDepth</topic>
+            <topic>/camera/image/theora</topic>
+            <topic>/camera/image/zstd</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="route_server" ns="/">
+          <services reply="ALLOW">
+            <service>/compute_and_track_route/_action/cancel_goal</service>
+            <service>/compute_and_track_route/_action/get_result</service>
+            <service>/compute_and_track_route/_action/send_goal</service>
+            <service>/compute_route/_action/cancel_goal</service>
+            <service>/compute_route/_action/get_result</service>
+            <service>/compute_route/_action/send_goal</service>
+            <service>~/DynamicEdgesScorer/adjust_edges</service>
+            <service>~/ReroutingService/reroute</service>
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+            <service>~/set_route_graph</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/global_costmap/costmap_raw</topic>
+            <topic>/global_costmap/costmap_raw_updates</topic>
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+            <topic>tf</topic>
+            <topic>tf_static</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/compute_and_track_route/_action/feedback</topic>
+            <topic>/compute_and_track_route/_action/status</topic>
+            <topic>/compute_route/_action/feedback</topic>
+            <topic>/compute_route/_action/status</topic>
+            <topic>bond</topic>
+            <topic>parameter_events</topic>
+            <topic>plan</topic>
+            <topic>rosout</topic>
+            <topic>route_graph</topic>
+            <topic>speed_limit</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="scan_relay" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>scan_real</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>scan</topic>
+          </topics>
+        </profile>
+        <profile node="smoother_server" ns="/">
+          <services reply="ALLOW">
+            <service>/smooth_path/_action/cancel_goal</service>
+            <service>/smooth_path/_action/get_result</service>
+            <service>/smooth_path/_action/send_goal</service>
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/global_costmap/costmap_raw</topic>
+            <topic>/global_costmap/costmap_raw_updates</topic>
+            <topic>/global_costmap/published_footprint</topic>
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+            <topic>tf</topic>
+            <topic>tf_static</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/smooth_path/_action/feedback</topic>
+            <topic>/smooth_path/_action/status</topic>
+            <topic>bond</topic>
+            <topic>parameter_events</topic>
+            <topic>plan_smoothed</topic>
+            <topic>rosout</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="transform_listener_impl_5a76e0a0e9d0" ns="/">
+          <services reply="ALLOW">
+            <service>~/get_type_description</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+            <topic>tf</topic>
+            <topic>tf_static</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="transform_listener_impl_5fb7a7ac13c0" ns="/">
+          <services reply="ALLOW">
+            <service>~/get_type_description</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+            <topic>tf</topic>
+            <topic>tf_static</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="transform_listener_impl_6518b8e324a0" ns="/">
+          <services reply="ALLOW">
+            <service>~/get_type_description</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+            <topic>tf</topic>
+            <topic>tf_static</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>rosout</topic>
+          </topics>
+        </profile>
+        <profile node="ur_arm_controller" ns="/">
+          <services reply="ALLOW">
+            <service>~/describe_parameters</service>
+            <service>~/follow_joint_trajectory/_action/cancel_goal</service>
+            <service>~/follow_joint_trajectory/_action/get_result</service>
+            <service>~/follow_joint_trajectory/_action/send_goal</service>
+            <service>~/get_logger_levels</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/query_state</service>
+            <service>~/set_logger_levels</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+            <topic>~/joint_trajectory</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>~/controller_state</topic>
+            <topic>~/follow_joint_trajectory/_action/feedback</topic>
+            <topic>~/follow_joint_trajectory/_action/status</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="velocity_smoother" ns="/">
+          <services reply="ALLOW">
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>cmd_vel_nav</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>bond</topic>
+            <topic>cmd_vel_smoothed</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+        <profile node="waypoint_follower" ns="/">
+          <services reply="ALLOW">
+            <service>/follow_gps_waypoints/_action/cancel_goal</service>
+            <service>/follow_gps_waypoints/_action/get_result</service>
+            <service>/follow_gps_waypoints/_action/send_goal</service>
+            <service>/follow_waypoints/_action/cancel_goal</service>
+            <service>/follow_waypoints/_action/get_result</service>
+            <service>/follow_waypoints/_action/send_goal</service>
+            <service>~/change_state</service>
+            <service>~/describe_parameters</service>
+            <service>~/get_available_states</service>
+            <service>~/get_available_transitions</service>
+            <service>~/get_parameter_types</service>
+            <service>~/get_parameters</service>
+            <service>~/get_state</service>
+            <service>~/get_transition_graph</service>
+            <service>~/get_type_description</service>
+            <service>~/list_parameters</service>
+            <service>~/set_parameters</service>
+            <service>~/set_parameters_atomically</service>
+          </services>
+          <services request="ALLOW">
+            <service>/navigate_to_pose/_action/cancel_goal</service>
+            <service>/navigate_to_pose/_action/get_result</service>
+            <service>/navigate_to_pose/_action/send_goal</service>
+            <service>fromLL</service>
+          </services>
+          <topics subscribe="ALLOW">
+            <topic>/navigate_to_pose/_action/feedback</topic>
+            <topic>/navigate_to_pose/_action/status</topic>
+            <topic>bond</topic>
+            <topic>clock</topic>
+            <topic>parameter_events</topic>
+          </topics>
+          <topics publish="ALLOW">
+            <topic>/follow_gps_waypoints/_action/feedback</topic>
+            <topic>/follow_gps_waypoints/_action/status</topic>
+            <topic>/follow_waypoints/_action/feedback</topic>
+            <topic>/follow_waypoints/_action/status</topic>
+            <topic>bond</topic>
+            <topic>parameter_events</topic>
+            <topic>rosout</topic>
+            <topic>~/transition_event</topic>
+          </topics>
+        </profile>
+      </profiles>
+    </enclave>
+  </enclaves>
+</policy>

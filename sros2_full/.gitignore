@@ -1,0 +1,2 @@
+# SROS2 keystore holds private keys — regenerate from policy_*.xml
+keystore/

@@ -2159,6 +2159,9 @@ if __name__ == '__main__':
         Fresh per trial, so its stop-latch starts cleared each run. Consumes the
         guard's /cmd_vel_proposed and PETSE's /petse/stop_latch, writes /cmd_vel.
         """
+        # Under SROS2 the mux runs in its own enclave (the only one allowed to
+        # publish the actuator topic); all other nodes stay in enclave '/'.
+        _mux_enclave = " --enclave /petse/mux" if os.environ.get('PETSE_SROS2') else ""
         mux_cmd = (
             f"source /opt/ros/jazzy/setup.bash && "
             f"source {WORKSPACE_DIR}/install/setup.bash && "
@@ -2170,6 +2173,7 @@ if __name__ == '__main__':
             f"-p stop_latch_topic:=/petse/stop_latch "
             f"-p reset_topic:=/petse/trusted_reset "
             f"-p heartbeat_hz:=20.0"
+            f"{_mux_enclave}"
         )
         self._mux_log = open('/tmp/trusted_mux.log', 'w')
         self._mux_proc = subprocess.Popen(
@@ -6566,7 +6570,30 @@ class GazeboExperimentRunner:
 # Main
 # =============================================================================
 
+def _apply_sros2_env():
+    """When PETSE_SROS2 is set, export the DDS-security environment so EVERY node
+    launched by this runner (Nav2 via launch files, Gazebo bridge, guard, mux)
+    inherits it. Nodes default to enclave '/' (denied /cmd_vel publish); only the
+    trusted_cmd_mux is launched with --enclave /petse/mux (granted /cmd_vel). This
+    enforces actuator-topic exclusivity across the whole graph. PETSE_SROS2 value
+    selects the strategy: 'enforce' blocks violations, anything else → Permissive
+    (logs but allows — use first to find policy gaps)."""
+    mode = os.environ.get('PETSE_SROS2', '')
+    if not mode:
+        return
+    keystore = os.environ.get(
+        'PETSE_SROS2_KEYSTORE',
+        str(WORKSPACE_DIR / '.claude/worktrees/fix-poscheck-infra/sros2_full/keystore'))
+    strategy = 'Enforce' if mode.lower() == 'enforce' else 'Permissive'
+    os.environ['ROS_SECURITY_KEYSTORE'] = keystore
+    os.environ['ROS_SECURITY_ENABLE'] = 'true'
+    os.environ['ROS_SECURITY_STRATEGY'] = strategy
+    print(f"[SROS2] security ON (strategy={strategy}, keystore={keystore}); "
+          f"nodes default to enclave '/', mux → /petse/mux")
+
+
 def main():
+    _apply_sros2_env()
     parser = argparse.ArgumentParser(description='Gazebo S1-S5 Experiment Runner')
     parser.add_argument('--resume', action='store_true', help='Resume from checkpoint')
     parser.add_argument('--method', type=str, help='Run specific method only')

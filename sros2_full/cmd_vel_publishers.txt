@@ -1,0 +1,8 @@
+      1 Node name: docking_server
+      1 Node name: goal_gate
+      2 Node name: _NODE_NAME_UNKNOWN_
+      2 Node name: path_watchdog
+      1 Node name: ros_gz_bridge
+      6 Node namespace: /
+      2 Node namespace: _NODE_NAMESPACE_UNKNOWN_
+      1 Node name: trusted_cmd_mux
