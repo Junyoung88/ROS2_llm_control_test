@@ -1,0 +1,40 @@
+Whole-graph SROS2 — Enforce run (S5 wh_hijack, PETSE_SROS2=enforce)
+====================================================================
+
+Setup: 40-node Nav2+Gazebo graph under DDS security. All nodes default to
+enclave "/" (policy_root.xml: /cmd_vel publish stripped from docking_server +
+path_watchdog); trusted_cmd_mux launched with --enclave /petse/mux (policy_mux.xml:
+/cmd_vel publish granted). Governance + permissions from `ros2 security`.
+
+RESULT: Nav2 does NOT reach "ready" under Enforce.
+  - 14 Nav2 nodes DID find/authenticate to their security enclave (handshake OK).
+  - guard + trusted_cmd_mux came up with 0 SECURITY errors (their policies are complete).
+  - BUT lifecycle_manager could not activate the managed nodes:
+        lifecycle_manager_localization: "Waiting for service map_server/get_state..."
+        lifecycle_manager_navigation:   "Waiting for service controller_server/get_state..."
+    accompanied by DDS secure-transport errors:
+        [RTPS_WRITER Error] Cannot add RTPS submesage to the CDRMessage. Buffer too small
+  - controller_server never activates -> Nav2 never becomes ready -> the trial cannot
+    navigate. NOTE: because the robot never moved under Enforce, there was NO spoof /
+    latch / defense in THIS run (any latch lines in raw logs are stale from the earlier
+    Permissive/e2e runs, not from Enforce).
+
+DIAGNOSIS: a one-shot `ros2 security generate_policy` snapshot does not capture the
+full cross-node lifecycle/service/action mesh Nav2 needs (change_state, get_state,
+action feedback, TF at activation), and the default governance's fragment handling
+trips on Nav2's larger secure messages. Bringing the WHOLE Nav2 stack up under
+Enforce requires an iterative policy-hardening loop (repeat Permissive -> collect
+every denial -> extend policy) plus governance tuning — a substantial known effort.
+
+WHAT IS PROVEN:
+  - Exclusivity MECHANISM: sros2_demo/ (commit 2d5c05b) — an attacker enclave's
+    /cmd_vel datawriter is rejected at the DDS layer ("rt/cmd_vel topic not found
+    in allow rule"); only the mux enclave may publish /cmd_vel.
+  - Whole-graph under Permissive: the full graph runs, and the safety chain
+    (guard fail-stop -> /petse/stop_latch -> mux latch) works under security with
+    0 spurious errors on legitimate nodes.
+  - guard + mux enforce cleanly under Enforce (their policies are complete).
+
+OPEN: full Nav2 under Enforce (iterative policy hardening + governance), and the
+architectural tension that path_watchdog/goal_gate also publish /cmd_vel for
+emergency stops — under true exclusivity those must route through the mux too.
