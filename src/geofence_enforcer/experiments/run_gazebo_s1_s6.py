@@ -2186,6 +2186,19 @@ if __name__ == '__main__':
         else:
             print("[WARN] trusted_cmd_mux may have failed to start")
 
+        # Nav2's docking_server (opennav_docking) is spawned by the system
+        # navigation_launch.py with cmd_vel unremapped, so it registers as a
+        # /cmd_vel publisher — the last non-mux writer of the actuator topic. It is
+        # never exercised in S1–S6 (no docking action), so in mux mode we shut it
+        # down to make the mux the true sole /cmd_vel writer. (A functional remap of
+        # its output to /cmd_vel_proposed would require vendoring the Nav2 launch;
+        # unwarranted for a node that never runs here.) lifecycle_manager does not
+        # respawn processes, so this is permanent for the trial.
+        safe_pkill('opennav_docking')
+        safe_pkill('docking_server')
+        print("[SIM] docking_server disabled in mux mode (unused; removes its "
+              "dormant /cmd_vel publisher)")
+
     def _stop_trusted_mux(self):
         """Stop the trusted mux process."""
         if hasattr(self, '_mux_proc') and self._mux_proc and self._mux_proc.poll() is None:
