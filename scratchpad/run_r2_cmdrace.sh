@@ -9,7 +9,7 @@ source /opt/ros/jazzy/setup.bash; source install/setup.bash
 export PETSE_DETECTION_MODE=cusum PETSE_USE_MUX=1
 OUT=experiment_results/gazebo_s1_s6/cmdrace; mkdir -p "$OUT"
 RACE=/home/jim/ros2_motion_planning_tutorials/.claude/worktrees/fix-poscheck-infra/scratchpad/cmdrace_gz.py
-SEEDS=2; BASE=40
+SEEDS=5; BASE=50
 
 for i in $(seq 0 $((SEEDS-1))); do
   S=$((BASE+i))

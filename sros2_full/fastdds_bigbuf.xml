@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Larger DDS buffers/fragments for the whole-graph SROS2 Enforce attempt.
+     Under DDS-Security the signed/encrypted submessages are bigger than the
+     plaintext ones and overrun the default transport buffer, which surfaced as
+     "[RTPS_WRITER Error] Cannot add RTPS submesage to the CDRMessage. Buffer too
+     small" and stalled Nav2 lifecycle activation. This profile enlarges the UDP
+     transport buffers and lowers the fragment size so large secure messages are
+     fragmented rather than dropped. Apply via
+       export FASTRTPS_DEFAULT_PROFILES_FILE=.../fastdds_bigbuf.xml -->
+<dds xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <profiles>
+    <transport_descriptors>
+      <transport_descriptor>
+        <transport_id>bigbuf_udp</transport_id>
+        <type>UDPv4</type>
+        <sendBufferSize>2097152</sendBufferSize>
+        <receiveBufferSize>2097152</receiveBufferSize>
+        <maxMessageSize>65500</maxMessageSize>
+        <maxInitialPeersRange>10</maxInitialPeersRange>
+      </transport_descriptor>
+    </transport_descriptors>
+    <participant profile_name="bigbuf_participant" is_default_profile="true">
+      <rtps>
+        <userTransports>
+          <transport_id>bigbuf_udp</transport_id>
+        </userTransports>
+        <useBuiltinTransports>false</useBuiltinTransports>
+        <sendSocketBufferSize>2097152</sendSocketBufferSize>
+        <listenSocketBufferSize>2097152</listenSocketBufferSize>
+      </rtps>
+    </participant>
+  </profiles>
+</dds>
