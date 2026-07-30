@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Corrected profile for the whole-graph SROS2 Enforce attempt.
+     The earlier fastdds_bigbuf.xml enlarged the UDP socket buffers AND set
+     maxMessageSize=65500 (the datagram max). That is the WRONG direction: under
+     DDS-Security the crypto transform appends a MAC/header to every submessage, so
+     a ~64 KB fragment overflows the fixed CDRMessage assembly buffer ->
+     "[RTPS_WRITER] Cannot add RTPS submessage to the CDRMessage. Buffer too small".
+     Fix: (1) shrink maxMessageSize so each RTPS fragment is small and leaves headroom
+     for the security transform; (2) force ASYNCHRONOUS publish mode + a flow
+     controller so large secure samples (map_server occupancy grid, TF, lifecycle
+     replies) are paced and fragmented rather than assembled into one oversized
+     submessage. Apply via FASTRTPS_DEFAULT_PROFILES_FILE=.../fastdds_secfrag.xml -->
+<dds xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <profiles>
+    <transport_descriptors>
+      <transport_descriptor>
+        <transport_id>secfrag_udp</transport_id>
+        <type>UDPv4</type>
+        <!-- small enough that a fragment + security MAC fits the CDR buffer -->
+        <maxMessageSize>16000</maxMessageSize>
+        <sendBufferSize>4194304</sendBufferSize>
+        <receiveBufferSize>4194304</receiveBufferSize>
+      </transport_descriptor>
+    </transport_descriptors>
+
+    <participant profile_name="secfrag_participant" is_default_profile="true">
+      <rtps>
+        <userTransports>
+          <transport_id>secfrag_udp</transport_id>
+        </userTransports>
+        <useBuiltinTransports>false</useBuiltinTransports>
+      </rtps>
+    </participant>
+
+    <!-- flow controller to pace fragmented secure traffic -->
+    <flow_controller_descriptor_list>
+      <flow_controller_descriptor>
+        <name>secfrag_fc</name>
+        <scheduler>FIFO</scheduler>
+        <max_bytes_per_period>1048576</max_bytes_per_period>
+        <period_ms>10</period_ms>
+      </flow_controller_descriptor>
+    </flow_controller_descriptor_list>
+
+    <!-- default writer: asynchronous so big secure samples fragment cleanly -->
+    <data_writer profile_name="default_async_writer" is_default_profile="true">
+      <qos>
+        <publishMode>
+          <kind>ASYNCHRONOUS</kind>
+          <flow_controller_name>secfrag_fc</flow_controller_name>
+        </publishMode>
+      </qos>
+    </data_writer>
+  </profiles>
+</dds>
