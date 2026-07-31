@@ -54,18 +54,40 @@ XML
 openssl smime -sign -text -nodetach -in "$E/governance.xml" -out "$E/governance.p7s" \
   -signer "$CA_CERT" -inkey "$CA_KEY" -outform SMIME
 
-# 2) wildcard permissions (services broad; action progress; NOT rt/cmd_vel)
+# 2) permissions: a deny_rule (publish rt/cmd_vel) FIRST preserves sole-writer
+#    exclusivity, then broad wildcards (rq/* rr/* rt/*) let dynamically-named helper
+#    nodes use every service + non-actuator topic. Order matters: DDS-Security evaluates
+#    rules top-down, so denying rt/cmd_vel before allowing rt/* means the enclave-'/'
+#    graph may publish anything EXCEPT the actuator topic; only the /petse/mux enclave
+#    (separate permissions) writes rt/cmd_vel.
 python3 - "$E/permissions.xml" <<'PY'
 import re,sys
 p=sys.argv[1]; s=open(p).read()
-wc=['rq/*','rr/*','rt/*/_action/feedback','rt/*/_action/status']
+deny='''      <deny_rule>
+        <domains>
+          <id>0</id>
+        </domains>
+        <publish>
+          <topics>
+            <topic>rt/cmd_vel</topic>
+          </topics>
+        </publish>
+      </deny_rule>
+'''
+if '<deny_rule>' not in s:
+    s=s.replace('</validity>\n', '</validity>\n'+deny, 1)   # first rule in grant "/"
+    print('deny_rule(rt/cmd_vel) inserted')
+wc=['rq/*','rr/*','rt/*']
 lines=''.join(f'            <topic>{t}</topic>\n' for t in wc)
 if '<topic>rq/*</topic>' not in s:
     s=re.sub(r'(<topics>\s*\n)', r'\1'+lines, s)
-    open(p,'w').write(s)
-    print('wildcards inserted')
-else:
-    print('wildcards already present')
+    print('service+topic wildcards inserted')
+# guard: never let rt/* leak into the deny_rule block
+m=re.search(r'<deny_rule>.*?</deny_rule>', s, re.S)
+if m and '<topic>rt/*</topic>' in m.group(0):
+    s=s.replace(m.group(0), m.group(0).replace('            <topic>rt/*</topic>\n','').replace('            <topic>rq/*</topic>\n','').replace('            <topic>rr/*</topic>\n',''))
+    print('cleaned wildcards out of deny_rule')
+open(p,'w').write(s)
 PY
 openssl smime -sign -text -nodetach -in "$E/permissions.xml" -out "$E/permissions.p7s" \
   -signer "$CA_CERT" -inkey "$CA_KEY" -outform SMIME
