@@ -1,0 +1,19 @@
+Whole-graph SROS2 Enforce — FULL S5 defense trial (v12), completed end-to-end.
+
+SETUP: access-control-only governance (data-path protection NONE, discovery ENCRYPT) +
+wildcard rcl-service perms + deny_rule(rt/cmd_vel publish) ahead of rt/* allow +
+docking_server dropped from the nav2 navigation lifecycle (PETSE_SROS2-conditional).
+
+RESULT (Gazebo ground truth + guard log):
+  - Whole graph up under Enforce: Gazebo, spawn, LiDAR, all Nav2 lifecycle nodes active,
+    controllers, mux. 0 "buffer too small", 0 access-control denials.
+  - Robot NAVIGATES: origin (x=-0.0, min_dist 1.8m) -> x=1.98m (S5 map-consistent LiDAR
+    spoof luring toward the zone).
+  - PETSE DEFENDS: cross-channel CUSUM fires "LOCALIZATION SPOOF DETECTED d_abs=0.352m",
+    stop-latch TRIPs (/petse/stop_latch=true) -> mux latches -> base halted.
+  - HALTED 0.80 m short of the forbidden zone. violated=False (NO incursion).
+  - /cmd_vel stayed EXCLUSIVE to the /petse/mux enclave (deny_rule); 0 non-mux writers.
+
+=> Complete-mediation exclusivity + PETSE spoof defense demonstrated end-to-end under
+   whole-graph SROS2 Enforce. (v11 origin-stuck was a flaky EKF-lag run; v12 with live
+   /cmd_vel introspection confirmed the robot moves and PETSE stops it.)
