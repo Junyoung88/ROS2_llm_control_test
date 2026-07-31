@@ -1,0 +1,23 @@
+53,57c53,68
+<     nav2_navigation_launch_path = os.path.join(
+<         get_package_share_directory('nav2_bringup'),
+<         'launch',
+<         'navigation_launch.py'
+<     )
+---
+>     # Under SROS2 Enforce (PETSE_SROS2 set), the /cmd_vel deny_rule that keeps the mux
+>     # the sole actuator writer also denies nav2's stock docking_server, which then crashes
+>     # at activation and aborts the managed bring-up (bt_navigator never activates). Use a
+>     # local launch copy with docking_server dropped from the lifecycle so the graph comes
+>     # up cleanly. Non-SROS2 runs use the stock nav2_bringup launch unchanged.
+>     if os.environ.get('PETSE_SROS2'):
+>         nav2_navigation_launch_path = os.path.join(
+>             os.path.dirname(os.path.realpath(__file__)),
+>             'navigation_nodock_launch.py'
+>         )
+>     else:
+>         nav2_navigation_launch_path = os.path.join(
+>             get_package_share_directory('nav2_bringup'),
+>             'launch',
+>             'navigation_launch.py'
+>         )
