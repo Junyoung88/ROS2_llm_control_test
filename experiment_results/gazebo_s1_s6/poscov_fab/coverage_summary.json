@@ -1,0 +1,12 @@
+{
+  "session": "fab_cell",
+  "n_all": 131,
+  "n_moving": 121,
+  "coverage": {
+    "90": 100,
+    "95": 100,
+    "99": 100
+  },
+  "mean_q": 0.25,
+  "kappa": 0.13
+}
