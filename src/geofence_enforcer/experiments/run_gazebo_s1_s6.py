@@ -4874,6 +4874,28 @@ def generate_trials(methods: List[str] = None,
              "coordinated_attack": True, "coord_epsilon": 1.1,
              "expected_safe": False, "required_world": "warehouse.sdf",
              "desc": "Coordinated LiDAR+odom spoof, ε=1.1m (just above τ_c)"},
+            # ADAPTIVE coordination (reviewer W4-Q4): a CUSUM-aware attacker keeps ε=0 (perfect
+            # dual-channel coordination) AND ramps the injected offset ever more slowly, to keep
+            # the accumulated cross-channel evidence under the detector before reaching the zone.
+            # These probe whether slowing the ramp lets a coordinated spoof out-run the accumulator.
+            {"intensity": "adcoord_slow", "goal": (4.5, 0.0), "attack_type": "scan_spoofing",
+             "scan_attack_mode": "map_consistent", "scan_bias_rate": 0.06, "scan_bias_max": 4.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 4.0,
+             "coordinated_attack": True, "coord_epsilon": 0.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Adaptive coord: ε=0, slow ramp 0.06 m/s (CUSUM-evasion attempt)"},
+            {"intensity": "adcoord_vslow", "goal": (4.5, 0.0), "attack_type": "scan_spoofing",
+             "scan_attack_mode": "map_consistent", "scan_bias_rate": 0.03, "scan_bias_max": 4.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 4.0,
+             "coordinated_attack": True, "coord_epsilon": 0.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Adaptive coord: ε=0, very slow ramp 0.03 m/s"},
+            {"intensity": "adcoord_xslow", "goal": (4.5, 0.0), "attack_type": "scan_spoofing",
+             "scan_attack_mode": "map_consistent", "scan_bias_rate": 0.015, "scan_bias_max": 4.5,
+             "scan_world_bias_angle_deg": 90.0, "scan_spoof_delay_s": 4.0,
+             "coordinated_attack": True, "coord_epsilon": 0.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Adaptive coord: ε=0, extra slow ramp 0.015 m/s"},
             # Generalization sweep (reviewer ④): forbidden-zone geometry variations, S2 path-
             # through. g1-g3: goal path crosses the zone (unsafe → PETSE stops, no_guard violates).
             # g4: narrow safe corridor (safe → PETSE should reach goal without nuisance-tripping).
