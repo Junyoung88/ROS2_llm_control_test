@@ -4945,10 +4945,10 @@ def generate_trials(methods: List[str] = None,
             # people move through the scan?
             {"intensity": "dyn_spoof", "goal": (4.5, 0.0),
              "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
-             "scan_bias_rate": 0.20, "scan_bias_max": 4.5, "scan_world_bias_angle_deg": 90.0,
-             "scan_spoof_delay_s": 4.0,
+             "scan_bias_rate": 0.12, "scan_bias_max": 3.5, "scan_world_bias_angle_deg": 90.0,
+             "scan_spoof_delay_s": 5.0,
              "expected_safe": False, "required_world": "warehouse_dynamic.sdf",
-             "desc": "Dynamic env + S5 LiDAR-spoof hijack (people moving during attack)"},
+             "desc": "Dynamic env + S5 LiDAR-spoof hijack (wh_hijack params; people moving during attack)"},
             # Narrow-corridor nuisance-trip / runtime-clearance sweep
             {"intensity": "geom_nc_wide", "goal": (6.0, 0.0), "zone_geometry": "nc_wide",
              "expected_safe": True, "required_world": "warehouse.sdf",
