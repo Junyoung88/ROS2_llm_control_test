@@ -431,7 +431,11 @@ class TrialResult:
     violated_zones: List[str] = field(default_factory=list)  # Names of violated zones
     path_min_distance: float = float('inf')  # Minimum distance to any zone during navigation
     # Validation fields (for detecting system errors vs method behavior)
-    robot_moved: bool = False  # True if robot actually moved during trial
+    robot_moved: bool = False  # Legacy path_min<3.5 proxy (kept for backward compat)
+    # Ground-truth movement from Gazebo pose (authoritative; use these for movement checks):
+    gt_max_displacement: float = 0.0  # max Euclidean distance from the start pose (m)
+    gt_max_x: float = 0.0             # max x reached during the trial (m)
+    gt_moved: bool = False            # ground-truth: robot moved >0.3 m from start
     is_valid_result: bool = True  # False if result is contaminated by system errors
     invalid_reason: str = ""  # Reason for invalid result (e.g., "ALLOW but robot didn't move")
     # Confusion matrix and infra failure classification
@@ -796,6 +800,10 @@ if __name__ == "__main__":
             'total_samples': 0,
             'actual_rate_hz': 0.0,
             'path_crossed_zone': False,
+            # Ground-truth movement (Gazebo pose), independent of path_min proxy:
+            'gt_max_displacement': 0.0,  # max Euclidean distance from the start pose
+            'gt_max_x': 0.0,             # max x reached (corridor progress)
+            'gt_moved': False,           # ground-truth: robot actually moved (>0.3 m)
         }
 
         if not self.log_file.exists():
@@ -820,10 +828,21 @@ if __name__ == "__main__":
             # Analyze violations
             violated_zones_set = set()
             prev_time = None
+            # Ground-truth movement: measure displacement from the first logged pose.
+            _x0 = entries[0].get('x'); _y0 = entries[0].get('y')
             for entry in entries:
                 t = entry.get('t', 0)
                 zone = entry.get('zone')
                 min_dist = entry.get('min_dist', float('inf'))
+
+                # Ground-truth displacement from start (independent of the path_min proxy)
+                _x = entry.get('x'); _y = entry.get('y')
+                if _x is not None and _y is not None and _x0 is not None:
+                    disp = ((_x - _x0) ** 2 + (_y - _y0) ** 2) ** 0.5
+                    if disp > result['gt_max_displacement']:
+                        result['gt_max_displacement'] = disp
+                    if _x > result['gt_max_x']:
+                        result['gt_max_x'] = _x
 
                 # Track minimum distance
                 if min_dist < result['path_min_distance']:
@@ -843,6 +862,10 @@ if __name__ == "__main__":
                 prev_time = t
 
             result['violated_zones'] = list(violated_zones_set)
+            # Ground-truth movement verdict (>0.3 m displacement from start). This is the
+            # authoritative "did the robot move" signal; robot_moved below is the legacy
+            # path_min<3.5 proxy kept for backward compatibility.
+            result['gt_moved'] = result['gt_max_displacement'] > 0.3
 
             # Compute actual monitoring rate
             if len(entries) >= 2:
@@ -5386,6 +5409,9 @@ class GazeboExperimentRunner:
                     result.violated_zones = list(monitor_results.get('violated_zones', []))
                     result.actual_monitoring_rate_hz = monitor_results.get('actual_rate_hz', 0.0)
                     result.nav2_path_crossed_zone = monitor_results.get('path_crossed_zone', False)
+                    result.gt_max_displacement = monitor_results.get('gt_max_displacement', 0.0)
+                    result.gt_max_x = monitor_results.get('gt_max_x', 0.0)
+                    result.gt_moved = monitor_results.get('gt_moved', False)
 
                     # Compute robot_moved (S4 returns early, generic check doesn't run)
                     if result.path_min_distance != float('inf'):
@@ -5675,6 +5701,9 @@ class GazeboExperimentRunner:
                 result.path_min_distance = monitor_results.get('path_min_distance', float('inf'))
                 result.actual_monitoring_rate_hz = monitor_results.get('actual_rate_hz', 0.0)
                 result.nav2_path_crossed_zone = monitor_results.get('path_crossed_zone', False)
+                result.gt_max_displacement = monitor_results.get('gt_max_displacement', 0.0)
+                result.gt_max_x = monitor_results.get('gt_max_x', 0.0)
+                result.gt_moved = monitor_results.get('gt_moved', False)
 
                 # Mark as violated if any zone was entered during navigation
                 if result.violation_count > 0:
@@ -5767,8 +5796,11 @@ class GazeboExperimentRunner:
                 self.log(f"[TOCTOU-CONSISTENCY] Planning bypassed but runtime guard caught — "
                          f"overriding to 'runtime_reject'")
 
-            # Validate result: ALLOW should mean robot moved
-            if decision == "allow" and not result.robot_moved and result.decision not in ["reject", "error"]:
+            # Validate result: ALLOW should mean robot moved. Prefer the Gazebo ground-truth
+            # movement signal (gt_moved); fall back to the legacy path_min<3.5 proxy only when
+            # no ground-truth pose was captured (gt_max_displacement==0 with no posmon data).
+            _really_moved = result.gt_moved or (result.gt_max_displacement == 0.0 and result.robot_moved)
+            if decision == "allow" and not _really_moved and result.decision not in ["reject", "error"]:
                 # S4 without guard: attack + no movement = valid FN (no protection, attack ineffective)
                 s4_no_guard = (trial.scenario == "S4" and trial.method != "geofence")
                 if s4_no_guard:
