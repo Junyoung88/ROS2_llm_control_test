@@ -1,0 +1,5 @@
+DYNAMIC-ENVIRONMENT EXPERIMENT - NOT USABLE, NOT IN PAPER (honest record).
+world loads OK after removing walk.dae skin. But PETSE benign 5/5 robot did NOT move
+(moved=False, pmin all 1.803=origin->zone); Nav2 ABORTED (actors block the narrow corridor);
+dyn_spoof goal (4.5,0) collides with wh_zone_2 margin -> rejected at admission. 0/5 is a
+NON-RESULT, not a defense success. Scenario-setup issue, not defense logic. NOT in the paper.
