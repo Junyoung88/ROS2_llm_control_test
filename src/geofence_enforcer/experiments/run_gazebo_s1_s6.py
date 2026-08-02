@@ -192,16 +192,26 @@ WAREHOUSE_GEOMETRIES = {
     'fab_cell': {'goal': (6.0, 0.0),
                  'rects': [(1.0, 7.0, -4.0, -1.3), (1.0, 7.0, 1.3, 4.0), (7.0, 8.6, -2.5, 2.5)],
                  'desc': 'fab-cell keep-out: two process-tool bays + an open east confidential bay'},
+    # CLUTTERED multi-zone: three staggered keep-out zones along the +X corridor, so the
+    # straight path threads past several at once (reviewer: 'cluttered multi-zone remains
+    # future work'). Tests whether PETSE's per-cycle check handles many concurrent zones and
+    # still stops before the FIRST it would enter, rather than being confused by the clutter.
+    'clutter3': {'goal': (6.5, 0.0),
+                 'rects': [(1.5, 2.3, -1.3, 0.2), (3.0, 3.8, -0.2, 1.3), (4.6, 5.4, -1.3, 0.2)],
+                 'desc': 'three staggered zones astride the +X path (cluttered multi-zone)'},
 }
 
 # Mapped worlds run under AMCL against a real occupancy grid, with the cross-channel
 # (AMCL-vs-odom) spoof detector enabled and the geofence enforcing on the AMCL map pose.
 # Empty worlds keep AMCL off / odom enforcement. warehouse.sdf and the fab-cell testbed both
 # qualify; each carries its own pre-built occupancy grid.
-MAPPED_WORLDS = ("warehouse.sdf", "fab_cell.sdf")
+MAPPED_WORLDS = ("warehouse.sdf", "fab_cell.sdf", "warehouse_dynamic.sdf")
 _WORLD_MAP_YAML = {
     "warehouse.sdf": "warehouse_map_sdf.yaml",
     "fab_cell.sdf":  "fab_cell_map.yaml",
+    # warehouse_dynamic = warehouse + two walking actors (identical static structure, so it
+    # reuses the warehouse occupancy grid); used to test nuisance-aborts under moving people.
+    "warehouse_dynamic.sdf": "warehouse_map_sdf.yaml",
 }
 
 def _rects_to_zones_dict(rects):
@@ -4911,6 +4921,34 @@ def generate_trials(methods: List[str] = None,
             {"intensity": "geom_g4", "goal": (6.0, 0.0), "zone_geometry": "g4_multi",
              "expected_safe": False, "required_world": "warehouse.sdf",
              "desc": "Generalization g4: two disjoint zones (multi-zone)"},
+            # CLUTTER (reviewer 'cluttered multi-zone'): three staggered zones the path threads.
+            # (a) path-through: no_guard drives through the clutter, PETSE stops before the first.
+            {"intensity": "clutter_path", "goal": (6.5, 0.0), "zone_geometry": "clutter3",
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Cluttered multi-zone (3 staggered), path-through"},
+            # (b) clutter + S5 LiDAR spoof: does the cross-channel gate still catch a hijack
+            # amid many concurrent zones? map-consistent spoof toward the clutter.
+            {"intensity": "clutter_spoof", "goal": (6.5, 0.0), "zone_geometry": "clutter3",
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.20, "scan_bias_max": 4.5, "scan_world_bias_angle_deg": 90.0,
+             "scan_spoof_delay_s": 4.0,
+             "expected_safe": False, "required_world": "warehouse.sdf",
+             "desc": "Cluttered multi-zone + S5 LiDAR-spoof hijack"},
+            # DYNAMIC environment (reviewer: moving people). warehouse_dynamic = warehouse + two
+            # walking actors that cross the robot's +X corridor (visible in /scan as moving
+            # obstacles). (a) benign: SAFE goal, no spoof -- does a passing person nuisance-trip
+            # the cross-channel gate or spatial envelope? Expected: reach goal, no false stop.
+            {"intensity": "dyn_benign", "goal": (5.5, 0.0),
+             "expected_safe": True, "required_world": "warehouse_dynamic.sdf",
+             "desc": "Dynamic env (2 walking actors), benign safe goal -- nuisance-abort test"},
+            # (b) dynamic + S5 spoof: does the cross-channel gate still catch a hijack while
+            # people move through the scan?
+            {"intensity": "dyn_spoof", "goal": (4.5, 0.0),
+             "attack_type": "scan_spoofing", "scan_attack_mode": "map_consistent",
+             "scan_bias_rate": 0.20, "scan_bias_max": 4.5, "scan_world_bias_angle_deg": 90.0,
+             "scan_spoof_delay_s": 4.0,
+             "expected_safe": False, "required_world": "warehouse_dynamic.sdf",
+             "desc": "Dynamic env + S5 LiDAR-spoof hijack (people moving during attack)"},
             # Narrow-corridor nuisance-trip / runtime-clearance sweep
             {"intensity": "geom_nc_wide", "goal": (6.0, 0.0), "zone_geometry": "nc_wide",
              "expected_safe": True, "required_world": "warehouse.sdf",
